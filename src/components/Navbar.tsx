@@ -327,30 +327,14 @@ export default function Navbar() {
                   <span>{authUser.role === "ADMIN" ? "Quản trị" : "Quản lý cuộc thi"}</span>
                 </Link>
 
-                {/* Trạng thái Đăng nhập theo Vai trò */}
-                {authUser.role === "ADMIN" ? (
-                  <div
-                    className="inline-flex items-center space-x-1.5 bg-red-50 border border-red-300 pl-3 pr-2.5 py-1.5 rounded-full text-xs text-red-800 font-bold shadow-2xs"
-                    title={`Admin: ${authUser.name}`}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></span>
-                    <span>Admin</span>
-                    <span className="inline-flex items-center bg-red-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-2xs">
-                      Toàn quyền
-                    </span>
-                  </div>
-                ) : (
-                  <div
-                    className="inline-flex items-center space-x-1.5 bg-blue-50 border border-blue-300 pl-3 pr-2.5 py-1.5 rounded-full text-xs text-blue-800 font-bold shadow-2xs"
-                    title={`Người dùng: ${authUser.name}`}
-                  >
-                    <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
-                    <span>Người dùng</span>
-                    <span className="inline-flex items-center bg-blue-600 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold shadow-2xs">
-                      Tạo &amp; Xuất KQ
-                    </span>
-                  </div>
-                )}
+                {/* Trạng thái Đăng nhập (Chỉ ghi ngắn gọn tên người đăng nhập theo Ảnh 1) */}
+                <div
+                  className="inline-flex items-center space-x-1.5 bg-blue-50 border border-blue-200 pl-2.5 pr-3 py-1.5 rounded-full text-xs text-blue-900 font-bold shadow-2xs max-w-[180px]"
+                  title={`Đang đăng nhập: ${authUser.name} (${authUser.role === "ADMIN" ? "Quản trị viên" : "Người dùng"})`}
+                >
+                  <span className={`w-2 h-2 rounded-full shrink-0 ${authUser.role === "ADMIN" ? "bg-red-600" : "bg-blue-600"}`}></span>
+                  <span className="truncate">{authUser.name}</span>
+                </div>
 
                 {/* Nút Đăng xuất */}
                 <button

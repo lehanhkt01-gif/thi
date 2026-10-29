@@ -1121,35 +1121,6 @@ export default function AdminDashboardPage() {
             {/* PHẦN ĐẦU TRANG & 3 THẺ TỔ CHỨC CUỘC THI: CHỈ HIỂN THỊ Ở TAB TRẮC NGHIỆM */}
             {activeTab === "trac-nghiem" && (
               <>
-                {/* ROLE AWARENESS BANNER */}
-                {authUser ? (
-                  authUser.role === "ADMIN" ? (
-                    <div className="p-3.5 rounded-2xl bg-red-50 border border-red-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs text-xs text-red-900">
-                      <div className="flex items-center space-x-2">
-                        <ShieldCheck className="w-4 h-4 text-red-600 shrink-0" />
-                        <span>
-                          Đang đăng nhập: <strong>{authUser.name}</strong> • Vai trò: <strong>Quản trị viên (Admin)</strong> (Toàn quyền quản trị, phân quyền admin/người dùng, xét duyệt và quản lý toàn bộ cuộc thi)
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-red-700 bg-red-100 px-2 py-0.5 rounded-full font-bold self-start sm:self-auto shrink-0">
-                        Toàn quyền Admin
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="p-3.5 rounded-2xl bg-blue-50 border border-blue-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 shadow-2xs text-xs text-blue-900">
-                      <div className="flex items-center space-x-2">
-                        <span className="w-2 h-2 rounded-full bg-blue-600 shrink-0"></span>
-                        <span>
-                          Đang đăng nhập: <strong>{authUser.name}</strong> • Vai trò: <strong>Người dùng</strong> (Được quyền tạo cuộc thi mới, chỉ sửa/xóa các cuộc thi do chính bạn tạo, theo dõi diễn biến và xuất file kết quả Excel)
-                        </span>
-                      </div>
-                      <span className="text-[11px] text-blue-700 bg-blue-100 px-2 py-0.5 rounded-full font-bold self-start sm:self-auto shrink-0">
-                        Quyền Người dùng
-                      </span>
-                    </div>
-                  )
-                ) : null}
-
                 {/* TIÊU ĐỀ CHÍNH: TỔ CHỨC CUỘC THI TRỰC TUYẾN */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div>
@@ -1160,17 +1131,6 @@ export default function AdminDashboardPage() {
                       Quản lý, điều hành và khởi tạo cuộc thi cho cán bộ, đoàn viên và nhân dân xã Ea Súp
                     </p>
                   </div>
-
-                  {authUser && (
-                    <div className="flex items-center space-x-2">
-                      <Link
-                        href="/admin/tao-cuoc-thi"
-                        className="inline-flex items-center px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-sm transition-all"
-                      >
-                        <Plus className="w-4 h-4 mr-1" /> Tạo cuộc thi mới
-                      </Link>
-                    </div>
-                  )}
                 </div>
 
                 {/* KHỐI 3 THẺ: TẠO MỚI (Cam) + HƯỚNG DẪN (Tím) + BANNER ROBOT AI (Ảnh 2) */}
