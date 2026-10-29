@@ -129,4 +129,8 @@
    - **Tên miền hoạt động**: `https://thi.easupso.com`
    - **Cổng chuyển tiếp (Proxy Host Port)**: `8077` (Ánh xạ `8077:3000` qua Docker Compose)
    - **Dữ liệu lưu trữ bền vững (Persistent Storage)**: Luôn mount thư mục `./data:/app/data` và `./public/uploads:/app/public/uploads` để không mất dữ liệu thi cử.
+   - **Lệnh cập nhật & Rebuild chuẩn trên VPS**: Do Next.js chạy đóng gói container production (`standalone`), khi kéo code mới phải dùng cờ `--build`:
+     ```bash
+     cd /var/www/thi && git pull origin main && docker compose up -d --build web
+     ```
 
