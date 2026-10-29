@@ -43,7 +43,7 @@ export default function HeroContestCarousel({ contests }: HeroContestCarouselPro
       qCount?: number;
     }> = [];
 
-    // Add all created contests with banners
+    // Add all created contests with banners (mỗi cuộc thi sử dụng banner riêng của cuộc thi đó)
     if (contests && contests.length > 0) {
       contests.forEach((c) => {
         list.push({
@@ -53,24 +53,24 @@ export default function HeroContestCarousel({ contests }: HeroContestCarouselPro
           desc:
             c.shortDesc ||
             "Hệ thống thi trắc nghiệm trực tuyến thông minh, bảo mật cao và đánh giá kết quả tức thì.",
-          bannerUrl: c.bannerUrl || "/banners/banner-nong-dan-ea-sup.jpg",
+          bannerUrl: c.bannerUrl || "/banner-easup.png",
           slug: c.slug,
-          badgeText: c.organizerName ? `ĐƠN VỊ: ${c.organizerName.toUpperCase()}` : "CUOCTHI.EASUPSO.COM",
+          badgeText: c.organizerName ? `ĐƠN VỊ: ${c.organizerName.toUpperCase()}` : "THI.EASUPSO.COM",
           duration: c.durationMinutes || 15,
           qCount: c.questionCount || 10,
         });
       });
     }
 
-    // Always ensure at least the graduation & honor banner exists in rotation
-    list.push({
-      id: "slide-vinh-danh-chung",
-      title: "VINH DANH HỌC TẬP & TRAO THƯỞNG TRỰC TUYẾN",
-      subTitle: "NỀN TẢNG THI TRỰC TUYẾN & CẤP CHỨNG NHẬN ĐIỆN TỬ",
-      desc: "Hệ thống thi trắc nghiệm thông minh, vinh danh khen thưởng học sinh tốt nghiệp và cán bộ đoàn thể xuất sắc trên địa bàn.",
-      bannerUrl: "/images/graduation_students_banner.jpg",
+    // Luôn có banner chính thức Cuộc thi trực tuyến Xã Ea Súp (Ảnh 2)
+    list.unshift({
+      id: "slide-chinh-thuc-ea-sup",
+      title: "CUỘC THI TRỰC TUYẾN XÃ EA SÚP",
+      subTitle: "TRI THỨC - KẾT NỐI - LAN TỎA - VÌ MỘT EA SÚP PHÁT TRIỂN",
+      desc: "Cổng tổ chức và thi trắc nghiệm trực tuyến chính thức phục vụ cán bộ, hội viên và nhân dân 20 thôn, buôn xã Ea Súp.",
+      bannerUrl: "/banner-easup.png",
       slug: contests?.[0]?.slug || "cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup",
-      badgeText: "CUOCTHI.EASUPSO.COM",
+      badgeText: "THI.EASUPSO.COM",
     });
 
     return list;

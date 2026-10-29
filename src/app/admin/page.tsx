@@ -895,13 +895,15 @@ export default function AdminDashboardPage() {
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-2">
-              <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+            <Link href="/" className="flex items-center space-x-2.5">
+              <img
+                src="/logo.png"
+                alt="Logo Cuộc thi trực tuyến Xã Ea Súp"
+                className="w-9 h-9 object-contain rounded-full shadow-xs"
+              />
+              <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase">
                 THI TRỰC TUYẾN
               </span>
-              <div className="w-5 h-5 rounded-full bg-[#DC2626] flex items-center justify-center text-white text-[10px] font-bold shadow-xs">
-                ✦
-              </div>
             </Link>
             <span className="text-slate-300">|</span>
             <span className="text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center">

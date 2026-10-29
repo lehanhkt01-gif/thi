@@ -479,19 +479,17 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           {/* Decorative Lighting */}
           <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-300 via-transparent to-transparent"></div>
 
-          {contest?.bannerUrl ? (
+          {contest?.bannerUrl || true ? (
             <div className="max-w-4xl lg:max-w-5xl mx-auto relative z-10 flex justify-center">
               <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/30 bg-black/10 backdrop-blur-xs w-full max-h-[220px] sm:max-h-[300px] md:max-h-[360px] flex items-center justify-center">
                 <img
-                  src={contest.bannerUrl}
-                  alt={contest.title}
+                  src={contest?.bannerUrl || "/banner-easup.png"}
+                  alt={contest?.title || "Cuộc thi trực tuyến"}
                   className="w-full h-full max-h-[220px] sm:max-h-[300px] md:max-h-[360px] block object-cover object-center transform hover:scale-[1.005] transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
-                    if (!target.src.includes("cuocthi-phapluat")) {
-                      target.src = "/banners/cuocthi-phapluat-2026.png";
-                    } else {
-                      target.style.display = "none";
+                    if (!target.src.includes("banner-easup.png")) {
+                      target.src = "/banner-easup.png";
                     }
                   }}
                 />

@@ -56,7 +56,21 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      {/* Banner của chính cuộc thi đó */}
+      {data?.bannerUrl && (
+        <div className="w-full mb-6 rounded-2xl overflow-hidden shadow-md max-h-56 sm:max-h-72 border border-slate-200 bg-slate-900">
+          <img
+            src={data.bannerUrl}
+            alt={data.contestTitle || "Banner cuộc thi"}
+            className="w-full h-full object-cover max-h-56 sm:max-h-72"
+            onError={(e) => {
+              e.currentTarget.src = "/banner-easup.png";
+            }}
+          />
+        </div>
+      )}
+
       {/* Page Title & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-6 border-b border-slate-200 gap-4">
         <div>

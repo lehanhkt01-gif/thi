@@ -274,12 +274,19 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16 gap-3">
           {/* Brand Logo */}
           <div className="flex items-center space-x-4">
-            <Link href="/" className="flex items-center space-x-2 group">
-              <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 group-hover:text-[#DC2626] transition-colors uppercase">
-                THI TRỰC TUYẾN
-              </span>
-              <div className="w-5 h-5 rounded-full bg-[#DC2626] flex items-center justify-center text-white text-[10px] font-bold shadow-xs">
-                ✦
+            <Link href="/" className="flex items-center space-x-2.5 group">
+              <img
+                src="/logo.png"
+                alt="Logo Cuộc thi trực tuyến Xã Ea Súp"
+                className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-full shadow-xs group-hover:scale-105 transition-transform"
+              />
+              <div className="flex flex-col">
+                <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 group-hover:text-[#DC2626] transition-colors uppercase leading-none">
+                  THI TRỰC TUYẾN
+                </span>
+                <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase mt-0.5">
+                  XÃ EA SÚP
+                </span>
               </div>
             </Link>
 

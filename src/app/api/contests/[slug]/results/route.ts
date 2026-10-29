@@ -50,6 +50,7 @@ export async function GET(
     return NextResponse.json({
       success: true,
       contestTitle: contest.title,
+      bannerUrl: contest.bannerUrl,
       stats,
       units: contest.units,
       leaderboard: formattedList,
