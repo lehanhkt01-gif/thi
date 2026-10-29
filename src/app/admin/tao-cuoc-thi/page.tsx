@@ -673,14 +673,15 @@ export default function ContestWizardPage() {
   // Nạp thống kê cho Bước 5
   useEffect(() => {
     if (currentStep === 5) {
-      fetch(`/api/contests/tim-hieu-phap-luat-ea-sup-2026/results?search=${encodeURIComponent(searchTerm)}&unitName=${filterUnit}`)
+      const activeSlug = slug || "tim-hieu-phap-luat-ea-sup-2026";
+      fetch(`/api/contests/${activeSlug}/results?search=${encodeURIComponent(searchTerm)}&unitName=${filterUnit}`)
         .then((res) => res.json())
         .then((data) => {
           if (data.stats) setStatsData(data);
         })
         .catch((err) => console.error(err));
     }
-  }, [currentStep, searchTerm, filterUnit]);
+  }, [currentStep, searchTerm, filterUnit, slug]);
 
   // Xử lý tạo câu hỏi bằng AI
   const handleGenerateAi = async () => {
@@ -946,267 +947,234 @@ export default function ContestWizardPage() {
     );
   }
 
-  // Ảnh 2: Chỉ khi đã đăng ký và đăng nhập thì mới vào được giao diện khởi tạo cuộc thi
+  // Giao diện Đăng nhập / Đăng ký hệ thống (Đồng bộ chuẩn xác theo modal Trang chủ - Ảnh 5)
   if (!authUser) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden">
-          {/* Top Admin Header */}
-          <div className="bg-[#B91C1C] text-white p-6 sm:p-8 text-center relative">
-            <Link
-              href="/"
-              className="absolute left-4 top-4 text-xs text-red-100 hover:text-white flex items-center bg-red-800/40 px-3 py-1.5 rounded-full transition-colors"
-            >
-              <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Trang chủ
-            </Link>
-            <div className="w-14 h-14 rounded-2xl bg-white text-[#DC2626] flex items-center justify-center mx-auto mb-3 shadow-md">
-              <Landmark className="w-8 h-8" />
+      <div className="min-h-[75vh] flex items-center justify-center px-4 py-10">
+        <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-8 shadow-dialog border border-slate-200 relative">
+          {/* Nút thoát về Trang chủ */}
+          <Link
+            href="/"
+            className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer transition-colors"
+            title="Đóng / Về Trang chủ"
+          >
+            <X className="w-4 h-4" />
+          </Link>
+
+          {/* Header Modal */}
+          <div className="text-center mb-5">
+            <div className="w-12 h-12 rounded-2xl bg-red-100 text-[#DC2626] flex items-center justify-center mx-auto mb-3 shadow-xs">
+              <Landmark className="w-6 h-6" />
             </div>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight">
-              Phân Hệ Quản Trị: Tạo Cuộc Thi Trực Tuyến
-            </h1>
-            <p className="text-xs text-red-100 mt-1 max-w-md mx-auto">
-              Hệ thống tổ chức cuộc thi trực tuyến xã Ea Súp (cuocthi.easupso.com)
+            <h2 className="text-lg sm:text-xl font-black text-slate-900">
+              {authTab === "login" ? "Đăng Nhập Hệ Thống" : "Đăng Ký Tài Khoản Mới"}
+            </h2>
+            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+              {authTab === "login"
+                ? "Đăng nhập tài khoản hệ thống (Mặc định: Người dùng; Admin: Khi được phân quyền)"
+                : "Đăng ký tài khoản cho cơ quan, chi bộ, thôn buôn (Cần Admin xét duyệt)"}
             </p>
           </div>
 
-          {/* Security Notice Gate */}
-          <div className="p-6 sm:p-8 space-y-6">
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start space-x-3">
-              <div className="p-2 rounded-xl bg-amber-100 text-amber-800 shrink-0 mt-0.5">
-                <Lock className="w-5 h-5" />
+          {/* Box phân quyền tự động theo Ảnh 5 */}
+          {authTab === "login" && (
+            <div className="p-3 mb-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-center space-x-2">
+              <ShieldCheck className="w-4 h-4 text-slate-500 shrink-0" />
+              <span>
+                Hệ thống tự động phân quyền theo tài khoản đã được phê duyệt. Tài khoản mới tạo mặc định quyền <strong>Người dùng</strong>.
+              </span>
+            </div>
+          )}
+
+          {authError && (
+            <div className="p-3 mb-4 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700 flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+              <span>{authError}</span>
+            </div>
+          )}
+
+          {/* FORM ĐĂNG NHẬP (ẢNH 5) */}
+          {authTab === "login" ? (
+            <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Email / Tên tài khoản <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={loginEmail}
+                  onChange={(e) => setLoginEmail(e.target.value)}
+                  placeholder="admin@easupso.com hoặc lehanhkt01@gmail.com"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
+                />
               </div>
-              <div className="text-xs text-amber-900 leading-relaxed">
-                <div className="font-bold text-sm text-amber-950 mb-0.5">
-                  Yêu Cầu Đăng Ký / Đăng Nhập Ban Tổ Chức
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Mật khẩu <span className="text-red-600">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showLoginPassword ? "text" : "password"}
+                    required
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowLoginPassword(!showLoginPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+                    title={showLoginPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
+                  >
+                    {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
+                  </button>
                 </div>
-                Chỉ khi đã đăng ký và đăng nhập thì mới vào được giao diện khởi tạo cuộc thi (Quy trình 5 bước). Vui lòng đăng nhập hoặc đăng ký tài khoản đơn vị để tiếp tục.
               </div>
-            </div>
 
-            {/* Switch Tabs: Đăng nhập vs Đăng ký */}
-            <div className="flex border-b border-slate-200 text-xs sm:text-sm font-bold">
               <button
-                type="button"
-                onClick={() => {
-                  setAuthTab("login");
-                  setAuthError("");
-                }}
-                className={`flex-1 py-3 border-b-2 text-center transition-colors flex items-center justify-center space-x-2 cursor-pointer ${
-                  authTab === "login"
-                    ? "border-[#DC2626] text-[#DC2626]"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
+                type="submit"
+                className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#DC2626] hover:bg-red-700 active:scale-[0.99] transition-all text-sm cursor-pointer shadow-sm"
               >
-                <LogIn className="w-4 h-4" />
-                <span>Đăng nhập Ban Tổ Chức</span>
+                Đăng nhập ngay
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setAuthTab("register");
-                  setAuthError("");
-                }}
-                className={`flex-1 py-3 border-b-2 text-center transition-colors flex items-center justify-center space-x-2 cursor-pointer ${
-                  authTab === "register"
-                    ? "border-[#DC2626] text-[#DC2626]"
-                    : "border-transparent text-slate-500 hover:text-slate-800"
-                }`}
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Đăng ký tài khoản mới</span>
-              </button>
-            </div>
 
-            {authError && (
-              <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs font-semibold text-red-700 flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-                <span>{authError}</span>
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthTab("register");
+                    setAuthError("");
+                  }}
+                  className="text-xs text-slate-600 hover:text-red-700 transition-colors cursor-pointer"
+                >
+                  Chưa có tài khoản đơn vị? <strong className="text-[#DC2626] underline">Đăng ký ngay</strong>
+                </button>
               </div>
-            )}
+            </form>
+          ) : (
+            /* FORM ĐĂNG KÝ */
+            <form onSubmit={handleAdminRegister} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tên cơ quan / Thôn buôn / Đơn vị <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={regOrgName}
+                  onChange={(e) => setRegOrgName(e.target.value)}
+                  placeholder="Ví dụ: Hội Nông dân Xã Ea Súp hoặc Thôn 3"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
+                />
+              </div>
 
-            {/* TAB 1: FORM ĐĂNG NHẬP */}
-            {authTab === "login" && (
-              <form onSubmit={handleAdminLogin} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Email / Tên đăng nhập Ban Tổ chức <span className="text-red-600">*</span>
+                    Email liên hệ <span className="text-red-600">*</span>
                   </label>
                   <input
                     type="email"
                     required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="Easupsohoa@gmail.com"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm outline-none focus:border-red-600"
+                    value={regEmail}
+                    onChange={(e) => setRegEmail(e.target.value)}
+                    placeholder="donvi@easupso.com"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
                   />
                 </div>
-
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Mật khẩu <span className="text-red-600">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showLoginPassword ? "text" : "password"}
-                      required
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm outline-none focus:border-red-600"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowLoginPassword(!showLoginPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-                      title={showLoginPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    >
-                      {showLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-full text-sm font-bold bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-md mt-2 flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Đăng nhập &amp; Vào khởi tạo cuộc thi</span>
-                </button>
-              </form>
-            )}
-
-            {/* TAB 2: FORM ĐĂNG KÝ */}
-            {authTab === "register" && (
-              <form onSubmit={handleAdminRegister} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Tên cơ quan, tổ chức hoặc đơn vị <span className="text-red-600">*</span>
+                    Số điện thoại <span className="text-red-600">*</span>
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
-                    value={regOrgName}
-                    onChange={(e) => setRegOrgName(e.target.value)}
-                    placeholder="Ví dụ: Thường trực UB MTTQ Việt Nam xã Ea Súp, Chi đoàn, Thôn 1..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm outline-none focus:border-red-600"
+                    value={regPhone}
+                    onChange={(e) => setRegPhone(e.target.value)}
+                    placeholder="0888023023"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
                   />
                 </div>
+              </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Số điện thoại <span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      required
-                      value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      placeholder="0888023023"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm outline-none focus:border-red-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
-                      Email liên hệ <span className="text-red-600">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      required
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="Easupsohoa@gmail.com"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm outline-none focus:border-red-600"
-                    />
-                  </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Mật khẩu <span className="text-red-600">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showRegPassword ? "text" : "password"}
+                    required
+                    value={regPassword}
+                    onChange={(e) => setRegPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegPassword(!showRegPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+                  >
+                    {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Mật khẩu quản trị <span className="text-red-600">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showRegPassword ? "text" : "password"}
-                      required
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm outline-none focus:border-red-600"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegPassword(!showRegPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-                      title={showRegPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    >
-                      {showRegPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Nhập lại mật khẩu <span className="text-red-600">*</span>
+                </label>
+                <div className="relative">
+                  <input
+                    type={showRegConfirmPassword ? "text" : "password"}
+                    required
+                    value={regConfirmPassword}
+                    onChange={(e) => setRegConfirmPassword(e.target.value)}
+                    placeholder="Nhập lại mật khẩu"
+                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
+                  >
+                    {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4 text-slate-400" />}
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Nhập lại mật khẩu quản trị <span className="text-red-600">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showRegConfirmPassword ? "text" : "password"}
-                      required
-                      value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)}
-                      placeholder="Nhập lại chính xác mật khẩu ở trên"
-                      className={`w-full pl-3.5 pr-10 py-2.5 rounded-xl border text-xs sm:text-sm outline-none transition-colors ${
-                        regConfirmPassword && regPassword !== regConfirmPassword
-                          ? "border-red-400 focus:border-red-600"
-                          : regConfirmPassword && regPassword === regConfirmPassword
-                          ? "border-emerald-400 focus:border-emerald-600"
-                          : "border-slate-300 focus:border-red-600"
-                      }`}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowRegConfirmPassword(!showRegConfirmPassword)}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-                      title={showRegConfirmPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                    >
-                      {showRegConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  {regConfirmPassword && (
-                    <div className="mt-1 flex items-center space-x-1.5 text-[11px] font-semibold">
-                      {regPassword === regConfirmPassword ? (
-                        <span className="text-emerald-600 flex items-center">
-                          <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Mật khẩu trùng khớp
-                        </span>
-                      ) : (
-                        <span className="text-red-600 flex items-center">
-                          <X className="w-3.5 h-3.5 mr-1" /> Mật khẩu xác nhận chưa khớp
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-
-                <button
-                  type="submit"
-                  className="w-full py-3 rounded-full text-sm font-bold bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-md mt-2 flex items-center justify-center space-x-2 cursor-pointer"
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Hoàn tất đăng ký &amp; Vào khởi tạo cuộc thi</span>
-                </button>
-              </form>
-            )}
-
-            <div className="pt-2 text-center">
-              <Link
-                href="/"
-                className="text-xs text-slate-500 hover:text-slate-800 transition-colors inline-flex items-center space-x-1"
+              <button
+                type="submit"
+                className="w-full py-3 px-4 rounded-xl font-bold text-white bg-[#DC2626] hover:bg-red-700 active:scale-[0.99] transition-all text-sm cursor-pointer shadow-sm"
               >
-                <span>← Quay về Trang chủ Cổng Cuộc thi</span>
-              </Link>
-            </div>
+                Đăng ký tài khoản ngay
+              </button>
+
+              <div className="text-center pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthTab("login");
+                    setAuthError("");
+                  }}
+                  className="text-xs text-slate-600 hover:text-red-700 transition-colors cursor-pointer"
+                >
+                  Đã có tài khoản? <strong className="text-[#DC2626] underline">Đăng nhập ngay</strong>
+                </button>
+              </div>
+            </form>
+          )}
+
+          <div className="pt-4 text-center border-t border-slate-100 mt-5">
+            <Link
+              href="/"
+              className="text-xs text-slate-500 hover:text-slate-800 transition-colors inline-flex items-center space-x-1"
+            >
+              <span>← Quay về Trang chủ Cổng Cuộc thi</span>
+            </Link>
           </div>
         </div>
       </div>
@@ -1385,30 +1353,6 @@ export default function ContestWizardPage() {
 
         {/* CỘT NỘI DUNG CHÍNH (Stepper + Các Bước 1, 2, 3, 4, 5) */}
         <main className="flex-1 min-w-0 w-full space-y-6">
-          {/* Edit Mode Alert Banner */}
-          {isEditMode && (
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-3.5 px-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
-              <div className="flex items-center space-x-3">
-                <span className="px-2.5 py-1 rounded-lg bg-[#DC2626] text-white text-[11px] font-black uppercase tracking-wider shadow-2xs">
-                  ✏️ Chế độ Chỉnh sửa
-                </span>
-                <div>
-                  <span className="text-xs sm:text-sm font-bold text-slate-900 block truncate max-w-md">
-                    {title}
-                  </span>
-                  <span className="text-[11px] text-slate-500 font-mono">
-                    slug: /{slug}
-                  </span>
-                </div>
-              </div>
-              <Link
-                href="/admin/tao-cuoc-thi"
-                className="text-xs font-bold text-red-700 hover:text-red-900 bg-white border border-amber-200 px-3 py-1.5 rounded-xl transition-colors shrink-0 text-center shadow-2xs"
-              >
-                + Chuyển sang Tạo cuộc thi mới
-              </Link>
-            </div>
-          )}
 
           {/* ========================================================= */}
           {/* ========================================================= */}
@@ -2353,44 +2297,6 @@ export default function ContestWizardPage() {
         {/* ========================================================= */}
         {currentStep === 5 && (
           <div className="space-y-6">
-            {/* Top Publish Banner */}
-            <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-                  <CheckCircle2 className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-sm sm:text-base font-bold text-emerald-950">
-                    Cuộc Thi Đã Sẵn Sàng Xuất Bản &amp; Khởi Động!
-                  </h3>
-                  <p className="text-xs text-emerald-700 mt-0.5">
-                    Đường dẫn thi: <strong>cuocthi.easupso.com/thi/{slug}</strong>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center space-x-2 w-full sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`https://cuocthi.easupso.com/thi/${slug}`);
-                    setCopiedLink(true);
-                    setTimeout(() => setCopiedLink(false), 2000);
-                  }}
-                  className="btn-admin-secondary text-xs px-3.5 py-2 font-semibold cursor-pointer"
-                >
-                  {copiedLink ? <Check className="w-3.5 h-3.5 mr-1" /> : <Copy className="w-3.5 h-3.5 mr-1" />}
-                  {copiedLink ? "Đã sao chép link" : "Sao chép link Zalo"}
-                </button>
-                <Link
-                  href={`/thi/${slug}`}
-                  target="_blank"
-                  className="btn-admin-primary text-xs px-4 py-2 font-bold"
-                >
-                  Vào phòng thi <ExternalLink className="w-3.5 h-3.5 ml-1 inline" />
-                </Link>
-              </div>
-            </div>
 
             {/* Bảng KẾT QUẢ THI & 2 Thẻ Sóng (Mẫu Ảnh MyAloha) */}
             <div className="space-y-6">
@@ -2481,7 +2387,7 @@ export default function ContestWizardPage() {
                       </button>
                     )}
                     <a
-                      href={`/api/contests/tim-hieu-phap-luat-ea-sup-2026/export`}
+                      href={`/api/contests/${slug || "tim-hieu-phap-luat-ea-sup-2026"}/export`}
                       download
                       className="btn-admin-primary text-xs px-4 py-2 font-bold bg-emerald-700 hover:bg-emerald-800 border-emerald-800 inline-flex items-center"
                     >
@@ -2504,18 +2410,29 @@ export default function ContestWizardPage() {
                   </div>
 
                   <div>
-                    <select
-                      value={filterUnit}
-                      onChange={(e) => setFilterUnit(e.target.value)}
-                      className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white font-medium"
-                    >
-                      <option value="ALL">-- Tất cả 20 Thôn, Buôn &amp; Cơ quan --</option>
-                      {EA_SUP_VILLAGES.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
+                    {(() => {
+                      const displayUnits = (contestUnits && contestUnits.length > 0)
+                        ? contestUnits
+                        : (statsData?.units && statsData.units.length > 0)
+                          ? statsData.units.map((u: any) => typeof u === "string" ? u : u.name)
+                          : EA_SUP_VILLAGES;
+                      return (
+                        <select
+                          value={filterUnit}
+                          onChange={(e) => setFilterUnit(e.target.value)}
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white font-medium"
+                        >
+                          <option value="ALL">
+                            -- Tất cả {displayUnits.length} Đơn vị đã cấu hình --
+                          </option>
+                          {displayUnits.map((v: string) => (
+                            <option key={v} value={v}>
+                              {v}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center space-x-2">

@@ -131,20 +131,27 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
             />
           </div>
 
-          {/* Chọn Đơn vị thôn buôn */}
+          {/* Chọn Đơn vị thôn buôn / cơ quan */}
           <div className="sm:col-span-1">
-            <select
-              value={selectedUnit}
-              onChange={(e) => setSelectedUnit(e.target.value)}
-              className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white font-medium outline-none"
-            >
-              <option value="ALL">-- Tất cả 20 Thôn, Buôn &amp; Cơ quan --</option>
-              {EA_SUP_VILLAGES.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
+            {(() => {
+              const displayUnits = (data?.units && data.units.length > 0)
+                ? data.units.map((u: any) => typeof u === "string" ? u : u.name)
+                : EA_SUP_VILLAGES;
+              return (
+                <select
+                  value={selectedUnit}
+                  onChange={(e) => setSelectedUnit(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white font-medium outline-none"
+                >
+                  <option value="ALL">-- Tất cả {displayUnits.length} Đơn vị --</option>
+                  {displayUnits.map((v: string) => (
+                    <option key={v} value={v}>
+                      {v}
+                    </option>
+                  ))}
+                </select>
+              );
+            })()}
           </div>
 
           {/* Từ ngày */}
