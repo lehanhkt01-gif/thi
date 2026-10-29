@@ -311,8 +311,8 @@ export default function ContestWizardPage() {
     "#EC4899",
   ];
 
-  // Bước 2: Cài đặt đề thi (3 chế độ)
-  const [examMode, setExamMode] = useState<"ai" | "manual" | "bank">("ai");
+  // Bước 2: Cài đặt đề thi (2 chế độ: Ngân hàng & Thủ công)
+  const [examMode, setExamMode] = useState<"manual" | "bank">("bank");
   const [questionsList, setQuestionsList] = useState<any[]>([]);
 
   // AI Generator state
@@ -1908,57 +1908,7 @@ export default function ContestWizardPage() {
             {/* Cột Trái: 3 Thẻ Lựa Chọn Phương Thức Soạn Đề (Ảnh 3) */}
             <div className="lg:col-span-8 space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Thẻ 1: Soạn đề bằng AI (Có huy hiệu Mới) */}
-                <div
-                  onClick={() => setExamMode("ai")}
-                  className={`sm:col-span-2 relative p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center group ${
-                    examMode === "ai"
-                      ? "border-[#DC2626] bg-red-50/40 shadow-sm ring-1 ring-red-200"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs"
-                  }`}
-                >
-                  {/* Badge Mới màu đỏ góc trên phải (Ảnh 3) */}
-                  <span className="absolute top-3 right-3 text-[10px] font-black uppercase tracking-wider bg-red-600 text-white px-2 py-0.5 rounded-full shadow-xs">
-                    Mới
-                  </span>
-
-                  {/* Illustration Icon */}
-                  <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-rose-100 to-red-100 text-[#DC2626] flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                    <Sparkles className="w-8 h-8" />
-                  </div>
-
-                  <h3 className="text-base font-bold text-slate-900 mb-1">
-                    Soạn đề bằng AI
-                  </h3>
-                  <p className="text-xs text-slate-500 max-w-sm">
-                    Tải văn bản pháp luật PDF hoặc docx{" "}
-                    <span className="text-[#DC2626] font-semibold underline cursor-pointer">
-                      tại đây
-                    </span>
-                  </p>
-                </div>
-
-                {/* Thẻ 2: Soạn đề thủ công (Ảnh 3) */}
-                <div
-                  onClick={() => setExamMode("manual")}
-                  className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center group ${
-                    examMode === "manual"
-                      ? "border-[#DC2626] bg-red-50/40 shadow-sm ring-1 ring-red-200"
-                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs"
-                  }`}
-                >
-                  <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
-                    <Sliders className="w-7 h-7" />
-                  </div>
-                  <h3 className="text-sm font-bold text-slate-900 mb-0.5">
-                    Soạn đề thủ công
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Tự thêm từng câu hỏi &amp; đáp án
-                  </p>
-                </div>
-
-                {/* Thẻ 3: Chọn từ Kho đề thi (Ảnh 3) */}
+                {/* Thẻ 1: Chọn từ Kho đề thi */}
                 <div
                   onClick={() => setExamMode("bank")}
                   className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center group ${
@@ -1977,76 +1927,27 @@ export default function ContestWizardPage() {
                     Chọn câu hỏi có sẵn của xã Ea Súp
                   </p>
                 </div>
-              </div>
 
-              {/* Bảng điều khiển phương thức đang chọn */}
-              {examMode === "ai" && (
-                <div className="bg-red-50/40 border border-red-200 rounded-2xl p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2 text-[#DC2626] font-bold text-sm">
-                      <Sparkles className="w-5 h-5" />
-                      <span>Trợ Lý AI Gemini Đọc Văn Bản &amp; Tự Động Sinh Đề Thi</span>
-                    </div>
-                    <span className="text-[11px] bg-red-100 text-[#DC2626] font-bold px-2 py-0.5 rounded">
-                      Trích dẫn điều khoản luật
-                    </span>
+                {/* Thẻ 2: Soạn đề thủ công */}
+                <div
+                  onClick={() => setExamMode("manual")}
+                  className={`p-5 rounded-2xl border-2 transition-all cursor-pointer flex flex-col items-center text-center group ${
+                    examMode === "manual"
+                      ? "border-[#DC2626] bg-red-50/40 shadow-sm ring-1 ring-red-200"
+                      : "border-slate-200 bg-white hover:border-slate-300 hover:shadow-xs"
+                  }`}
+                >
+                  <div className="w-14 h-14 rounded-2xl bg-slate-100 text-slate-700 flex items-center justify-center mb-3 group-hover:scale-105 transition-transform">
+                    <Sliders className="w-7 h-7" />
                   </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Tải lên file văn bản pháp luật (.pdf, .docx, .txt)
-                      </label>
-                      <input
-                        type="file"
-                        accept=".pdf,.docx,.txt"
-                        onChange={(e) => setAiFile(e.target.files ? e.target.files[0] : null)}
-                        className="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-red-600 file:text-white hover:file:bg-red-700 cursor-pointer"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Chủ đề trọng tâm cần tạo trắc nghiệm
-                      </label>
-                      <input
-                        type="text"
-                        value={aiTopic}
-                        onChange={(e) => setAiTopic(e.target.value)}
-                        placeholder="Ví dụ: Luật Đất đai 2024, Luật Căn cước 2023..."
-                        className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs outline-none bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between pt-2">
-                    <div className="text-xs text-slate-500">
-                      {aiResultNotice ? (
-                        <span className="text-emerald-700 font-semibold">{aiResultNotice}</span>
-                      ) : (
-                        "Tải lên văn bản pháp luật và nhấn 'Bắt đầu sinh đề AI' để tạo trắc nghiệm tự động."
-                      )}
-                    </div>
-                    <button
-                      type="button"
-                      disabled={aiGenerating}
-                      onClick={handleGenerateAi}
-                      className="btn-admin-primary text-xs px-4 py-2 font-bold shadow-xs flex items-center"
-                    >
-                      {aiGenerating ? (
-                        <>
-                          <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin mr-1.5"></div>
-                          Đang đọc &amp; sinh câu hỏi...
-                        </>
-                      ) : (
-                        <>
-                          <Sparkles className="w-4 h-4 mr-1.5" /> Bắt đầu sinh đề bằng AI
-                        </>
-                      )}
-                    </button>
-                  </div>
+                  <h3 className="text-sm font-bold text-slate-900 mb-0.5">
+                    Soạn đề thủ công
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Tự thêm từng câu hỏi &amp; đáp án
+                  </p>
                 </div>
-              )}
+              </div>
 
               {examMode === "manual" && (
                 <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-4">
@@ -2311,22 +2212,13 @@ export default function ContestWizardPage() {
               </div>
             </div>
 
-            {/* Cột Phải: Chọn đơn vị & Lưu ý & Danh sách đơn vị con (Ảnh 1) */}
+            {/* Cột Phải: Chọn đơn vị & Danh sách đơn vị con */}
             <div className="lg:col-span-7 space-y-4">
               {/* Dropdown Chọn đơn vị */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-slate-700">
-                    Chọn đơn vị
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddGroupModal(true)}
-                    className="text-[11px] font-bold text-[#DC2626] hover:underline flex items-center cursor-pointer"
-                  >
-                    <Plus className="w-3 h-3 mr-0.5" /> Tạo nhóm đơn vị mới
-                  </button>
-                </div>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Chọn đơn vị
+                </label>
                 <select
                   value={selectedGroupId}
                   onChange={(e) => handleSelectUnitGroup(e.target.value)}
@@ -2337,57 +2229,7 @@ export default function ContestWizardPage() {
                       {group.name} ({group.units.length} đơn vị con)
                     </option>
                   ))}
-                  <option value="NEW_GROUP">+ Thêm nhóm đơn vị mới...</option>
                 </select>
-                <div className="mt-1.5 text-xs text-slate-500">
-                  Chưa có nhóm đơn vị hoặc muốn tạo nhóm riêng?{" "}
-                  <button
-                    type="button"
-                    onClick={() => setShowAddGroupModal(true)}
-                    className="text-[#DC2626] font-bold underline hover:text-red-800 cursor-pointer"
-                  >
-                    Thêm ngay
-                  </button>
-                </div>
-              </div>
-
-              {/* Hộp lưu ý theo chuẩn MyAloha (Ảnh 1) */}
-              <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 space-y-2 leading-relaxed">
-                <p className="font-bold text-slate-800">Lưu ý:</p>
-                <p>• Mỗi đơn vị bao gồm nhiều đơn vị con. Mỗi cuộc thi chỉ chọn 1 đơn vị.</p>
-                <p>• Việc tạo đơn vị phục vụ mục đích thống kê thí sinh dự thi.</p>
-                <p className="italic text-red-700 font-medium">
-                  • Lưu ý không nên chỉnh sửa đơn vị trong lúc cuộc thi diễn ra để tránh việc thống kê xảy ra sai sót.
-                </p>
-              </div>
-
-              {/* Ô thêm nhanh đơn vị con mới */}
-              <div className="p-3 bg-white border border-slate-200 rounded-xl space-y-2">
-                <label className="block text-xs font-bold text-slate-800">
-                  + Thêm đơn vị con mới vào nhóm
-                </label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={newUnitInput}
-                    onChange={(e) => setNewUnitInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        handleAddUnit();
-                      }
-                    }}
-                    placeholder="Nhập tên đơn vị con mới (Ví dụ: Thôn 11, Chi bộ 3, Lớp 10A1)..."
-                    className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddUnit}
-                    className="btn-admin-primary text-xs px-3.5 py-2 font-bold cursor-pointer shrink-0"
-                  >
-                    <Plus className="w-3.5 h-3.5 mr-1" /> Thêm đơn vị con
-                  </button>
-                </div>
               </div>
 
               {/* Danh sách các đơn vị con đã cấu hình */}
@@ -2396,33 +2238,12 @@ export default function ContestWizardPage() {
                   <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                     ĐÃ CẤU HÌNH {contestUnits.length} ĐƠN VỊ
                   </span>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const merged = Array.from(new Set([...contestUnits, ...EA_SUP_VILLAGES]));
-                        setContestUnits(merged);
-                      }}
-                      className="text-[11px] font-bold text-[#0284C7] hover:underline cursor-pointer"
-                    >
-                      + Nạp 20 Thôn, Buôn Ea Súp
-                    </button>
-                    {contestUnits.length > 0 && (
-                      <button
-                        type="button"
-                        onClick={handleClearAllUnits}
-                        className="text-[11px] font-bold text-slate-400 hover:text-red-600 cursor-pointer"
-                      >
-                        Xóa tất cả
-                      </button>
-                    )}
-                  </div>
                 </div>
 
                 <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200">
                   {contestUnits.length === 0 ? (
                     <div className="w-full text-center py-4 text-xs text-slate-400">
-                      Chưa có đơn vị con nào. Hãy nhập ở ô trên hoặc bấm &quot;Thêm / Dán hàng loạt&quot;.
+                      Chưa có đơn vị con nào. Hãy chọn nhóm đơn vị ở trên hoặc dán danh sách ở bên trái.
                     </div>
                   ) : (
                     contestUnits.map((u, i) => (
@@ -2449,119 +2270,80 @@ export default function ContestWizardPage() {
         )}
 
         {/* ========================================================= */}
-        {/* BƯỚC 4: TRANG THÔNG TIN BAN TỔ CHỨC (Layout 2 cột Ảnh 5) */}
+        {/* BƯỚC 4: TRANG THÔNG TIN BAN TỔ CHỨC */}
         {/* ========================================================= */}
         {currentStep === 4 && (
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Cột Trái: Thông Tin Ban Tổ Chức (Ảnh 5) */}
-            <div className="lg:col-span-8 space-y-6">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100 flex items-center">
-                  <Info className="w-4 h-4 mr-2 text-[#DC2626]" />
-                  THÔNG TIN BAN TỔ CHỨC
-                </h3>
+          <div className="max-w-4xl mx-auto space-y-6">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4 pb-2 border-b border-slate-100 flex items-center">
+                <Info className="w-4 h-4 mr-2 text-[#DC2626]" />
+                THÔNG TIN BAN TỔ CHỨC
+              </h3>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* Tên */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Tên</label>
-                    <input
-                      type="text"
-                      value={organizerName}
-                      onChange={(e) => setOrganizerName(e.target.value)}
-                      placeholder="Lê Hạnh / Thường trực UB MTTQ Việt Nam xã Ea Súp"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
-                    />
-                  </div>
-
-                  {/* Địa chỉ */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ</label>
-                    <input
-                      type="text"
-                      value={organizerAddress}
-                      onChange={(e) => setOrganizerAddress(e.target.value)}
-                      placeholder="Vui lòng nhập địa chỉ"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
-                    />
-                  </div>
-
-                  {/* Email */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
-                    <input
-                      type="email"
-                      value={organizerEmail}
-                      onChange={(e) => setOrganizerEmail(e.target.value)}
-                      placeholder="example@gmail.com"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
-                    />
-                  </div>
-
-                  {/* Số điện thoại */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại</label>
-                    <input
-                      type="text"
-                      value={organizerPhone}
-                      onChange={(e) => setOrganizerPhone(e.target.value)}
-                      placeholder="Vui lòng nhập số điện thoại"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
-                    />
-                  </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Tên */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Tên</label>
+                  <input
+                    type="text"
+                    value={organizerName}
+                    onChange={(e) => setOrganizerName(e.target.value)}
+                    placeholder="Lê Hạnh / Thường trực UB MTTQ Việt Nam xã Ea Súp"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
+                  />
                 </div>
-              </div>
 
-              {/* THÔNG BÁO BAN TỔ CHỨC (Ảnh 5) */}
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center">
-                  <Bell className="w-4 h-4 mr-2 text-[#DC2626]" />
-                  THÔNG BÁO BAN TỔ CHỨC
-                </h3>
-                <textarea
-                  rows={4}
-                  value={announcement}
-                  onChange={(e) => setAnnouncement(e.target.value)}
-                  placeholder="Nhập nội dung thông điệp, chỉ đạo hoặc lưu ý của Ban Tổ Chức..."
-                  className="w-full p-3 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600 leading-relaxed"
-                />
+                {/* Địa chỉ */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Địa chỉ</label>
+                  <input
+                    type="text"
+                    value={organizerAddress}
+                    onChange={(e) => setOrganizerAddress(e.target.value)}
+                    placeholder="Vui lòng nhập địa chỉ"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
+                  />
+                </div>
+
+                {/* Email */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={organizerEmail}
+                    onChange={(e) => setOrganizerEmail(e.target.value)}
+                    placeholder="example@gmail.com"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
+                  />
+                </div>
+
+                {/* Số điện thoại */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Số điện thoại</label>
+                  <input
+                    type="text"
+                    value={organizerPhone}
+                    onChange={(e) => setOrganizerPhone(e.target.value)}
+                    placeholder="Vui lòng nhập số điện thoại"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Cột Phải: Drawer Thông Báo Ban Tổ Chức với nút (+) (Ảnh 5) */}
-            <div className="lg:col-span-4 bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4">
-              <div className="flex items-center justify-between pb-3 border-b border-slate-200">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
-                  Thông báo ban tổ chức
-                </h4>
-                {/* Nút (+) đỏ tròn thêm thông báo (Ảnh 5) */}
-                <button
-                  type="button"
-                  onClick={() => setShowAddAnnModal(true)}
-                  className="w-6 h-6 rounded-full border border-red-500 text-red-600 flex items-center justify-center hover:bg-red-600 hover:text-white transition-colors cursor-pointer"
-                  title="Thêm thông báo mới"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                </button>
-              </div>
-
-              {/* Danh sách thông báo */}
-              <div className="space-y-2.5 max-h-[380px] overflow-y-auto pr-1">
-                {announcementsList.map((ann) => (
-                  <div
-                    key={ann.id}
-                    className="p-3 bg-white border border-slate-200 rounded-xl shadow-2xs hover:border-slate-300 transition-colors"
-                  >
-                    <p className="text-xs font-semibold text-slate-800 leading-snug mb-1">
-                      {ann.title}
-                    </p>
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span>{ann.time}</span>
-                      <span className="font-medium text-slate-600">{ann.author}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
+            {/* THÔNG BÁO BAN TỔ CHỨC */}
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-2 flex items-center">
+                <Bell className="w-4 h-4 mr-2 text-[#DC2626]" />
+                THÔNG BÁO BAN TỔ CHỨC
+              </h3>
+              <textarea
+                rows={4}
+                value={announcement}
+                onChange={(e) => setAnnouncement(e.target.value)}
+                placeholder="Nhập nội dung thông điệp, chỉ đạo hoặc lưu ý của Ban Tổ Chức..."
+                className="w-full p-3 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600 leading-relaxed"
+              />
             </div>
           </div>
         )}
