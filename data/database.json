@@ -31,6 +31,14 @@
       "examPassword": "",
       "requirePortrait": "none",
       "fullScreenExam": true,
+      "prize1": "5.000.000 đồng/giải",
+      "prize2": "3.000.000 đồng/giải",
+      "prize3": "1.000.000 đồng/giải",
+      "prize4": "750.000 đồng/giải",
+      "prize1Count": "01",
+      "prize2Count": "02",
+      "prize3Count": "03",
+      "prize4Count": "05",
       "createdAt": "2026-10-29T06:18:15.419Z",
       "units": [
         {
@@ -239,6 +247,14 @@
       "themeColor": "#DC2626",
       "shortDesc": "Mỗi thí sinh được tham gia tối đa 3 lượt để tìm hiểu, bằng cách trắc nghiệm.",
       "requiredFields": "Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh, Thôn/Buôn/Đơn vị",
+      "prize1": "5.000.000 đồng/giải",
+      "prize2": "3.000.000 đồng/giải",
+      "prize3": "1.000.000 đồng/giải",
+      "prize4": "750.000 đồng/giải",
+      "prize1Count": "01",
+      "prize2Count": "02",
+      "prize3Count": "03",
+      "prize4Count": "05",
       "createdAt": "2026-03-01T08:00:00Z",
       "units": [
         {
