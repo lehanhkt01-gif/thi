@@ -112,6 +112,10 @@ export interface ContestModel {
   prize2?: string;
   prize3?: string;
   prize4?: string;
+  prize1Count?: string;
+  prize2Count?: string;
+  prize3Count?: string;
+  prize4Count?: string;
   createdAt: string;
   units: ContestUnitModel[];
   questions: QuestionModel[];

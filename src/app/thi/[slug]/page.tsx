@@ -669,7 +669,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 <Trophy className="w-9 h-9 text-amber-500" />
               </div>
               <div className="bg-amber-600 text-white font-black text-xs sm:text-sm py-1.5 px-3 rounded-lg uppercase tracking-wide mb-2 shadow-xs">
-                01 GIẢI NHẤT
+                {contest.prize1Count || "01"} GIẢI NHẤT
               </div>
               <div className="text-base sm:text-lg font-black text-amber-800">
                 {contest.prize1 || "5.000.000 đồng/giải"}
@@ -682,7 +682,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 <Trophy className="w-9 h-9 text-slate-500" />
               </div>
               <div className="bg-slate-700 text-white font-black text-xs sm:text-sm py-1.5 px-3 rounded-lg uppercase tracking-wide mb-2 shadow-xs">
-                02 GIẢI NHÌ
+                {contest.prize2Count || "02"} GIẢI NHÌ
               </div>
               <div className="text-base sm:text-lg font-black text-slate-800">
                 {contest.prize2 || "3.000.000 đồng/giải"}
@@ -695,7 +695,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 <Trophy className="w-9 h-9 text-orange-600" />
               </div>
               <div className="bg-orange-600 text-white font-black text-xs sm:text-sm py-1.5 px-3 rounded-lg uppercase tracking-wide mb-2 shadow-xs">
-                03 GIẢI BA
+                {contest.prize3Count || "03"} GIẢI BA
               </div>
               <div className="text-base sm:text-lg font-black text-orange-800">
                 {contest.prize3 || "1.000.000 đồng/giải"}
@@ -708,7 +708,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 <Award className="w-9 h-9 text-purple-600" />
               </div>
               <div className="bg-purple-700 text-white font-black text-xs sm:text-sm py-1.5 px-3 rounded-lg uppercase tracking-wide mb-2 shadow-xs">
-                05 GIẢI KHUYẾN KHÍCH
+                {contest.prize4Count || "05"} GIẢI KHUYẾN KHÍCH
               </div>
               <div className="text-base sm:text-lg font-black text-purple-900">
                 {contest.prize4 || "750.000 đồng/giải"}

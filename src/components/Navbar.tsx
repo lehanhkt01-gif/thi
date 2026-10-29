@@ -275,8 +275,8 @@ export default function Navbar() {
           {/* Brand Logo */}
           <div className="flex items-center space-x-4">
             <Link href="/" className="flex items-center space-x-2 group">
-              <span className="text-2xl font-black tracking-tight text-slate-900 group-hover:text-[#DC2626] transition-colors">
-                Cuộc Thi
+              <span className="text-xl sm:text-2xl font-black tracking-tight text-slate-900 group-hover:text-[#DC2626] transition-colors uppercase">
+                THI TRỰC TUYẾN
               </span>
               <div className="w-5 h-5 rounded-full bg-[#DC2626] flex items-center justify-center text-white text-[10px] font-bold shadow-xs">
                 ✦

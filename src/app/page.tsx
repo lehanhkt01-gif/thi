@@ -9,6 +9,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import FloatingActionBar from "@/components/FloatingActionBar";
+import HeroContestCarousel from "@/components/HeroContestCarousel";
 import { store } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -79,7 +80,7 @@ export default function HomePage() {
           <div className="lg:col-span-5 bg-gradient-to-br from-[#FFF1F2] via-white to-[#FEE2E2]/30 rounded-2xl border border-red-200/80 p-6 sm:p-7 flex flex-col justify-between shadow-xs">
             <div>
               <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-4">
-                Cuộc Thi giúp bạn dễ dàng <span className="text-[#DC2626]">tổ chức, quản lý</span> cuộc thi hiệu quả
+                THI TRỰC TUYẾN giúp bạn dễ dàng <span className="text-[#DC2626]">tổ chức, quản lý</span> cuộc thi hiệu quả
               </h2>
               <ul className="space-y-2.5 text-xs text-slate-700 mb-6">
                 <li className="flex items-start">
@@ -105,59 +106,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Right Banner Card: Quảng cáo web cuocthi.easupso.com & Học sinh trao bằng tốt nghiệp (Ảnh 3) */}
-          <div className="lg:col-span-7 bg-gradient-to-br from-[#0F2847] via-[#0A4378] to-[#032952] text-white rounded-2xl border border-sky-600/40 p-6 sm:p-7 relative overflow-hidden flex flex-col justify-between shadow-xs">
-            <div className="absolute right-0 top-0 w-80 h-80 bg-sky-400/10 rounded-full blur-3xl pointer-events-none"></div>
-
-            <div className="relative z-10 grid grid-cols-1 md:grid-cols-12 gap-5 items-center">
-              {/* Text Info */}
-              <div className="md:col-span-7 space-y-2.5">
-                <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[10px] font-bold bg-amber-400/20 text-amber-300 border border-amber-300/30 uppercase tracking-wider">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  <span>CUOCTHI.EASUPSO.COM</span>
-                </div>
-
-                <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight uppercase leading-tight">
-                  VINH DANH HỌC TẬP &amp; TRAO THƯỞNG TRỰC TUYẾN
-                </h3>
-                <div className="text-[11px] font-bold text-sky-200 uppercase tracking-wider">
-                  NỀN TẢNG THI TRỰC TUYẾN &amp; CẤP CHỨNG NHẬN ĐIỆN TỬ
-                </div>
-                <p className="text-xs text-slate-200 leading-relaxed pt-1">
-                  Hệ thống thi trắc nghiệm thông minh, vinh danh khen thưởng học sinh tốt nghiệp và cán bộ đoàn thể xuất sắc trên địa bàn.
-                </p>
-              </div>
-
-              {/* Graduation Image (Ảnh học sinh trao bằng tốt nghiệp) */}
-              <div className="md:col-span-5">
-                <div className="relative rounded-xl overflow-hidden border-2 border-white/20 shadow-lg group">
-                  <img
-                    src="/images/graduation_students_banner.jpg"
-                    alt="Học sinh trao bằng tốt nghiệp cuocthi.easupso.com"
-                    className="w-full h-36 sm:h-40 object-cover object-center group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-2 text-center">
-                    <span className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">
-                      Vinh Danh &amp; Trao Bằng Khen
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-4 mt-3 border-t border-sky-800/80">
-              <Link
-                href={featuredContest ? `/thi/${featuredContest.slug}` : "/admin/tao-cuoc-thi"}
-                className="inline-flex items-center px-5 py-2.5 rounded-full text-xs font-bold bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-sm"
-              >
-                THAM GIA DỰ THI NGAY <ArrowRight className="w-3.5 h-3.5 ml-1.5" />
-              </Link>
-
-              <div className="text-xs text-sky-200">
-                WEBSITE: <strong className="text-white font-mono text-sm">cuocthi.easupso.com</strong>
-              </div>
-            </div>
-          </div>
+          {/* Right Banner Card: Hiệu ứng chuyển trang banner các cuộc thi có trong hệ thống (Ảnh 2) */}
+          <HeroContestCarousel contests={contests} />
         </div>
 
         {/* 3. SECTION: CÁC CUỘC THI LỚN ĐANG DIỄN RA + TIN TỨC MỚI (Đồng bộ Ảnh 1 & Ảnh 2) */}

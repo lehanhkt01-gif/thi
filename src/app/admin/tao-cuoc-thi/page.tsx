@@ -149,6 +149,10 @@ export default function ContestWizardPage() {
   const [prize2, setPrize2] = useState("3.000.000 đồng/giải");
   const [prize3, setPrize3] = useState("1.000.000 đồng/giải");
   const [prize4, setPrize4] = useState("750.000 đồng/giải");
+  const [prize1Count, setPrize1Count] = useState("01");
+  const [prize2Count, setPrize2Count] = useState("02");
+  const [prize3Count, setPrize3Count] = useState("03");
+  const [prize4Count, setPrize4Count] = useState("05");
   const [requiredFields, setRequiredFields] = useState("Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh, Thôn/Buôn/Đơn vị");
   const [customLeaderboard, setCustomLeaderboard] = useState("Lượt thi, lượt đăng ký, Xếp hạng...");
 
@@ -236,6 +240,10 @@ export default function ContestWizardPage() {
         prize2,
         prize3,
         prize4,
+        prize1Count,
+        prize2Count,
+        prize3Count,
+        prize4Count,
         creatorEmail: authUser?.email,
         creatorId: authUser?.id,
         unitGroupId: selectedGroupId,
@@ -895,6 +903,10 @@ export default function ContestWizardPage() {
           prize2,
           prize3,
           prize4,
+          prize1Count,
+          prize2Count,
+          prize3Count,
+          prize4Count,
           unitGroupId: selectedGroupId,
           unitGroupName: unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình"),
           units: unitsPayload,
@@ -989,6 +1001,10 @@ export default function ContestWizardPage() {
               if (c.prize2) setPrize2(c.prize2);
               if (c.prize3) setPrize3(c.prize3);
               if (c.prize4) setPrize4(c.prize4);
+              if (c.prize1Count) setPrize1Count(c.prize1Count);
+              if (c.prize2Count) setPrize2Count(c.prize2Count);
+              if (c.prize3Count) setPrize3Count(c.prize3Count);
+              if (c.prize4Count) setPrize4Count(c.prize4Count);
               if (c.units && c.units.length > 0) {
                 const loadedUnitNames = c.units.map((u: any) =>
                   typeof u === "string" ? u : u.name
@@ -1813,65 +1829,133 @@ export default function ContestWizardPage() {
                   <span className="text-[11px] text-slate-400">4 hạng mục giải</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   {/* Giải Nhất */}
                   <div>
-                    <label className="block text-[11px] font-bold text-amber-700 mb-1 flex items-center">
-                      <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span>
-                      01 Giải Nhất
+                    <label className="block text-[11px] font-bold text-amber-700 mb-1 flex items-center justify-between">
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-amber-500 mr-1.5"></span>
+                        Giải Nhất
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Số lượng &amp; Phần thưởng</span>
                     </label>
-                    <input
-                      type="text"
-                      value={prize1}
-                      onChange={(e) => setPrize1(e.target.value)}
-                      placeholder="5.000.000 đồng/giải"
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-amber-500 shadow-2xs"
-                    />
+                    <div className="flex gap-1.5">
+                      <div className="w-20 shrink-0">
+                        <input
+                          type="text"
+                          value={prize1Count}
+                          onChange={(e) => setPrize1Count(e.target.value)}
+                          placeholder="01"
+                          title="Số lượng giải Nhất"
+                          className="w-full px-2 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-white text-amber-800 focus:border-amber-500 shadow-2xs"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={prize1}
+                          onChange={(e) => setPrize1(e.target.value)}
+                          placeholder="Phần thưởng (VD: 5.000.000 đồng/giải)"
+                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-amber-500 shadow-2xs"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Giải Nhì */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center">
-                      <span className="w-2 h-2 rounded-full bg-slate-500 mr-1.5"></span>
-                      02 Giải Nhì
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1 flex items-center justify-between">
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-slate-500 mr-1.5"></span>
+                        Giải Nhì
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Số lượng &amp; Phần thưởng</span>
                     </label>
-                    <input
-                      type="text"
-                      value={prize2}
-                      onChange={(e) => setPrize2(e.target.value)}
-                      placeholder="3.000.000 đồng/giải"
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-slate-500 shadow-2xs"
-                    />
+                    <div className="flex gap-1.5">
+                      <div className="w-20 shrink-0">
+                        <input
+                          type="text"
+                          value={prize2Count}
+                          onChange={(e) => setPrize2Count(e.target.value)}
+                          placeholder="02"
+                          title="Số lượng giải Nhì"
+                          className="w-full px-2 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-white text-slate-800 focus:border-slate-500 shadow-2xs"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={prize2}
+                          onChange={(e) => setPrize2(e.target.value)}
+                          placeholder="Phần thưởng (VD: 3.000.000 đồng/giải)"
+                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-slate-500 shadow-2xs"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Giải Ba */}
                   <div>
-                    <label className="block text-[11px] font-bold text-orange-700 mb-1 flex items-center">
-                      <span className="w-2 h-2 rounded-full bg-orange-500 mr-1.5"></span>
-                      03 Giải Ba
+                    <label className="block text-[11px] font-bold text-orange-700 mb-1 flex items-center justify-between">
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-orange-500 mr-1.5"></span>
+                        Giải Ba
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Số lượng &amp; Phần thưởng</span>
                     </label>
-                    <input
-                      type="text"
-                      value={prize3}
-                      onChange={(e) => setPrize3(e.target.value)}
-                      placeholder="1.000.000 đồng/giải"
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-orange-500 shadow-2xs"
-                    />
+                    <div className="flex gap-1.5">
+                      <div className="w-20 shrink-0">
+                        <input
+                          type="text"
+                          value={prize3Count}
+                          onChange={(e) => setPrize3Count(e.target.value)}
+                          placeholder="03"
+                          title="Số lượng giải Ba"
+                          className="w-full px-2 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-white text-orange-800 focus:border-orange-500 shadow-2xs"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={prize3}
+                          onChange={(e) => setPrize3(e.target.value)}
+                          placeholder="Phần thưởng (VD: 1.000.000 đồng/giải)"
+                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-orange-500 shadow-2xs"
+                        />
+                      </div>
+                    </div>
                   </div>
 
                   {/* Giải Khuyến Khích */}
                   <div>
-                    <label className="block text-[11px] font-bold text-purple-700 mb-1 flex items-center">
-                      <span className="w-2 h-2 rounded-full bg-purple-500 mr-1.5"></span>
-                      05 Giải Khuyến khích
+                    <label className="block text-[11px] font-bold text-purple-700 mb-1 flex items-center justify-between">
+                      <span className="flex items-center">
+                        <span className="w-2 h-2 rounded-full bg-purple-500 mr-1.5"></span>
+                        Giải Khuyến khích
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-normal">Số lượng &amp; Phần thưởng</span>
                     </label>
-                    <input
-                      type="text"
-                      value={prize4}
-                      onChange={(e) => setPrize4(e.target.value)}
-                      placeholder="750.000 đồng/giải"
-                      className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-purple-500 shadow-2xs"
-                    />
+                    <div className="flex gap-1.5">
+                      <div className="w-20 shrink-0">
+                        <input
+                          type="text"
+                          value={prize4Count}
+                          onChange={(e) => setPrize4Count(e.target.value)}
+                          placeholder="05"
+                          title="Số lượng giải Khuyến khích"
+                          className="w-full px-2 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-white text-purple-800 focus:border-purple-500 shadow-2xs"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={prize4}
+                          onChange={(e) => setPrize4(e.target.value)}
+                          placeholder="Phần thưởng (VD: 750.000 đồng/giải)"
+                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-purple-500 shadow-2xs"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
