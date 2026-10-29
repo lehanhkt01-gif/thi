@@ -933,7 +933,7 @@ class DataStore {
         organizationName: contestData.organizationName || "Ủy ban Nhân dân xã Ea Súp",
         title: contestData.title || "Cuộc thi trực tuyến xã Ea Súp",
         slug: contestData.slug,
-        bannerUrl: contestData.bannerUrl || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80",
+        bannerUrl: contestData.bannerUrl || "/banner-easup.png",
         rulesHtml: contestData.rulesHtml || "<p>Thể lệ cuộc thi...</p>",
         organizerName: contestData.organizerName || "Ủy ban Nhân dân xã Ea Súp",
         organizerAddress: contestData.organizerAddress || "Trung tâm hành chính xã Ea Súp",

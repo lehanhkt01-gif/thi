@@ -85,7 +85,7 @@ export default function ContestWizardPage() {
   // Bước 1: Tổng quan
   const [title, setTitle] = useState("Cuộc thi trực tuyến tìm hiểu Nghị quyết & Chuyển đổi số xã Ea Súp 2026");
   const [slug, setSlug] = useState("tim-hieu-nghi-quyet-chuyen-doi-so-2026");
-  const [bannerUrl, setBannerUrl] = useState("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80");
+  const [bannerUrl, setBannerUrl] = useState("/banner-easup.png");
   const bannerFileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
@@ -1850,7 +1850,7 @@ export default function ContestWizardPage() {
                   title="Nhấp để tải ảnh banner mới từ thiết bị"
                 >
                   <img
-                    src={bannerUrl || "https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80"}
+                    src={bannerUrl || "/banner-easup.png"}
                     alt="Banner cuộc thi"
                     className="w-full h-28 object-cover transition-transform duration-300 group-hover:scale-102"
                   />
@@ -1860,7 +1860,7 @@ export default function ContestWizardPage() {
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setBannerUrl("https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=1200&q=80");
+                      setBannerUrl("/banner-easup.png");
                     }}
                     className="absolute top-2 left-2 w-6 h-6 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-600 transition-colors text-xs z-10 cursor-pointer"
                     title="Đặt lại ảnh mặc định"
