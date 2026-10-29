@@ -1952,11 +1952,11 @@ export default function ContestWizardPage() {
                   {/* Hàng 1: Giải Nhất */}
                   <div className="bg-white p-2.5 sm:p-3 rounded-lg border border-amber-200/80 shadow-2xs hover:border-amber-400 transition-all">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="w-full sm:w-32 shrink-0 flex items-center">
-                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 mr-2 shrink-0"></span>
+                      <div className="w-20 sm:w-24 shrink-0 flex items-center">
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500 mr-1.5 shrink-0"></span>
                         <span className="text-xs font-black text-amber-800 uppercase tracking-wide">Giải Nhất</span>
                       </div>
-                      <div className="flex items-center gap-1.5 w-full sm:w-44 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Số giải:</span>
                         <input
                           type="text"
@@ -1964,17 +1964,17 @@ export default function ContestWizardPage() {
                           onChange={(e) => setPrize1Count(e.target.value)}
                           placeholder="01"
                           title="Số lượng giải Nhất"
-                          className="w-full px-2.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-amber-50/40 text-amber-900 focus:border-amber-500 focus:bg-white shadow-2xs"
+                          className="w-12 sm:w-14 px-1.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-amber-50/40 text-amber-900 focus:border-amber-500 focus:bg-white shadow-2xs"
                         />
                       </div>
-                      <div className="flex items-center gap-1.5 flex-1 w-full">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 w-full">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Phần thưởng:</span>
                         <input
                           type="text"
                           value={prize1}
                           onChange={(e) => setPrize1(e.target.value)}
-                          placeholder="VD: 5.000.000 đồng/giải hoặc Vỗ tay 30s"
-                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-amber-500 shadow-2xs"
+                          placeholder="VD: 5.000.000 đồng/giải hoặc Giấy khen + Tiền thưởng..."
+                          className="w-full flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-amber-500 shadow-2xs"
                         />
                       </div>
                     </div>
@@ -1983,11 +1983,11 @@ export default function ContestWizardPage() {
                   {/* Hàng 2: Giải Nhì */}
                   <div className="bg-white p-2.5 sm:p-3 rounded-lg border border-slate-200 shadow-2xs hover:border-slate-400 transition-all">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="w-full sm:w-32 shrink-0 flex items-center">
-                        <span className="w-2.5 h-2.5 rounded-full bg-slate-500 mr-2 shrink-0"></span>
+                      <div className="w-20 sm:w-24 shrink-0 flex items-center">
+                        <span className="w-2.5 h-2.5 rounded-full bg-slate-500 mr-1.5 shrink-0"></span>
                         <span className="text-xs font-black text-slate-800 uppercase tracking-wide">Giải Nhì</span>
                       </div>
-                      <div className="flex items-center gap-1.5 w-full sm:w-44 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Số giải:</span>
                         <input
                           type="text"
@@ -1995,17 +1995,17 @@ export default function ContestWizardPage() {
                           onChange={(e) => setPrize2Count(e.target.value)}
                           placeholder="02"
                           title="Số lượng giải Nhì"
-                          className="w-full px-2.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-slate-50 text-slate-900 focus:border-slate-500 focus:bg-white shadow-2xs"
+                          className="w-12 sm:w-14 px-1.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-slate-50 text-slate-900 focus:border-slate-500 focus:bg-white shadow-2xs"
                         />
                       </div>
-                      <div className="flex items-center gap-1.5 flex-1 w-full">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 w-full">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Phần thưởng:</span>
                         <input
                           type="text"
                           value={prize2}
                           onChange={(e) => setPrize2(e.target.value)}
-                          placeholder="VD: 3.000.000 đồng/giải hoặc Vỗ tay"
-                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-slate-500 shadow-2xs"
+                          placeholder="VD: 3.000.000 đồng/giải hoặc Giấy khen + Tiền thưởng..."
+                          className="w-full flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-slate-500 shadow-2xs"
                         />
                       </div>
                     </div>
@@ -2014,11 +2014,11 @@ export default function ContestWizardPage() {
                   {/* Hàng 3: Giải Ba */}
                   <div className="bg-white p-2.5 sm:p-3 rounded-lg border border-orange-200/80 shadow-2xs hover:border-orange-400 transition-all">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="w-full sm:w-32 shrink-0 flex items-center">
-                        <span className="w-2.5 h-2.5 rounded-full bg-orange-500 mr-2 shrink-0"></span>
+                      <div className="w-20 sm:w-24 shrink-0 flex items-center">
+                        <span className="w-2.5 h-2.5 rounded-full bg-orange-500 mr-1.5 shrink-0"></span>
                         <span className="text-xs font-black text-orange-800 uppercase tracking-wide">Giải Ba</span>
                       </div>
-                      <div className="flex items-center gap-1.5 w-full sm:w-44 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Số giải:</span>
                         <input
                           type="text"
@@ -2026,17 +2026,17 @@ export default function ContestWizardPage() {
                           onChange={(e) => setPrize3Count(e.target.value)}
                           placeholder="03"
                           title="Số lượng giải Ba"
-                          className="w-full px-2.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-orange-50/40 text-orange-900 focus:border-orange-500 focus:bg-white shadow-2xs"
+                          className="w-12 sm:w-14 px-1.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-orange-50/40 text-orange-900 focus:border-orange-500 focus:bg-white shadow-2xs"
                         />
                       </div>
-                      <div className="flex items-center gap-1.5 flex-1 w-full">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 w-full">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Phần thưởng:</span>
                         <input
                           type="text"
                           value={prize3}
                           onChange={(e) => setPrize3(e.target.value)}
-                          placeholder="VD: 1.000.000 đồng/giải hoặc Vỗ tay"
-                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-orange-500 shadow-2xs"
+                          placeholder="VD: 1.000.000 đồng/giải hoặc Giấy khen + Tiền thưởng..."
+                          className="w-full flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-orange-500 shadow-2xs"
                         />
                       </div>
                     </div>
@@ -2045,11 +2045,11 @@ export default function ContestWizardPage() {
                   {/* Hàng 4: Giải Khuyến khích */}
                   <div className="bg-white p-2.5 sm:p-3 rounded-lg border border-purple-200/80 shadow-2xs hover:border-purple-400 transition-all">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                      <div className="w-full sm:w-32 shrink-0 flex items-center">
-                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500 mr-2 shrink-0"></span>
+                      <div className="w-20 sm:w-24 shrink-0 flex items-center">
+                        <span className="w-2.5 h-2.5 rounded-full bg-purple-500 mr-1.5 shrink-0"></span>
                         <span className="text-xs font-black text-purple-800 uppercase tracking-wide">Giải KK</span>
                       </div>
-                      <div className="flex items-center gap-1.5 w-full sm:w-44 shrink-0">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Số giải:</span>
                         <input
                           type="text"
@@ -2057,17 +2057,17 @@ export default function ContestWizardPage() {
                           onChange={(e) => setPrize4Count(e.target.value)}
                           placeholder="05"
                           title="Số lượng giải Khuyến khích"
-                          className="w-full px-2.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-purple-50/40 text-purple-900 focus:border-purple-500 focus:bg-white shadow-2xs"
+                          className="w-12 sm:w-14 px-1.5 py-1.5 text-xs text-center font-bold rounded-lg border border-slate-300 outline-none bg-purple-50/40 text-purple-900 focus:border-purple-500 focus:bg-white shadow-2xs"
                         />
                       </div>
-                      <div className="flex items-center gap-1.5 flex-1 w-full">
+                      <div className="flex items-center gap-1.5 flex-1 min-w-0 w-full">
                         <span className="text-[11px] text-slate-500 font-medium shrink-0">Phần thưởng:</span>
                         <input
                           type="text"
                           value={prize4}
                           onChange={(e) => setPrize4(e.target.value)}
-                          placeholder="VD: 750.000 đồng/giải hoặc Vỗ tay"
-                          className="w-full px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-purple-500 shadow-2xs"
+                          placeholder="VD: 750.000 đồng/giải hoặc Giấy khen + Tiền thưởng..."
+                          className="w-full flex-1 min-w-0 px-3 py-1.5 text-xs rounded-lg border border-slate-300 outline-none bg-white font-medium text-slate-800 focus:border-purple-500 shadow-2xs"
                         />
                       </div>
                     </div>
