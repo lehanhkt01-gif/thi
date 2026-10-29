@@ -321,8 +321,12 @@ export default function ContestWizardPage() {
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResultNotice, setAiResultNotice] = useState("");
 
-  // Kho câu hỏi state
+  // Kho câu hỏi state đồng bộ với Kho đề thi (Ảnh 2)
   const [bankQuestions, setBankQuestions] = useState<any[]>([]);
+  const [bankPackages, setBankPackages] = useState<any[]>([]);
+  const [selectedBankPackageId, setSelectedBankPackageId] = useState<string>("ALL");
+  const [bankSearchQuery, setBankSearchQuery] = useState<string>("");
+  const [isLoadingBank, setIsLoadingBank] = useState<boolean>(false);
   const [selectedBankIds, setSelectedBankIds] = useState<string[]>([]);
 
   // Thủ công state
@@ -656,19 +660,75 @@ export default function ContestWizardPage() {
     setSlug(autoSlug);
   };
 
-  // Nạp kho câu hỏi mẫu
+  // Nạp kho câu hỏi và bộ đề đồng bộ từ server theo quyền người dùng
+  const loadBankQuestionsAndPackages = async (targetPkgId?: string, query?: string) => {
+    try {
+      setIsLoadingBank(true);
+      const pkg = targetPkgId !== undefined ? targetPkgId : selectedBankPackageId;
+      const q = query !== undefined ? query : bankSearchQuery;
+
+      const params = new URLSearchParams();
+      if (pkg && pkg !== "ALL") params.set("packageId", pkg);
+      if (q && q.trim()) params.set("search", q.trim());
+
+      const res = await fetch(`/api/questions/bank?${params.toString()}`, {
+        headers: {
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
+      });
+      const data = await res.json();
+      if (data.questions) {
+        setBankQuestions(data.questions);
+        // Nếu đề thi đang tạo chưa có câu nào và mới nạp lần đầu, chọn 5 câu đầu tiên làm mẫu
+        setQuestionsList((prev) => {
+          if (prev.length === 0 && (!targetPkgId || targetPkgId === "ALL") && !query) {
+            return data.questions.slice(0, 5);
+          }
+          return prev;
+        });
+      }
+      if (data.packages) {
+        setBankPackages(data.packages);
+      }
+    } catch (err) {
+      console.error("Lỗi nạp kho câu hỏi & bộ đề:", err);
+    } finally {
+      setIsLoadingBank(false);
+    }
+  };
+
   useEffect(() => {
-    fetch("/api/questions/bank")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.questions) {
-          setBankQuestions(data.questions);
-          // Mặc định chọn 5 câu đầu tiên vào đề thi
-          setQuestionsList(data.questions.slice(0, 5));
-        }
-      })
-      .catch((err) => console.error(err));
-  }, []);
+    loadBankQuestionsAndPackages();
+  }, [authUser]);
+
+  // Chọn bộ đề trong kho
+  const handleSelectBankPackage = (pkgId: string) => {
+    setSelectedBankPackageId(pkgId);
+    loadBankQuestionsAndPackages(pkgId, bankSearchQuery);
+  };
+
+  // Tìm kiếm câu hỏi trong kho
+  const handleBankSearch = (query: string) => {
+    setBankSearchQuery(query);
+    loadBankQuestionsAndPackages(selectedBankPackageId, query);
+  };
+
+  // Thêm tất cả câu hỏi trong bộ lọc hiện tại vào đề thi
+  const handleAddAllFilteredFromBank = () => {
+    setQuestionsList((prev) => {
+      const existingIds = new Set(prev.map((q) => q.id));
+      const toAdd = bankQuestions.filter((q) => !existingIds.has(q.id));
+      return [...prev, ...toAdd];
+    });
+  };
+
+  // Bỏ chọn tất cả câu hỏi trong bộ lọc hiện tại khỏi đề thi
+  const handleRemoveAllFilteredFromBank = () => {
+    const filterIds = new Set(bankQuestions.map((q) => q.id));
+    setQuestionsList((prev) => prev.filter((q) => !filterIds.has(q.id)));
+  };
 
   // Nạp thống kê cho Bước 5
   useEffect(() => {
@@ -1991,41 +2051,227 @@ export default function ContestWizardPage() {
               )}
 
               {examMode === "bank" && (
-                <div className="bg-sky-50/40 border border-sky-200 rounded-2xl p-5 space-y-3">
-                  <div className="text-sm font-bold text-slate-900 flex items-center justify-between">
-                    <span>Ngân Hàng Câu Hỏi Chung Xã Ea Súp ({bankQuestions.length} câu)</span>
-                    <span className="text-xs text-sky-700">Bấm dấu + để thêm vào đề thi</span>
-                  </div>
+                <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+                  {/* THANH BỘ ĐỀ (PACKAGE FILTER & SEARCH - ĐỒNG BỘ ẢNH 2) */}
+                  <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div className="flex items-center space-x-2 text-xs font-bold text-slate-700 uppercase tracking-wide">
+                        <Layers className="w-4 h-4 text-[#DC2626]" />
+                        <span>Bộ Đề Thi ({bankPackages.length} BỘ ĐỀ):</span>
+                      </div>
 
-                  <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                    {bankQuestions.map((q) => {
-                      const isAdded = questionsList.some((item) => item.id === q.id);
-                      return (
-                        <div
-                          key={q.id}
-                          className={`p-3 rounded-xl border flex items-center justify-between transition-colors ${
-                            isAdded ? "bg-emerald-50 border-emerald-300" : "bg-white border-slate-200"
-                          }`}
-                        >
-                          <div className="pr-3 text-xs">
-                            <span className="font-bold text-[#DC2626] mr-2">[{q.category}]</span>
-                            <span className="text-slate-800">{q.content}</span>
-                          </div>
+                      <div className="relative max-w-xs w-full">
+                        <Search className="w-3.5 h-3.5 absolute left-2.5 top-2.5 text-slate-400" />
+                        <input
+                          type="text"
+                          value={bankSearchQuery}
+                          onChange={(e) => handleBankSearch(e.target.value)}
+                          placeholder="Tìm câu hỏi, điều khoản luật..."
+                          className="w-full pl-8 pr-3 py-1.5 rounded-lg border border-slate-300 text-xs bg-white outline-none focus:border-red-600"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Pills danh sách bộ đề (Tất cả, Cựu chiến binh, Bộ đề Chung Xã Ea Súp...) */}
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleSelectBankPackage("ALL")}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                          selectedBankPackageId === "ALL"
+                            ? "bg-[#DC2626] text-white shadow-xs"
+                            : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
+                        }`}
+                      >
+                        Tất cả ({bankPackages.reduce((acc, p) => acc + (p.questionCount || 0), 0) || bankQuestions.length})
+                      </button>
+
+                      {bankPackages.map((pkg) => {
+                        const isSelected = selectedBankPackageId === pkg.id;
+                        return (
                           <button
+                            key={pkg.id}
                             type="button"
-                            onClick={() => handleAddFromBank(q)}
-                            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                              isAdded
-                                ? "bg-emerald-600 text-white"
-                                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            onClick={() => handleSelectBankPackage(pkg.id)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer flex items-center space-x-1.5 ${
+                              isSelected
+                                ? "bg-[#DC2626] text-white shadow-xs font-bold"
+                                : "bg-white border border-slate-200 text-slate-700 hover:bg-slate-100"
                             }`}
                           >
-                            {isAdded ? "Đã chọn" : "+ Thêm"}
+                            <span>{pkg.isSystem ? "🏛️" : "📁"}</span>
+                            <span className="max-w-[180px] truncate">{pkg.name}</span>
+                            <span
+                              className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                                isSelected ? "bg-white/20 text-white" : "bg-slate-100 text-slate-600"
+                              }`}
+                            >
+                              {pkg.questionCount || 0}
+                            </span>
+                            {!pkg.isSystem && (
+                              <span title="Bộ đề riêng tư của bạn">
+                                <Lock
+                                  className={`w-3 h-3 ${isSelected ? "text-white" : "text-amber-600"}`}
+                                />
+                              </span>
+                            )}
                           </button>
-                        </div>
-                      );
-                    })}
+                        );
+                      })}
+                    </div>
                   </div>
+
+                  {/* THANH THAO TÁC NHANH & THỐNG KÊ */}
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-1 pb-1 border-b border-slate-100 text-xs">
+                    <div className="text-slate-600">
+                      Hiển thị <strong className="text-slate-900">{bankQuestions.length}</strong> câu hỏi • Đã chọn vào đề:{" "}
+                      <strong className="text-[#DC2626]">
+                        {bankQuestions.filter((q) => questionsList.some((item) => item.id === q.id)).length}
+                      </strong>
+                      /{bankQuestions.length} câu
+                    </div>
+
+                    <div className="flex items-center flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={handleAddAllFilteredFromBank}
+                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 font-bold text-[11px] transition-all cursor-pointer"
+                        title="Thêm toàn bộ câu hỏi trong bộ lọc hiện tại vào đề thi"
+                      >
+                        <Plus className="w-3.5 h-3.5 mr-1" />
+                        + Chọn tất cả ({bankQuestions.length} câu)
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={handleRemoveAllFilteredFromBank}
+                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-slate-100 text-slate-600 hover:bg-slate-200 font-medium text-[11px] transition-all cursor-pointer"
+                        title="Bỏ các câu hỏi trong bộ lọc này khỏi đề thi"
+                      >
+                        <X className="w-3.5 h-3.5 mr-1" />
+                        Bỏ chọn bộ lọc này
+                      </button>
+
+                      <a
+                        href="/admin?tab=de-thi"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 font-bold text-[11px] transition-all"
+                        title="Mở trang Quản lý Kho đề thi để nhập file Excel hoặc tạo thêm bộ đề mới"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5 mr-1" />
+                        Quản lý kho đề &amp; Nhập Excel
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* DANH SÁCH CÂU HỎI TRONG KHO (HIỂN THỊ ĐẦY ĐỦ NHƯ ẢNH 2) */}
+                  {isLoadingBank ? (
+                    <div className="py-10 text-center text-xs text-slate-400">
+                      Đang tải câu hỏi từ kho đề thi...
+                    </div>
+                  ) : bankQuestions.length === 0 ? (
+                    <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-slate-400 text-xs">
+                      Không tìm thấy câu hỏi nào trong bộ đề này.
+                    </div>
+                  ) : (
+                    <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
+                      {bankQuestions.map((q, idx) => {
+                        const isAdded = questionsList.some((item) => item.id === q.id);
+                        return (
+                          <div
+                            key={q.id || idx}
+                            className={`p-4 rounded-xl border transition-all text-xs space-y-2.5 ${
+                              isAdded
+                                ? "bg-emerald-50/40 border-emerald-300 shadow-2xs"
+                                : "bg-white border-slate-200 hover:border-slate-300 hover:shadow-xs"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-bold text-[#DC2626]">[{q.category}]</span>
+                                {q.packageName && (
+                                  <span className="px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 text-[10px] font-semibold border border-slate-200">
+                                    📁 {q.packageName}
+                                  </span>
+                                )}
+                                {q.isPrivate && (
+                                  <span className="px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-semibold inline-flex items-center">
+                                    <Lock className="w-2.5 h-2.5 mr-1 text-amber-600" /> Riêng tư của bạn
+                                  </span>
+                                )}
+                                {q.isSystem && (
+                                  <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-200 text-[10px] font-semibold">
+                                    🏛️ Dùng chung xã
+                                  </span>
+                                )}
+                              </div>
+
+                              <div className="flex items-center space-x-2 shrink-0">
+                                <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold border border-slate-200">
+                                  {q.points || 10} điểm
+                                </span>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddFromBank(q)}
+                                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer inline-flex items-center ${
+                                    isAdded
+                                      ? "bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs"
+                                      : "bg-slate-100 hover:bg-emerald-50 text-slate-700 hover:text-emerald-700 border border-slate-200 hover:border-emerald-300"
+                                  }`}
+                                  title={isAdded ? "Bấm để bỏ câu này khỏi đề thi" : "Bấm để thêm câu này vào đề thi"}
+                                >
+                                  {isAdded ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5 mr-1" />
+                                      Đã chọn
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Plus className="w-3.5 h-3.5 mr-1" />
+                                      + Thêm
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Nội dung câu hỏi */}
+                            <div className="font-semibold text-slate-900 text-xs sm:text-sm leading-relaxed">
+                              Câu {idx + 1}: {q.content}
+                            </div>
+
+                            {/* Lưới các phương án A, B, C, D (Đồng bộ ảnh 2) */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 text-slate-600">
+                              {q.options?.map((opt: any) => {
+                                const isCorrect = q.correctOptionIds?.includes(opt.id);
+                                return (
+                                  <div
+                                    key={opt.id}
+                                    className={`p-2 rounded-lg border text-[11px] leading-snug transition-colors ${
+                                      isCorrect
+                                        ? "bg-emerald-50 border-emerald-300 text-emerald-900 font-bold"
+                                        : "bg-white border-slate-200"
+                                    }`}
+                                  >
+                                    <span className="font-bold mr-1">{opt.id}.</span> {opt.text}
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            {/* Trích dẫn điều khoản luật (Ảnh 2) */}
+                            {q.explanation && (
+                              <div className="text-[11px] text-emerald-800 bg-emerald-50/70 p-2.5 rounded-lg border border-emerald-200 leading-relaxed">
+                                <strong>Trích dẫn luật:</strong> {q.explanation}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
