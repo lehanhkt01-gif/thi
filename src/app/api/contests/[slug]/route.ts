@@ -44,6 +44,8 @@ export async function GET(
         examPassword: contest.examPassword,
         requirePortrait: contest.requirePortrait,
         fullScreenExam: contest.fullScreenExam,
+        unitGroupName: contest.unitGroupName,
+        unitGroupId: contest.unitGroupId,
         status: contest.status,
         audioUrl: contest.audioUrl,
         units: contest.units,

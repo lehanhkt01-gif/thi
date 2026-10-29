@@ -106,6 +106,8 @@ export interface ContestModel {
   examPassword?: string;
   requirePortrait?: string;
   fullScreenExam?: boolean;
+  unitGroupName?: string;
+  unitGroupId?: string;
   createdAt: string;
   units: ContestUnitModel[];
   questions: QuestionModel[];

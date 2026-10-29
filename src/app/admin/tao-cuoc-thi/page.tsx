@@ -227,7 +227,8 @@ export default function ContestWizardPage() {
         maxAttempts,
         creatorEmail: authUser?.email,
         creatorId: authUser?.id,
-        creatorName: authUser?.name,
+        unitGroupId: selectedGroupId,
+        unitGroupName: unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình"),
         updatedAt: new Date().toISOString(),
       };
       localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draft));
@@ -398,13 +399,7 @@ export default function ContestWizardPage() {
 
   const [unitGroups, setUnitGroups] = useState(DEFAULT_UNIT_GROUPS);
   const [selectedGroupId, setSelectedGroupId] = useState("group-party");
-  const [contestUnits, setContestUnits] = useState<string[]>([
-    "Khối Cơ quan Đảng - Đoàn thể",
-    "Khối UBND & Lực lượng vũ trang",
-    "Trường THCS Lê Hồng Phong",
-    "Chi đoàn Thanh niên",
-    "Chi bộ Quân sự",
-  ]);
+  const [contestUnits, setContestUnits] = useState<string[]>([...DEFAULT_UNIT_GROUPS[0].units]);
   const [newUnitInput, setNewUnitInput] = useState("");
   const [bulkInput, setBulkInput] = useState("");
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -422,7 +417,7 @@ export default function ContestWizardPage() {
     setSelectedGroupId(groupId);
     const found = unitGroups.find((g) => g.id === groupId);
     if (found) {
-      setContestUnits(found.units);
+      setContestUnits([...found.units]);
     }
   };
 
@@ -431,7 +426,11 @@ export default function ContestWizardPage() {
     const val = newUnitInput.trim();
     if (!val) return;
     if (!contestUnits.includes(val)) {
-      setContestUnits((prev) => [...prev, val]);
+      const next = [...contestUnits, val];
+      setContestUnits(next);
+      setUnitGroups((prev) =>
+        prev.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+      );
     }
     setNewUnitInput("");
   };
@@ -469,20 +468,33 @@ export default function ContestWizardPage() {
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
     const set = new Set([...contestUnits, ...lines]);
-    setContestUnits(Array.from(set));
+    const next = Array.from(set);
+    setContestUnits(next);
+    setUnitGroups((prev) =>
+      prev.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+    );
     setBulkInput("");
     setShowBulkModal(false);
   };
 
   // Xóa 1 đơn vị con
   const handleRemoveUnit = (name: string) => {
-    setContestUnits((prev) => prev.filter((u) => u !== name));
+    setContestUnits((prev) => {
+      const next = prev.filter((u) => u !== name);
+      setUnitGroups((prevGroups) =>
+        prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+      );
+      return next;
+    });
   };
 
   // Xóa tất cả đơn vị
   const handleClearAllUnits = () => {
     if (confirm("Bạn có chắc chắn muốn xóa toàn bộ danh sách đơn vị hiện tại?")) {
       setContestUnits([]);
+      setUnitGroups((prevGroups) =>
+        prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: [] } : g))
+      );
     }
   };
 
@@ -868,6 +880,8 @@ export default function ContestWizardPage() {
           examPassword,
           requirePortrait,
           fullScreenExam,
+          unitGroupId: selectedGroupId,
+          unitGroupName: unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình"),
           units: unitsPayload,
           questions: questionsList,
         }),
@@ -957,7 +971,48 @@ export default function ContestWizardPage() {
               if (c.requiredFields) setRequiredFields(c.requiredFields);
               if (c.customLeaderboard) setCustomLeaderboard(c.customLeaderboard);
               if (c.units && c.units.length > 0) {
-                setContestUnits(c.units.map((u: any) => u.name));
+                const loadedUnitNames = c.units.map((u: any) =>
+                  typeof u === "string" ? u : u.name
+                );
+                setContestUnits(loadedUnitNames);
+
+                // Khớp ô "Chọn đơn vị" với thông tin đã thiết lập từ trước
+                const matchedGroup = DEFAULT_UNIT_GROUPS.find(
+                  (g) =>
+                    g.units.length === loadedUnitNames.length &&
+                    g.units.every((uName) => loadedUnitNames.includes(uName))
+                );
+
+                if (matchedGroup) {
+                  setSelectedGroupId(matchedGroup.id);
+                  setUnitGroups((groups) =>
+                    groups.map((g) =>
+                      g.id === matchedGroup.id ? { ...g, units: loadedUnitNames } : g
+                    )
+                  );
+                } else {
+                  // Đơn vị tùy chỉnh riêng đã cấu hình cho cuộc thi này
+                  const customId = c.unitGroupId || `group-saved-${c.slug || c.id || "custom"}`;
+                  const customName =
+                    c.unitGroupName ||
+                    (c.organizerName
+                      ? `Khối ${c.organizerName}`
+                      : `Đơn vị đã cấu hình (${c.title || "Cuộc thi"})`);
+
+                  const savedGroup = {
+                    id: customId,
+                    name: customName,
+                    units: loadedUnitNames,
+                  };
+
+                  setUnitGroups((prev) => {
+                    const filtered = prev.filter(
+                      (g) => g.id !== customId && g.id !== "group-saved-custom"
+                    );
+                    return [savedGroup, ...filtered];
+                  });
+                  setSelectedGroupId(customId);
+                }
               }
               if (c.questions && c.questions.length > 0) {
                 setQuestionsList(c.questions);
