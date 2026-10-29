@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bảng Điều Khiển Kiểm Thử Local - Cổng Thi Trực Tuyến</title>
+  <style>
+    :root {
+      --primary: #DC2626;
+      --primary-dark: #B91C1C;
+      --cobalt: #0284C7;
+      --bg: #F8FAFC;
+      --card: #FFFFFF;
+      --text: #0F172A;
+      --border: #E2E8F0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 30px 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    .header {
+      background: linear-gradient(135deg, #B91C1C 0%, #DC2626 100%);
+      color: white;
+      padding: 24px;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 6px -1px rgba(220, 38, 38, 0.2);
+    }
+    .header h1 {
+      margin: 0 0 8px 0;
+      font-size: 22px;
+    }
+    .header p {
+      margin: 0;
+      font-size: 13px;
+      opacity: 0.9;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 15px -3px rgba(0,0,0,0.08);
+    }
+    .card-title {
+      font-weight: 700;
+      font-size: 16px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-desc {
+      font-size: 12px;
+      color: #64748B;
+      line-height: 1.5;
+      margin-bottom: 16px;
+      flex-grow: 1;
+    }
+    .btn-group {
+      display: flex;
+      gap: 6px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 12px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.15s;
+      cursor: pointer;
+      flex: 1;
+      text-align: center;
+    }
+    .btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+    .btn-primary:hover {
+      background: var(--primary-dark);
+    }
+    .btn-secondary {
+      background: #F1F5F9;
+      color: #334155;
+      border: 1px solid #CBD5E1;
+    }
+    .btn-secondary:hover {
+      background: #E2E8F0;
+    }
+    .btn-emerald {
+      background: #059669;
+      color: white;
+    }
+    .btn-emerald:hover {
+      background: #047857;
+    }
+    .info-box {
+      background: #EFF6FF;
+      border: 1px solid #BFDBFE;
+      border-radius: 12px;
+      padding: 16px;
+      font-size: 13px;
+      color: #1E40AF;
+      line-height: 1.6;
+    }
+    .info-box strong {
+      color: #1E3A8A;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>CỔNG THI TRẮC NGHIỆM TRỰC TUYẾN ĐA TỔ CHỨC</h1>
+      <p>Bảng điều khiển liên kết kiểm thử Local dành cho Quản trị viên & Thí sinh • <code>cuocthi.easupso.com</code></p>
+    </div>
+
+    <div class="grid">
+      <!-- Card 1: Home -->
+      <div class="card">
+        <div>
+          <div class="card-title">🏠 Trang Chủ Cổng Thi (Ảnh 1)</div>
+          <div class="card-desc">Thiết kế chuẩn MyAloha: 3 thẻ thống kê trên cùng, khối 2 cột E-Meeting & Giới thiệu, các cuộc thi lớn đang diễn ra & Tin tức mới My Predict AI®.</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001" target="_blank" class="btn btn-primary">Mở Cổng :3001</a>
+          <a href="http://localhost:3002" target="_blank" class="btn btn-secondary">:3002</a>
+          <a href="http://localhost:3000" target="_blank" class="btn btn-secondary">:3000</a>
+        </div>
+      </div>
+
+      <!-- Card: Phân Quyền Đăng Nhập (Admin & Người Dùng) -->
+      <div class="card" style="border: 2px solid #7C3AED; background: #FAF5FF;">
+        <div>
+          <div class="card-title" style="color: #7C3AED;">🔐 Phân Quyền Đăng Nhập: Admin vs Người Dùng</div>
+          <div class="card-desc">
+            <strong>1. Admin:</strong> Toàn quyền quản lý, thêm/sửa/xóa, xét duyệt người dùng và phân quyền.<br>
+            <strong>2. Người dùng:</strong> Tạo các cuộc thi, theo dõi tiến độ và xuất file kết quả Excel (.xlsx). Nút header đổi thành "Đăng nhập".
+          </div>
+        </div>
+        <div class="btn-group" style="flex-direction: column; gap: 6px;">
+          <a href="http://localhost:3001" target="_blank" class="btn btn-primary" style="background:#7C3AED;">Mở Trang Chủ để thử nút "Đăng nhập"</a>
+          <a href="http://localhost:3001/admin" target="_blank" class="btn btn-secondary" style="border-color:#7C3AED; color:#7C3AED;">Vào Bảng Quản trị kiểm tra tab Xét duyệt</a>
+        </div>
+      </div>
+
+      <!-- Card Mới: Nhập Đồng Loạt Đề Thi & Tải File Mẫu Excel -->
+      <div class="card" style="border: 2px solid #059669; background: #F0FDF4;">
+        <div>
+          <div class="card-title" style="color: #059669;">📥 Nhập Đồng Loạt Đề Thi & Tải File Mẫu (.xlsx)</div>
+          <div class="card-desc">
+            <strong>1. Tải file mẫu:</strong> File Excel chuẩn hóa với cột Bộ đề, Lĩnh vực, Câu hỏi, Phương án A-B-C-D, Đáp án đúng, Trích dẫn luật, Điểm.<br>
+            <strong>2. Phân loại theo bộ đề:</strong> Lọc xem theo từng bộ đề (Chung xã Ea Súp hoặc Bộ đề cá nhân).<br>
+            <strong>3. Bảo mật tuyệt đối:</strong> Người tạo có toàn quyền xem/xóa/quản lý bộ đề của mình; người dùng khác không thể xem được.
+          </div>
+        </div>
+        <div class="btn-group" style="flex-direction: column; gap: 6px;">
+          <a href="http://localhost:3001/api/questions/template" target="_blank" class="btn btn-primary" style="background:#059669;">📥 Tải Ngay File Mẫu Excel (.xlsx)</a>
+          <a href="http://localhost:3001/admin" target="_blank" class="btn btn-secondary" style="border-color:#059669; color:#059669;">Vào Admin -> Kho Đề Thi để Thử Nhập</a>
+        </div>
+      </div>
+
+      <!-- Card 2: Cuộc thi Tìm hiểu Nghị Quyết Hội Nông Dân Xã Ea Súp (Ảnh 1 chuẩn) -->
+      <div class="card" style="border: 2px solid #DC2626;">
+        <div>
+          <div class="card-title" style="color: #DC2626;">🌾 Cuộc Thi Hội Nông Dân Xã Ea Súp (Ảnh 1)</div>
+          <div class="card-desc">Cuộc thi tìm hiểu Nghị quyết Hội Nông dân xã Ea Súp: 20 thôn buôn tham gia, thời gian 15 phút/lượt, đồng bộ danh sách cuộc thi thực tế không có bất kỳ dữ liệu ảo nào.</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001/thi/cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup" target="_blank" class="btn btn-primary" style="background:#DC2626;">Vào Thi :3001</a>
+          <a href="http://localhost:3000/thi/cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup" target="_blank" class="btn btn-secondary">:3000</a>
+          <a href="http://localhost:3001/ket-qua/cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup" target="_blank" class="btn btn-secondary">BXH</a>
+        </div>
+      </div>
+
+      <!-- Card 3: Cuộc thi Ea Súp -->
+      <div class="card">
+        <div>
+          <div class="card-title">📝 Cuộc Thi Pháp Luật Xã Ea Súp</div>
+          <div class="card-desc">Cuộc thi trực tuyến xã Ea Súp với 20 thôn buôn, Loa số An Nhiên đọc đề, chống lộ đáp án, tự lưu nháp 4G và cảnh báo chuyển tab.</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001/thi/tim-hieu-phap-luat-ea-sup-2026" target="_blank" class="btn btn-primary">Vào Thi :3001</a>
+          <a href="http://localhost:3002/thi/tim-hieu-phap-luat-ea-sup-2026" target="_blank" class="btn btn-secondary">:3002</a>
+        </div>
+      </div>
+
+      <!-- Card 4A: Bảng Điều Khiển Ban Tổ Chức (Ảnh 1 & Ảnh 2 mới) -->
+      <div class="card" style="border: 2px solid #DC2626;">
+        <div>
+          <div class="card-title" style="color: #DC2626;">🏛️ Bảng Điều Khiển Ban Tổ Chức (Ảnh 1 & 2)</div>
+          <div class="card-desc">Giao diện chuẩn ảnh mới: Menu bên trái (Trang chủ, Cuộc thi Trắc nghiệm, Cuộc thi Ảnh/Video Mới, Nút viền đứt Tạo mới, KHO NỘI DUNG: Đề thi, Thông báo BTC, Đơn vị), 2 nút Tạo mới/Hướng dẫn lớn và Banner Robot AI.</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001/admin" target="_blank" class="btn btn-primary" style="background:#DC2626;">Mở Bảng Điều Khiển :3001</a>
+          <a href="http://localhost:3002/admin" target="_blank" class="btn btn-secondary">:3002</a>
+        </div>
+      </div>
+
+      <!-- Card 4B: MyAloha 5-Step Stepper Wizard (Ảnh 2, 3, 4, 5) -->
+      <div class="card" style="border: 2px solid #DC2626;">
+        <div>
+          <div class="card-title" style="color: #DC2626;">⚙️ MyAloha 5-Step Stepper (Ảnh 2, 3, 4, 5)</div>
+          <div class="card-desc">Thiết lập chuẩn MyAloha: Stepper tròn 5 bước có vạch nối chuyển đỏ (#DC2626), thanh công cụ nhanh [Mobile/Khóa/Chia sẻ/Kế hoạch/Mũi tên], giao diện 2 cột mô phỏng điện thoại & drawer cài đặt, đồng bộ tham số <code>?step=1..5</code>.</div>
+        </div>
+        <div class="btn-group" style="flex-wrap: wrap;">
+          <a href="http://localhost:3001/admin" target="_blank" class="btn btn-primary" style="background:#0F172A;">Quản trị /admin</a>
+          <a href="http://localhost:3001/admin/tao-cuoc-thi?edit=cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup&step=1" target="_blank" class="btn btn-primary" style="background:#DC2626;">✏️ Chỉnh sửa Hội Nông Dân</a>
+          <a href="http://localhost:3001/admin/tao-cuoc-thi?step=5" target="_blank" class="btn btn-secondary" style="border-color:#DC2626; color:#DC2626;">Bước 5: Xuất bản (?step=5)</a>
+        </div>
+      </div>
+
+      <!-- Card 5: Results & Rankings -->
+      <div class="card">
+        <div>
+          <div class="card-title">🏆 Bảng Xếp Hạng & Điểm</div>
+          <div class="card-desc">2 Sparkline Charts theo từng cuộc thi, bảng xếp hạng chi tiết, lọc theo ngày và theo từng đơn vị dự thi.</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001/ket-qua/phong-chong-te-nan-2026" target="_blank" class="btn btn-primary">BXH PCTN :3001</a>
+          <a href="http://localhost:3001/ket-qua/tim-hieu-phap-luat-ea-sup-2026" target="_blank" class="btn btn-secondary">BXH Ea Súp</a>
+        </div>
+      </div>
+
+      <!-- Card 6: Export Excel -->
+      <div class="card">
+        <div>
+          <div class="card-title">📊 Xuất File Excel (.xlsx)</div>
+          <div class="card-desc">Tải trực tiếp bảng xếp hạng và kết quả thi định dạng Excel chính thức để lập báo cáo tổng kết.</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001/api/contests/phong-chong-te-nan-2026/export" download class="btn btn-emerald">Xuất Excel (.xlsx)</a>
+        </div>
+      </div>
+
+      <!-- Card 7: Cuộc thi Ảnh / Video (Ảnh 1 & Ảnh 2 - Quản trị Danh sách) -->
+      <div class="card" style="border: 2px solid #E11D48;">
+        <div>
+          <div class="card-title" style="color: #E11D48;">📸 Quản Trị Cuộc Thi Ảnh/Video (Ảnh 1 & 2)</div>
+          <div class="card-desc">Menu nút đỏ "Cuộc thi Ảnh/Video [MỚI]" kèm nút viền nét đứt "+ Tạo mới" (Ảnh 1 & 4), Mẫu kế hoạch, bảng quản trị danh sách cuộc thi, loại bình chọn, trạng thái nháp và modal thêm mới (Ảnh 2).</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001/admin" target="_blank" class="btn btn-primary" style="background:#E11D48;">Mở Quản Trị :3001</a>
+        </div>
+      </div>
+
+      <!-- Card 8: Trang Bình Chọn Công Khai (Ảnh 3) -->
+      <div class="card" style="border: 2px solid #009E60;">
+        <div>
+          <div class="card-title" style="color: #009E60;">🌟 Cổng Bình Chọn & Đồng Hồ Flip (Ảnh 3)</div>
+          <div class="card-desc">Banner sân khấu nghệ thuật, Tiêu đề xanh "CUỘC THI BÌNH CHỌN MỚI" có nút link, đồng hồ đếm ngược lật số (Flip cards 02:23:55:10), nút xanh "NỘP TÁC PHẨM >>", danh sách tác phẩm & vòm cong rỗng (Empty Arch).</div>
+        </div>
+        <div class="btn-group">
+          <a href="http://localhost:3001/binh-chon/cuoc-thi-binh-chon-moi" target="_blank" class="btn btn-emerald" style="background:#009E60;">Mở Bình Chọn :3001</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="info-box">
+      <strong>🏛️ Cơ quan chủ quản & Tổ chức:</strong> Thường trực UB MTTQ Việt Nam xã Ea Súp • 72 Hùng Vương • ĐT: 0888023023 • Email: Easupsohoa@gmail.com<br>
+      <strong>💡 Dữ liệu thí sinh mẫu để kiểm thử nhanh:</strong><br>
+      • Họ và tên: <code>Lê Hạnh</code> hoặc <code>Y Blôk Niê</code><br>
+      • Số CCCD: <code>066092001122</code> | Số điện thoại: <code>0984112233</code><br>
+      • Đơn vị: Thí sinh chọn đơn vị bất kỳ đã được Ban tổ chức thiết lập.<br>
+      • Xem toàn bộ tài liệu kiến trúc & lệnh vận hành tại: <a href="CONTEXT.md">CONTEXT.md</a> và <a href="AGENTS.md">AGENTS.md</a>.
+    </div>
+  </div>
+</body>
+</html>

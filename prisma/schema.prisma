@@ -1,0 +1,184 @@
+// cuocthi.easupso.com - Prisma Schema
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  SUPER_ADMIN
+  EXECUTIVE
+  ORG_ADMIN
+  VILLAGE_LEADER
+}
+
+enum ContestStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+  ARCHIVED
+}
+
+enum UnitGroupType {
+  VILLAGE
+  AGENCY
+  SCHOOL
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+}
+
+model Organization {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  name      String
+  address   String?
+  email     String?
+  phone     String?
+  logoUrl   String?
+  createdAt DateTime  @default(now())
+  users     User[]
+  contests  Contest[]
+}
+
+model User {
+  id             String        @id @default(cuid())
+  email          String        @unique
+  passwordHash   String
+  fullName       String
+  role           Role          @default(ORG_ADMIN)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  villageName    String?
+  createdAt      DateTime      @default(now())
+  auditLogs      AuditLog[]
+}
+
+model Contest {
+  id               String        @id @default(cuid())
+  organizationId   String
+  organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  title            String
+  slug             String        @unique
+  bannerUrl        String?
+  rulesHtml        String        @db.Text
+  organizerName    String
+  organizerAddress String?
+  organizerEmail   String?
+  organizerPhone   String?
+  announcement     String?       @db.Text
+  startTime        DateTime
+  endTime          DateTime
+  durationMinutes  Int           @default(15)
+  questionCount    Int           @default(20)
+  maxAttempts      Int           @default(3)
+  hasTieBreaker    Boolean       @default(true)
+  status           ContestStatus @default(DRAFT)
+  audioUrl         String?
+  contentHash      String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  units        ContestUnit[]
+  questions    Question[]
+  participants Participant[]
+  attempts     ExamAttempt[]
+
+  @@index([slug])
+  @@index([organizationId])
+  @@index([status])
+}
+
+model ContestUnit {
+  id           String        @id @default(cuid())
+  contestId    String
+  contest      Contest       @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  name         String
+  groupType    UnitGroupType @default(VILLAGE)
+  participants Participant[]
+
+  @@index([contestId])
+}
+
+model Question {
+  id               String       @id @default(cuid())
+  contestId        String?
+  contest          Contest?     @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  category         String?
+  content          String       @db.Text
+  mediaUrl         String?
+  questionType     QuestionType @default(SINGLE_CHOICE)
+  options          Json         // [{ id: "A", text: "..." }]
+  correctOptionIds String[]     // Bảo mật tuyệt đối trên Server
+  explanation      String?      @db.Text // Trích dẫn điều khoản luật
+  audioUrl         String?
+  points           Int          @default(10)
+  createdAt        DateTime     @default(now())
+
+  @@index([contestId])
+  @@index([category])
+}
+
+model Participant {
+  id        String      @id @default(cuid())
+  contestId String
+  contest   Contest     @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  unitId    String
+  unit      ContestUnit @relation(fields: [unitId], references: [id])
+  fullName  String
+  cccd      String
+  phone     String
+  birthYear Int?
+  address   String?
+  createdAt DateTime    @default(now())
+
+  attempts ExamAttempt[]
+
+  @@index([contestId, cccd, phone])
+}
+
+model ExamAttempt {
+  id                   String      @id @default(cuid())
+  contestId            String
+  contest              Contest     @relation(fields: [contestId], references: [id], onDelete: Cascade)
+  participantId        String
+  participant          Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  assignedQuestionIds  String[]
+  answers              Json        // { questionId: ["opt1"] }
+  score                Int         @default(0)
+  correctCount         Int         @default(0)
+  totalQuestions       Int         @default(0)
+  accuracyPercent      Float       @default(0.0)
+  durationSeconds      Int         @default(0)
+  tieBreakerPrediction Int?
+  tabSwitchCount       Int         @default(0)
+  ipAddress            String?
+  startedAt            DateTime    @default(now())
+  submittedAt          DateTime?
+  createdAt            DateTime    @default(now())
+
+  @@index([contestId])
+  @@index([participantId])
+  @@index([score, durationSeconds])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id])
+  action      String
+  targetTable String
+  targetId    String?
+  oldData     Json?
+  newData     Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([action])
+  @@index([targetTable])
+}

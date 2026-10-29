@@ -1,0 +1,10 @@
+node_modules
+.next
+.git
+.env
+.env*.local
+storage/tts/*
+!storage/tts/.gitkeep
+storage/uploads/*
+!storage/uploads/.gitkeep
+*.log
