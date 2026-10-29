@@ -1718,20 +1718,24 @@ export default function ContestWizardPage() {
                 />
               </div>
 
-              {/* Thể lệ / Mô tả vắn tắt */}
+              {/* Thể lệ cuộc thi (Đồng bộ Ảnh 1) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-bold text-slate-700">Mô tả &amp; Hướng dẫn thi</label>
+                  <label className="text-xs font-bold text-slate-700">Thể lệ cuộc thi</label>
                   <span className="text-[11px] text-slate-400 font-medium">
-                    {shortDesc.length} / 300
+                    {shortDesc.length} ký tự
                   </span>
                 </div>
                 <textarea
-                  rows={2}
-                  maxLength={300}
+                  rows={4}
                   value={shortDesc}
-                  onChange={(e) => setShortDesc(e.target.value)}
-                  className="w-full p-2 text-xs rounded-lg border border-slate-300 outline-none text-slate-700 focus:border-red-600"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setShortDesc(val);
+                    setRulesHtml(val.replace(/\n/g, "<br/>"));
+                  }}
+                  placeholder="Nhập thể lệ cuộc thi..."
+                  className="w-full p-2.5 text-xs rounded-lg border border-slate-300 outline-none text-slate-700 focus:border-red-600 leading-relaxed bg-white"
                 />
               </div>
 
