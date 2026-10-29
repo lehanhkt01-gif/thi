@@ -72,13 +72,13 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
   const [loadingContest, setLoadingContest] = useState(true);
   const [examStep, setExamStep] = useState<"landing" | "testing" | "result">("landing");
 
-  // Registration Modal (Ảnh 5)
+  // Registration Modal (Ảnh 1: Xóa thông tin gợi ý mặc định)
   const [showRegisterModal, setShowRegisterModal] = useState(false);
-  const [fullName, setFullName] = useState("Nguyễn Văn An");
-  const [cccd, setCccd] = useState("034082015266");
-  const [phone, setPhone] = useState("0984123456");
+  const [fullName, setFullName] = useState("");
+  const [cccd, setCccd] = useState("");
+  const [phone, setPhone] = useState("");
   const [unitId, setUnitId] = useState("");
-  const [birthYear, setBirthYear] = useState("1995");
+  const [birthYear, setBirthYear] = useState("");
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [regError, setRegError] = useState("");
   const [starting, setStarting] = useState(false);
@@ -672,7 +672,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 01 GIẢI NHẤT
               </div>
               <div className="text-base sm:text-lg font-black text-amber-800">
-                5.000.000 <span className="text-xs font-normal">đồng/giải</span>
+                {contest.prize1 || "5.000.000 đồng/giải"}
               </div>
             </div>
 
@@ -685,7 +685,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 02 GIẢI NHÌ
               </div>
               <div className="text-base sm:text-lg font-black text-slate-800">
-                3.000.000 <span className="text-xs font-normal">đồng/giải</span>
+                {contest.prize2 || "3.000.000 đồng/giải"}
               </div>
             </div>
 
@@ -698,7 +698,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 03 GIẢI BA
               </div>
               <div className="text-base sm:text-lg font-black text-orange-800">
-                1.000.000 <span className="text-xs font-normal">đồng/giải</span>
+                {contest.prize3 || "1.000.000 đồng/giải"}
               </div>
             </div>
 
@@ -711,7 +711,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 05 GIẢI KHUYẾN KHÍCH
               </div>
               <div className="text-base sm:text-lg font-black text-purple-900">
-                750.000 <span className="text-xs font-normal">đồng/giải</span>
+                {contest.prize4 || "750.000 đồng/giải"}
               </div>
             </div>
           </div>
@@ -1035,7 +1035,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                       value={cccd}
                       onChange={(e) => setCccd(e.target.value.replace(/\D/g, ""))}
                       maxLength={12}
-                      placeholder="034082015266"
+                      placeholder="Nhập 12 số CCCD / Mã định danh..."
                       className="w-full text-sm sm:text-base font-semibold text-slate-900 outline-none bg-transparent"
                     />
                   </div>

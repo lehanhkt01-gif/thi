@@ -108,6 +108,10 @@ export interface ContestModel {
   fullScreenExam?: boolean;
   unitGroupName?: string;
   unitGroupId?: string;
+  prize1?: string;
+  prize2?: string;
+  prize3?: string;
+  prize4?: string;
   createdAt: string;
   units: ContestUnitModel[];
   questions: QuestionModel[];
