@@ -468,9 +468,9 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </div>
         </header>
 
-        {/* 2. HERO BANNER CHUẨN ẢNH 3 - BANNER NẰM TRÙM LÊN CHE TOÀN BỘ KHU VỰC HERO */}
+        {/* 2. HERO BANNER CHUẨN ẢNH 3 - BANNER NẰM TRÙM LÊN CHE TOÀN BỘ KHU VỰC HERO (ĐÃ THU GỌN 1/3) */}
         <section
-          className="relative w-full overflow-hidden py-4 sm:py-8 px-2 sm:px-4 shadow-md transition-colors duration-300"
+          className="relative w-full overflow-hidden py-3 sm:py-5 px-2 sm:px-4 shadow-md transition-colors duration-300"
           style={{
             backgroundColor: contest?.themeColor || "#990000",
             backgroundImage: `radial-gradient(ellipse at 50% 30%, ${contest?.themeColor || "#DC2626"} 0%, #991B1B 65%, #7F1D1D 100%)`,
@@ -480,12 +480,12 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-300 via-transparent to-transparent"></div>
 
           {contest?.bannerUrl ? (
-            <div className="max-w-5xl mx-auto relative z-10">
-              <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/30 bg-black/10 backdrop-blur-xs">
+            <div className="max-w-4xl lg:max-w-5xl mx-auto relative z-10 flex justify-center">
+              <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/30 bg-black/10 backdrop-blur-xs w-full max-h-[220px] sm:max-h-[300px] md:max-h-[360px] flex items-center justify-center">
                 <img
                   src={contest.bannerUrl}
                   alt={contest.title}
-                  className="w-full h-auto block object-cover transform hover:scale-[1.005] transition-transform duration-300"
+                  className="w-full h-full max-h-[220px] sm:max-h-[300px] md:max-h-[360px] block object-cover object-center transform hover:scale-[1.005] transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
                     if (!target.src.includes("cuocthi-phapluat")) {
