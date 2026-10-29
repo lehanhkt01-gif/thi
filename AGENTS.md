@@ -114,3 +114,19 @@
 | Báo cáo Thống kê & Bảng xếp hạng | [x] | 2 Sparkline Charts, bộ lọc ngày, CCCD, đơn vị, xuất Excel |
 | Phân quyền Đăng nhập Admin & Người dùng | [x] | RBAC: Admin toàn quyền xét duyệt/phân quyền; User tạo thi/xuất Excel |
 | Đóng gói & Kiểm tra hoàn tất | [x] | Chuẩn hóa quy trình vận hành cuocthi.easupso.com |
+
+---
+
+## 6. KỶ LUẬT TRIỂN KHAI & ĐỒNG BỘ MÃ NGUỒN (DEPLOYMENT DISCIPLINE)
+
+1. **Quy tắc Vàng về Đồng bộ Git (Push trước - Pull sau)**:
+   - **BẮT BUỘC**: Bất kỳ khi nào thực hiện chỉnh sửa, tính năng hoặc sửa lỗi ở local, Agent **PHẢI thực hiện commit và `git push origin main` lên GitHub (`https://github.com/lehanhkt01-gif/thi.git`) TRƯỚC**.
+   - Tuyệt đối KHÔNG BAO GIỜ hướng dẫn người dùng chạy lệnh `git pull` trên VPS khi mã nguồn mới chưa được push lên GitHub thành công.
+
+2. **Môi trường & Thông số triển khai**:
+   - **Repository GitHub**: `https://github.com/lehanhkt01-gif/thi.git` (Nhánh: `main`)
+   - **Thư mục VPS chính thức**: `/var/www/thi` (CasaOS / Ubuntu Server)
+   - **Tên miền hoạt động**: `https://thi.easupso.com`
+   - **Cổng chuyển tiếp (Proxy Host Port)**: `8077` (Ánh xạ `8077:3000` qua Docker Compose)
+   - **Dữ liệu lưu trữ bền vững (Persistent Storage)**: Luôn mount thư mục `./data:/app/data` và `./public/uploads:/app/public/uploads` để không mất dữ liệu thi cử.
+
