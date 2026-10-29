@@ -1298,27 +1298,17 @@ export default function ContestWizardPage() {
 
   return (
     <div className="max-w-[1536px] mx-auto px-3 sm:px-6 py-6">
-      {/* Auth Status & Permission Bar (Ảnh 1 & Ảnh 2) */}
-      <div className="mb-6 bg-emerald-50 border border-emerald-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
-            <ShieldCheck className="w-5 h-5" />
+      {/* Auth Status Bar (Ghi thật ngắn gọn: chỉ ghi họ tên) */}
+      <div className="mb-5 bg-emerald-50 border border-emerald-300 rounded-2xl px-4 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 shadow-2xs">
+        <div className="flex items-center space-x-2.5 min-w-0">
+          <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <ShieldCheck className="w-4 h-4" />
           </div>
-          <div>
-            <div className="flex items-center space-x-2">
-              <span className="text-xs sm:text-sm font-black text-emerald-950">
-                {authUser.name}
-              </span>
-              <span className="text-[10px] bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full shadow-2xs">
-                ✓ ĐÃ ĐĂNG NHẬP
-              </span>
-            </div>
-            <div className="text-[11px] text-emerald-800">
-              Email: <span className="font-semibold">{authUser.email}</span> • Quyền hạn: <span className="font-bold text-emerald-900">Ban Tổ Chức / Khởi tạo &amp; Quản trị cuộc thi</span>
-            </div>
-          </div>
+          <span className="text-xs sm:text-sm font-bold text-emerald-950 truncate">
+            {authUser.name}
+          </span>
         </div>
-        <div className="flex items-center space-x-2 self-end sm:self-auto">
+        <div className="flex items-center space-x-2 shrink-0 self-end sm:self-auto">
           <Link
             href="/admin"
             className="text-xs font-bold text-slate-700 hover:text-[#DC2626] px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 transition-colors inline-flex items-center"
