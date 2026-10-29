@@ -247,7 +247,7 @@ export default function ContestWizardPage() {
         creatorEmail: authUser?.email,
         creatorId: authUser?.id,
         unitGroupId: selectedGroupId,
-        unitGroupName: unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình"),
+        unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
         updatedAt: new Date().toISOString(),
       };
       localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draft));
@@ -428,6 +428,7 @@ export default function ContestWizardPage() {
 
   const [unitGroups, setUnitGroups] = useState(DEFAULT_UNIT_GROUPS);
   const [selectedGroupId, setSelectedGroupId] = useState("group-party");
+  const [unitGroupName, setUnitGroupName] = useState("Khối Cơ quan Đảng - Đoàn thể");
   const [contestUnits, setContestUnits] = useState<string[]>([...DEFAULT_UNIT_GROUPS[0].units]);
   const [newUnitInput, setNewUnitInput] = useState("");
   const [bulkInput, setBulkInput] = useState("");
@@ -436,6 +437,14 @@ export default function ContestWizardPage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupUnitsText, setNewGroupUnitsText] = useState("");
   const [unitFilterSearch, setUnitFilterSearch] = useState("");
+
+  // Cho phép sửa tên nhóm / tổ chức trực tiếp tại ô Chọn đơn vị (Ảnh 1)
+  const handleUnitGroupNameChange = (val: string) => {
+    setUnitGroupName(val);
+    setUnitGroups((prev) =>
+      prev.map((g) => (g.id === selectedGroupId ? { ...g, name: val } : g))
+    );
+  };
 
   // Chọn nhóm đơn vị từ dropdown
   const handleSelectUnitGroup = (groupId: string) => {
@@ -446,28 +455,36 @@ export default function ContestWizardPage() {
     setSelectedGroupId(groupId);
     const found = unitGroups.find((g) => g.id === groupId);
     if (found) {
+      setUnitGroupName(found.name);
       setContestUnits([...found.units]);
     }
   };
 
-  // Thêm đơn vị con mới đơn lẻ
+  // Thêm đơn vị con mới (hỗ trợ nhập 1 hoặc nhiều cách nhau bằng dấu phẩy / xuống dòng)
   const handleAddUnit = () => {
     const val = newUnitInput.trim();
     if (!val) return;
-    if (!contestUnits.includes(val)) {
-      const next = [...contestUnits, val];
-      setContestUnits(next);
-      setUnitGroups((prev) =>
-        prev.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
-      );
-    }
+    const splitUnits = val
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (splitUnits.length === 0) return;
+
+    const newSet = new Set([...contestUnits]);
+    splitUnits.forEach((u) => newSet.add(u));
+    const next = Array.from(newSet);
+
+    setContestUnits(next);
+    setUnitGroups((prev) =>
+      prev.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+    );
     setNewUnitInput("");
   };
 
-  // Tạo nhóm đơn vị mới
+  // Tạo tổ chức / đơn vị con mới (Ảnh 2)
   const handleCreateNewGroup = () => {
     if (!newGroupName.trim()) {
-      alert("Vui lòng nhập tên nhóm đơn vị mới!");
+      alert("Vui lòng nhập tên tổ chức / đơn vị mới!");
       return;
     }
     const units = newGroupUnitsText
@@ -481,8 +498,9 @@ export default function ContestWizardPage() {
       units: units.length > 0 ? units : [newGroupName.trim()],
     };
 
-    setUnitGroups((prev) => [...prev, createdGroup]);
+    setUnitGroups((prev) => [createdGroup, ...prev]);
     setSelectedGroupId(createdGroup.id);
+    setUnitGroupName(createdGroup.name);
     setContestUnits(createdGroup.units);
     setNewGroupName("");
     setNewGroupUnitsText("");
@@ -936,7 +954,7 @@ export default function ContestWizardPage() {
           prize3Count,
           prize4Count,
           unitGroupId: selectedGroupId,
-          unitGroupName: unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình"),
+          unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
           units: unitsPayload,
           questions: questionsList,
         }),
@@ -950,6 +968,7 @@ export default function ContestWizardPage() {
           prize1, prize2, prize3, prize4,
           prize1Count, prize2Count, prize3Count, prize4Count,
           unitGroupId: selectedGroupId,
+          unitGroupName,
         }));
         if (typeof window !== "undefined") {
           const currentUrl = new URL(window.location.href);
@@ -1064,9 +1083,10 @@ export default function ContestWizardPage() {
 
                 if (matchedGroup) {
                   setSelectedGroupId(matchedGroup.id);
+                  setUnitGroupName(c.unitGroupName || matchedGroup.name);
                   setUnitGroups((groups) =>
                     groups.map((g) =>
-                      g.id === matchedGroup.id ? { ...g, units: loadedUnitNames } : g
+                      g.id === matchedGroup.id ? { ...g, name: c.unitGroupName || matchedGroup.name, units: loadedUnitNames } : g
                     )
                   );
                 } else {
@@ -1091,6 +1111,7 @@ export default function ContestWizardPage() {
                     return [savedGroup, ...filtered];
                   });
                   setSelectedGroupId(customId);
+                  setUnitGroupName(customName);
                 }
               }
               if (c.questions && c.questions.length > 0) {
@@ -1123,6 +1144,7 @@ export default function ContestWizardPage() {
                   if (c.prize3Count) setPrize3Count(c.prize3Count);
                   if (c.prize4Count) setPrize4Count(c.prize4Count);
                   if (c.unitGroupId) setSelectedGroupId(c.unitGroupId);
+                  if (c.unitGroupName) setUnitGroupName(c.unitGroupName);
                   if (c.questions && c.questions.length > 0) setQuestionsList(c.questions);
                   setIsEditMode(true);
                 }
@@ -1146,6 +1168,7 @@ export default function ContestWizardPage() {
               if (d.prize3Count) setPrize3Count(d.prize3Count);
               if (d.prize4Count) setPrize4Count(d.prize4Count);
               if (d.unitGroupId) setSelectedGroupId(d.unitGroupId);
+              if (d.unitGroupName) setUnitGroupName(d.unitGroupName);
             }
           }
         } catch (e) {
@@ -2671,90 +2694,124 @@ export default function ContestWizardPage() {
         )}
 
         {/* ========================================================= */}
-        {/* BƯỚC 3: CHỌN ĐƠN VỊ (Layout 2 cột Ảnh 1) */}
+        {/* BƯỚC 3: CHỌN ĐƠN VỊ (Theo yêu cầu Ảnh 1 & Ảnh 2) */}
         {/* ========================================================= */}
         {currentStep === 3 && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-            {/* Cột Trái: Thẻ Tạo nhóm/đơn vị thủ công (Ảnh 1) */}
-            <div className="lg:col-span-5 flex flex-col items-center">
-              <div
-                className="w-full p-8 rounded-3xl border-2 border-dashed border-slate-300 hover:border-[#DC2626] bg-slate-50/50 hover:bg-red-50/20 transition-all flex flex-col items-center text-center group"
+            {/* Cột Trái: Toàn bộ phần này chỉ để 1 nút "TẠO TỔ CHỨC/ĐƠN VỊ CON" (Ảnh 2) */}
+            <div className="lg:col-span-4 flex flex-col justify-start">
+              <button
+                type="button"
+                onClick={() => setShowAddGroupModal(true)}
+                className="w-full py-4 px-5 rounded-2xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs sm:text-sm uppercase tracking-wider flex items-center justify-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer active:scale-98"
               >
-                <div className="w-20 h-20 rounded-3xl bg-red-100 text-[#DC2626] flex items-center justify-center mb-4 group-hover:scale-105 transition-transform shadow-xs">
-                  <Users className="w-10 h-10" />
-                </div>
-                <h3 className="text-base font-bold text-slate-900 mb-1">
-                  Tạo nhóm/đơn vị thủ công
-                </h3>
-                <p className="text-xs text-slate-500 max-w-xs mb-5">
-                  Nhập danh sách thôn, buôn, chi bộ, lớp học, đoàn thể xã Ea Súp
-                </p>
-                <div className="flex flex-col sm:flex-row gap-2.5 w-full max-w-xs justify-center">
-                  <button
-                    type="button"
-                    onClick={() => setShowBulkModal(true)}
-                    className="btn-admin-primary text-xs px-4 py-2.5 font-bold flex-1 flex items-center justify-center cursor-pointer shadow-sm hover:shadow"
-                  >
-                    <Plus className="w-4 h-4 mr-1.5" /> Thêm / Dán hàng loạt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowAddGroupModal(true)}
-                    className="btn-admin-secondary text-xs px-3.5 py-2.5 font-semibold flex items-center justify-center cursor-pointer hover:border-red-400 hover:text-red-700"
-                  >
-                    + Nhóm mới
-                  </button>
-                </div>
-              </div>
+                <Plus className="w-5 h-5 stroke-[2.5]" />
+                <span>TẠO TỔ CHỨC/ĐƠN VỊ CON</span>
+              </button>
             </div>
 
-            {/* Cột Phải: Chọn đơn vị & Danh sách đơn vị con */}
-            <div className="lg:col-span-7 space-y-4">
-              {/* Dropdown Chọn đơn vị */}
+            {/* Cột Phải: Ô text Chọn đơn vị & Thêm / Xóa đơn vị con (Ảnh 1) */}
+            <div className="lg:col-span-8 space-y-4">
+              {/* Ô text Chọn đơn vị (Ảnh 1 - cho phép sửa trực tiếp) */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                  Chọn đơn vị
-                </label>
-                <select
-                  value={selectedGroupId}
-                  onChange={(e) => handleSelectUnitGroup(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs bg-white font-medium text-slate-800 outline-none focus:border-red-600 shadow-2xs"
-                >
-                  {unitGroups.map((group) => (
-                    <option key={group.id} value={group.id}>
-                      {group.name} ({group.units.length} đơn vị con)
-                    </option>
-                  ))}
-                </select>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-bold text-slate-700">
+                    Chọn đơn vị
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] text-slate-400">Chọn mẫu nhanh:</span>
+                    <select
+                      value={selectedGroupId}
+                      onChange={(e) => handleSelectUnitGroup(e.target.value)}
+                      className="text-[11px] bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded-lg border border-slate-200 font-medium outline-none cursor-pointer"
+                    >
+                      {unitGroups.map((group) => (
+                        <option key={group.id} value={group.id}>
+                          {group.name} ({group.units.length} đơn vị con)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <input
+                  type="text"
+                  value={unitGroupName}
+                  onChange={(e) => handleUnitGroupNameChange(e.target.value)}
+                  placeholder="Nhập hoặc chỉnh sửa tên tổ chức / đơn vị..."
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white font-medium text-slate-800 outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600 shadow-2xs"
+                />
               </div>
 
-              {/* Danh sách các đơn vị con đã cấu hình */}
+              {/* Danh sách các đơn vị con đã cấu hình (Ảnh 1 - cho phép thêm, xóa đơn vị con) */}
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-2">
                   <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
                     ĐÃ CẤU HÌNH {contestUnits.length} ĐƠN VỊ
                   </span>
+                  {contestUnits.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleClearAllUnits}
+                      className="text-[11px] text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                    >
+                      Xóa tất cả
+                    </button>
+                  )}
                 </div>
 
+                {/* Ô nhập thêm đơn vị con mới (Ảnh 1) */}
+                <div className="flex gap-2 mb-2.5">
+                  <input
+                    type="text"
+                    value={newUnitInput}
+                    onChange={(e) => setNewUnitInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleAddUnit();
+                      }
+                    }}
+                    placeholder="Nhập tên đơn vị con mới rồi bấm Thêm (VD: Chi hội Buôn Ea Súp)..."
+                    className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white text-slate-800 placeholder-slate-400 outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddUnit}
+                    className="px-3.5 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold flex items-center gap-1 shadow-2xs hover:shadow-xs transition-all cursor-pointer shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                    <span>Thêm</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowBulkModal(true)}
+                    className="px-3 py-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-white text-slate-700 hover:bg-slate-50 text-xs font-medium flex items-center gap-1 transition-all cursor-pointer shrink-0"
+                    title="Dán danh sách nhiều đơn vị con"
+                  >
+                    <span>Dán nhiều</span>
+                  </button>
+                </div>
+
+                {/* Danh sách thẻ tag đơn vị con (Ảnh 1 - nút X xóa từng đơn vị) */}
                 <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200">
                   {contestUnits.length === 0 ? (
                     <div className="w-full text-center py-4 text-xs text-slate-400">
-                      Chưa có đơn vị con nào. Hãy chọn nhóm đơn vị ở trên hoặc dán danh sách ở bên trái.
+                      Chưa có đơn vị con nào. Hãy nhập tên đơn vị con ở trên hoặc chọn mẫu nhanh.
                     </div>
                   ) : (
                     contestUnits.map((u, i) => (
                       <span
                         key={i}
-                        className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-700 text-[11px] font-medium shadow-2xs hover:border-slate-300"
+                        className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-2xs hover:border-slate-300 transition-colors"
                       >
                         <span>{u}</span>
                         <button
                           type="button"
                           onClick={() => handleRemoveUnit(u)}
-                          className="text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                          className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-0.5 rounded transition-colors cursor-pointer"
                           title={`Xóa ${u}`}
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </span>
                     ))
@@ -3522,7 +3579,7 @@ export default function ContestWizardPage() {
         </div>
       )}
 
-      {/* 8. Modal Tạo Nhóm Đơn Vị Mới (Ảnh 1) */}
+      {/* 8. Modal Tạo Tổ Chức / Đơn Vị Con (Ảnh 2) */}
       {showAddGroupModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative animate-scale-up">
@@ -3539,11 +3596,11 @@ export default function ContestWizardPage() {
                 <Landmark className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold text-slate-900">
-                  Tạo Nhóm Đơn Vị Mới
+                <h3 className="text-base font-bold text-slate-900 uppercase">
+                  TẠO TỔ CHỨC / ĐƠN VỊ CON
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Tạo nhóm đơn vị (Ví dụ: Khối Chi bộ, Khối Doanh nghiệp, Cụm thi đua...)
+                  Tạo khối tổ chức dự thi và danh sách các chi hội, thôn buôn, chi bộ trực thuộc
                 </p>
               </div>
             </div>
@@ -3551,14 +3608,14 @@ export default function ContestWizardPage() {
             <div className="space-y-3.5 mb-5">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Tên nhóm đơn vị <span className="text-red-600">*</span>
+                  Tên tổ chức / Đơn vị <span className="text-red-600">*</span>
                 </label>
                 <input
                   type="text"
                   value={newGroupName}
                   onChange={(e) => setNewGroupName(e.target.value)}
-                  placeholder="Ví dụ: Khối Doanh nghiệp địa phương xã Ea Súp"
-                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600"
+                  placeholder="Ví dụ: Khối HỘI CCB XÃ EA SÚP hoặc Khối Doanh nghiệp"
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600 font-medium"
                 />
               </div>
 
@@ -3570,7 +3627,7 @@ export default function ContestWizardPage() {
                   rows={6}
                   value={newGroupUnitsText}
                   onChange={(e) => setNewGroupUnitsText(e.target.value)}
-                  placeholder={"Ví dụ:\nCông ty Cà phê Ea Súp\nHTX Nông nghiệp Tân Lập\nDoanh nghiệp Tư nhân Hoàng Anh..."}
+                  placeholder={"Ví dụ:\nChi hội thôn 1\nChi hội thôn 2\nChi hội thôn 3\nChi hội thôn 4\nChi hội thôn 5\nChi hội thôn 6..."}
                   className="w-full p-3 text-xs font-mono rounded-xl border border-slate-300 outline-none focus:border-red-600"
                 />
               </div>
@@ -3593,7 +3650,7 @@ export default function ContestWizardPage() {
                 onClick={handleCreateNewGroup}
                 className="btn-admin-primary text-xs px-5 py-2 font-bold cursor-pointer"
               >
-                Tạo nhóm &amp; Áp dụng ngay
+                Tạo &amp; Áp dụng ngay
               </button>
             </div>
           </div>
