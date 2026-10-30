@@ -5,8 +5,8 @@ import { Landmark, Shield, Phone, Mail, MapPin } from "lucide-react";
 export default function Footer() {
   return (
     <footer className="bg-slate-900 text-slate-300 border-t border-slate-800 text-sm mt-16">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
           {/* Col 1: Administrative Info */}
           <div>
             <div className="flex items-center space-x-2 text-white font-bold text-base mb-3">
@@ -48,43 +48,10 @@ export default function Footer() {
               </li>
             </ul>
           </div>
-
-          {/* Col 3: Quick Links & Security */}
-          <div>
-            <h4 className="text-white font-semibold text-sm mb-3 uppercase tracking-wider">
-              Liên kết & Bảo mật phòng thi
-            </h4>
-            <ul className="space-y-2 text-xs text-slate-400">
-              <li>
-                <Link href="/" className="hover:text-white transition-colors">
-                  Cổng danh sách cuộc thi xã Ea Súp
-                </Link>
-              </li>
-              <li>
-                <Link href="/ket-qua/tim-hieu-phap-luat-ea-sup-2026" className="hover:text-white transition-colors">
-                  Tra cứu kết quả & Bảng xếp hạng 20 thôn buôn
-                </Link>
-              </li>
-              <li>
-                <Link href="/admin/tao-cuoc-thi" className="hover:text-white transition-colors">
-                  Phân hệ Quản trị (5-Step Contest Wizard)
-                </Link>
-              </li>
-              <li className="pt-2 flex items-center space-x-1 text-emerald-400 font-medium">
-                <Shield className="w-4 h-4" />
-                <span>Bảo mật Zero-Trust • Đồng hồ máy chủ độc lập</span>
-              </li>
-            </ul>
-          </div>
         </div>
 
-        <div className="border-t border-slate-800 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-400">
-          <div>
-            © {new Date().getFullYear()} Ủy ban MTTQ Việt Nam xã Ea Súp. Bản quyền thuộc Hệ sinh thái chuyển đổi số easupso.com.
-          </div>
-          <div className="mt-2 sm:mt-0">
-            Hỗ trợ đồng bào DTTS & Giọng đọc AI "An Nhiên"
-          </div>
+        <div className="border-t border-slate-800 mt-8 pt-6 text-center sm:text-left text-xs text-slate-400">
+          © {new Date().getFullYear()} Ủy ban MTTQ Việt Nam xã Ea Súp. Bản quyền thuộc Hệ sinh thái chuyển đổi số easupso.com.
         </div>
       </div>
     </footer>

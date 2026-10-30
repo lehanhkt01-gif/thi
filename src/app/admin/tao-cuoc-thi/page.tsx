@@ -1135,9 +1135,12 @@ export default function ContestWizardPage() {
           startTime,
           endTime,
           durationMinutes,
-          questionCount: questionsList.length > 0
-            ? Math.min(examMixPackages[0]?.mcqCount || questionsList.length, questionsList.length)
-            : (questionCount || 5),
+          questionCount: (() => {
+            const sumMCQ = examMixPackages.reduce((sum, p) => sum + (Number(p.mcqCount) || 0), 0);
+            if (sumMCQ > 0) return sumMCQ;
+            if (questionsList.length > 0) return questionsList.length;
+            return questionCount || 10;
+          })(),
           maxAttempts,
           resultVisibility: showResultMode,
           attemptCalculation,
@@ -4003,9 +4006,23 @@ export default function ContestWizardPage() {
         onOpenSecurity={() => setShowSecurityModal(true)}
         onOpenShare={() => setShowShareModal(true)}
         onApplySettings={() => {
+          const calculatedTotalMCQ = examMixPackages.reduce(
+            (sum, p) => sum + (Number(p.mcqCount) || 0),
+            0
+          );
+          const effectiveQuestionCount =
+            calculatedTotalMCQ > 0
+              ? calculatedTotalMCQ
+              : questionsList.length > 0
+              ? questionsList.length
+              : questionCount;
+
+          setQuestionCount(effectiveQuestionCount);
+
           const draft = {
             ...JSON.parse(localStorage.getItem(`easup_contest_draft_${slug}`) || "{}"),
             durationMinutes,
+            questionCount: effectiveQuestionCount,
             maxAttempts,
             resultVisibility: showResultMode,
             attemptCalculation,

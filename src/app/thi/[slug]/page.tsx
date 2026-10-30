@@ -306,12 +306,13 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
   // Result
   const [resultData, setResultData] = useState<{
-    score: number;
-    correctCount: number;
-    totalQuestions: number;
-    accuracyPercent: number;
+    score?: number;
+    correctCount?: number;
+    totalQuestions?: number;
+    accuracyPercent?: number;
     durationSeconds: number;
-    review: ReviewItem[];
+    review?: ReviewItem[];
+    resultVisibility?: string;
   } | null>(null);
 
   // 1. Nạp thông tin cuộc thi & Bảng xếp hạng (Hỗ trợ Preview live từ Query Params & Local Draft)
@@ -1999,10 +2000,68 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
   // VIEW 3: KẾT QUẢ THI & GIẢI THÍCH ĐIỀU KHOẢN LUẬT
   // ==========================================
   if (examStep === "result" && resultData) {
-    const isPassed = resultData.accuracyPercent >= 50;
+    const visibility = resultData.resultVisibility || contest?.resultVisibility || "SCORE_ONLY";
+    const isPassed = (resultData.accuracyPercent ?? 0) >= 50;
 
+    // 1. TRƯỜNG HỢP "KHÔNG CHO XEM" (HIDDEN)
+    if (visibility === "HIDDEN") {
+      return (
+        <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
+          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-card mb-6">
+            <div className="p-8 sm:p-10 bg-slate-900 text-white text-center">
+              <CheckCircle2 className="w-16 h-16 mx-auto mb-3 text-emerald-400" />
+              <h2 className="text-xl sm:text-2xl font-black mb-2 uppercase tracking-tight">
+                Bài Làm Đã Được Ghi Nhận Thành Công!
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-md mx-auto">
+                {contest.title}
+              </p>
+            </div>
+
+            <div className="p-6 sm:p-8 space-y-5 text-center">
+              <div className="p-4 rounded-2xl bg-blue-50 border border-blue-200 text-xs sm:text-sm text-blue-900 leading-relaxed">
+                Theo thể lệ của Ban tổ chức, kết quả bài thi được bảo mật tuyệt đối và sẽ được công bố chính thức sau khi cuộc thi kết thúc. Cảm ơn bạn đã tích cực tham gia!
+              </div>
+
+              <div className="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
+                <span>Thời gian làm bài: <strong>{Math.floor(resultData.durationSeconds / 60)} phút {resultData.durationSeconds % 60} giây</strong></span>
+                {tabSwitchCount > 0 ? (
+                  <span className="text-amber-700 font-semibold">Số lần rời màn hình: {tabSwitchCount}</span>
+                ) : (
+                  <span className="text-emerald-700 font-semibold flex items-center">
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Kỷ luật thi tốt
+                  </span>
+                )}
+              </div>
+
+              <div className="pt-3 flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExamStep("landing");
+                    setAnswers({});
+                    setTieBreaker("");
+                  }}
+                  className="btn-admin-secondary w-full sm:w-1/2 py-2.5 text-xs font-semibold cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" /> Quay lại trang cuộc thi
+                </button>
+                <Link
+                  href="/"
+                  className="btn-admin-primary w-full sm:w-1/2 py-2.5 text-xs font-bold text-center bg-[#DC2626] hover:bg-red-700 border-red-700 cursor-pointer"
+                >
+                  Về Cổng Cuộc thi Ea Súp
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // 2. TRƯỜNG HỢP "CHỈ CHO XEM ĐIỂM" (SCORE_ONLY) VÀ "CHO XEM ĐIỂM VÀ ĐÁP ÁN" (SCORE_AND_ANSWERS)
     return (
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-2xl mx-auto px-4 py-8 animate-fade-in">
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-card mb-6">
           {/* Result Header */}
           <div className={`p-6 sm:p-8 text-white text-center ${isPassed ? "bg-emerald-600" : "bg-[#DC2626]"}`}>
@@ -2018,15 +2077,15 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             <div className="grid grid-cols-3 gap-2 mt-6 max-w-sm mx-auto bg-black/15 rounded-xl p-3 backdrop-blur-xs">
               <div>
                 <div className="text-[11px] text-white/80 uppercase font-semibold">Điểm số</div>
-                <div className="text-2xl font-black mt-0.5">{resultData.score}</div>
+                <div className="text-2xl font-black mt-0.5">{resultData.score ?? 0}</div>
               </div>
               <div className="border-x border-white/20">
                 <div className="text-[11px] text-white/80 uppercase font-semibold">Đúng</div>
-                <div className="text-2xl font-black mt-0.5">{resultData.correctCount}/{resultData.totalQuestions}</div>
+                <div className="text-2xl font-black mt-0.5">{resultData.correctCount ?? 0}/{resultData.totalQuestions ?? 0}</div>
               </div>
               <div>
                 <div className="text-[11px] text-white/80 uppercase font-semibold">Độ chính xác</div>
-                <div className="text-2xl font-black mt-0.5">{resultData.accuracyPercent}%</div>
+                <div className="text-2xl font-black mt-0.5">{resultData.accuracyPercent ?? 0}%</div>
               </div>
             </div>
           </div>
@@ -2043,82 +2102,115 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             )}
           </div>
 
-          {/* Detailed Question Review with Legal Citations */}
-          <div className="p-6 space-y-6">
-            <h3 className="text-base font-bold text-slate-900 pb-2 border-b border-slate-200 flex items-center">
-              <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" />
-              Chi Tiết Bài Làm &amp; Căn Cứ Pháp Lý
-            </h3>
-
-            {resultData.review.map((item, idx) => (
-              <div
-                key={item.questionId}
-                className={`p-4 rounded-xl border ${
-                  item.isCorrect
-                    ? "bg-emerald-50/50 border-emerald-200"
-                    : "bg-red-50/50 border-red-200"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold uppercase text-slate-500">
-                    Câu {idx + 1} • {item.category}
-                  </span>
-                  <span
-                    className={`text-xs font-bold px-2 py-0.5 rounded-full ${
-                      item.isCorrect
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-red-100 text-red-800"
-                    }`}
-                  >
-                    {item.isCorrect ? "Chính xác (+10đ)" : "Chưa chính xác (0đ)"}
-                  </span>
-                </div>
-
-                <div className="text-sm font-bold text-slate-900 mb-2 leading-relaxed">
-                  {item.content}
-                </div>
-
-                <div className="text-xs text-slate-700 space-y-1 mb-3">
-                  <div>
-                    Bạn chọn: <strong className={item.isCorrect ? "text-emerald-700" : "text-red-700"}>{item.selectedOptionIds.join(", ") || "Chưa chọn"}</strong>
-                  </div>
-                  <div>
-                    Đáp án đúng: <strong className="text-emerald-700">{item.correctOptionIds.join(", ")}</strong>
-                  </div>
-                </div>
-
-                {/* Legal Citation */}
-                {item.explanation && (
-                  <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700 leading-relaxed">
-                    <strong className="text-[#0052CC]">Trích dẫn điều khoản: </strong>
-                    {item.explanation}
-                  </div>
-                )}
+          {/* TRƯỜNG HỢP 2A: CHỈ CHO XEM ĐIỂM (Bảo mật tuyệt đối đáp án và câu hỏi) */}
+          {visibility === "SCORE_ONLY" && (
+            <div className="p-6 space-y-5">
+              <div className="p-4 rounded-xl bg-blue-50/80 border border-blue-200 text-xs sm:text-sm text-blue-900 leading-relaxed text-center">
+                Ban tổ chức chỉ công bố điểm số của lượt thi này. Toàn bộ đáp án chi tiết và căn cứ pháp lý được bảo mật theo quy định thể lệ cuộc thi.
               </div>
-            ))}
 
-            {/* Action Buttons */}
-            <div className="pt-4 flex flex-col sm:flex-row items-center gap-3">
-              <button
-                type="button"
-                onClick={() => {
-                  setExamStep("landing");
-                  setAnswers({});
-                  setTieBreaker("");
-                }}
-                className="btn-admin-secondary w-full sm:w-1/2 py-2.5 text-xs font-semibold"
-              >
-                <RotateCcw className="w-4 h-4 mr-1.5" /> Quay lại trang cuộc thi
-              </button>
+              {/* Action Buttons */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExamStep("landing");
+                    setAnswers({});
+                    setTieBreaker("");
+                  }}
+                  className="btn-admin-secondary w-full sm:w-1/2 py-2.5 text-xs font-semibold cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" /> Quay lại trang cuộc thi
+                </button>
 
-              <Link
-                href={`/ket-qua/${slug}`}
-                className="btn-admin-primary w-full sm:w-1/2 py-2.5 text-xs font-bold text-center bg-[#0052CC] hover:bg-blue-700 border-blue-700"
-              >
-                <Award className="w-4 h-4 mr-1.5 inline" /> Xem Bảng xếp hạng
-              </Link>
+                <Link
+                  href={`/ket-qua/${slug}`}
+                  className="btn-admin-primary w-full sm:w-1/2 py-2.5 text-xs font-bold text-center bg-[#0052CC] hover:bg-blue-700 border-blue-700 cursor-pointer"
+                >
+                  <Award className="w-4 h-4 mr-1.5 inline" /> Xem Bảng xếp hạng
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* TRƯỜNG HỢP 2B: CHO XEM ĐIỂM VÀ ĐÁP ÁN (Detailed Review with Legal Citations) */}
+          {visibility === "SCORE_AND_ANSWERS" && (
+            <div className="p-6 space-y-6">
+              <h3 className="text-base font-bold text-slate-900 pb-2 border-b border-slate-200 flex items-center">
+                <CheckCircle2 className="w-4 h-4 mr-2 text-emerald-600" />
+                Chi Tiết Bài Làm &amp; Căn Cứ Pháp Lý
+              </h3>
+
+              {(resultData.review || []).map((item, idx) => (
+                <div
+                  key={item.questionId}
+                  className={`p-4 rounded-xl border ${
+                    item.isCorrect
+                      ? "bg-emerald-50/50 border-emerald-200"
+                      : "bg-red-50/50 border-red-200"
+                  }`}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-bold uppercase text-slate-500">
+                      Câu {idx + 1} • {item.category}
+                    </span>
+                    <span
+                      className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                        item.isCorrect
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-red-100 text-red-800"
+                      }`}
+                    >
+                      {item.isCorrect ? "Chính xác (+10đ)" : "Chưa chính xác (0đ)"}
+                    </span>
+                  </div>
+
+                  <div className="text-sm font-bold text-slate-900 mb-2 leading-relaxed">
+                    {item.content}
+                  </div>
+
+                  <div className="text-xs text-slate-700 space-y-1 mb-3">
+                    <div>
+                      Bạn chọn: <strong className={item.isCorrect ? "text-emerald-700" : "text-red-700"}>{item.selectedOptionIds.join(", ") || "Chưa chọn"}</strong>
+                    </div>
+                    <div>
+                      Đáp án đúng: <strong className="text-emerald-700">{item.correctOptionIds.join(", ")}</strong>
+                    </div>
+                  </div>
+
+                  {/* Legal Citation */}
+                  {item.explanation && (
+                    <div className="p-3 bg-white rounded-lg border border-slate-200 text-xs text-slate-700 leading-relaxed">
+                      <strong className="text-[#0052CC]">Trích dẫn điều khoản: </strong>
+                      {item.explanation}
+                    </div>
+                  )}
+                </div>
+              ))}
+
+              {/* Action Buttons */}
+              <div className="pt-4 flex flex-col sm:flex-row items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExamStep("landing");
+                    setAnswers({});
+                    setTieBreaker("");
+                  }}
+                  className="btn-admin-secondary w-full sm:w-1/2 py-2.5 text-xs font-semibold cursor-pointer"
+                >
+                  <RotateCcw className="w-4 h-4 mr-1.5" /> Quay lại trang cuộc thi
+                </button>
+
+                <Link
+                  href={`/ket-qua/${slug}`}
+                  className="btn-admin-primary w-full sm:w-1/2 py-2.5 text-xs font-bold text-center bg-[#0052CC] hover:bg-blue-700 border-blue-700 cursor-pointer"
+                >
+                  <Award className="w-4 h-4 mr-1.5 inline" /> Xem Bảng xếp hạng
+                </Link>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );

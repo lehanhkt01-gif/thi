@@ -81,6 +81,34 @@ export default function ExamSettingsDrawer({
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [savedSuccess, setSavedSuccess] = useState(false);
 
+  // Lọc và chuẩn hóa danh sách các gói đề không bao giờ bị trùng lặp (Ảnh 5)
+  const uniquePackages = React.useMemo(() => {
+    const seen = new Set<string>();
+    const result: Array<{ id: string; name: string }> = [];
+
+    // Danh sách các bộ đề hệ thống mặc định (nếu chưa có trong availablePackages)
+    const defaults = [
+      { id: "pkg-chung", name: "Bộ đề Chung Xã Ea Súp" },
+      { id: "pkg-ccb", name: "Bộ đề Cựu chiến binh" },
+      { id: "pkg-phap-luat", name: "Bộ đề Pháp luật Ea Súp 2026" },
+      { id: "pkg-cds", name: "Bộ đề Chuyển đổi số Ea Súp" },
+    ];
+
+    const source = [...defaults, ...availablePackages];
+    for (const p of source) {
+      const cleanName = (p.name || "").trim();
+      const lower = cleanName.toLowerCase();
+      if (!lower) continue;
+      // Không lặp lại các tên đề thi nội bộ
+      if (lower.includes("đề thi mới tạo") || lower.includes("đề thi hiện tại")) continue;
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        result.push({ id: p.id, name: cleanName });
+      }
+    }
+    return result;
+  }, [availablePackages]);
+
   // Tính tổng số câu hỏi từ các gói đề
   const totalMCQ = examMixPackages.reduce(
     (sum, p) => sum + (Number(p.mcqCount) || 0),
@@ -93,26 +121,39 @@ export default function ExamSettingsDrawer({
 
   // Thêm một gói đề mới vào danh sách trộn
   const handleAddPackage = () => {
+    const nextPackageName =
+      uniquePackages.length > 0
+        ? uniquePackages[examMixPackages.length % uniquePackages.length].name
+        : "Bộ đề Chung Xã Ea Súp";
+
     const newPkg: ExamMixPackageItem = {
       id: `mix-${Date.now()}`,
-      packageName:
-        availablePackages.length > 0
-          ? availablePackages[examMixPackages.length % availablePackages.length].name
-          : "Bộ đề Chung Xã Ea Súp",
+      packageName: nextPackageName,
       mcqCount: 10,
       essayCount: 0,
     };
     onChangeExamMixPackages([...examMixPackages, newPkg]);
   };
 
-  // Khi mở drawer hoặc khi totalSelectedQuestions thay đổi, tự động kiểm tra và đồng bộ
+  // Khớp nối khoa học 2 chiều: Khi totalSelectedQuestions thay đổi hoặc mở bảng cài đặt,
+  // tự động cập nhật số câu trắc nghiệm của Đề thi hiện tại nếu đang bằng 0 hoặc mặc định cũ (Ảnh 4)
   useEffect(() => {
     if (totalSelectedQuestions > 0 && examMixPackages.length > 0) {
       const first = examMixPackages[0];
-      if (first.packageName === "Đề thi mới tạo" || first.packageName === "Đề thi hiện tại") {
-        if (first.mcqCount > totalSelectedQuestions || first.mcqCount === 0) {
+      const isCurrentExam =
+        first.packageName === "Đề thi mới tạo" ||
+        first.packageName === "Đề thi hiện tại";
+
+      if (isCurrentExam) {
+        // Nếu số câu chưa đặt hoặc bằng 0 hoặc bằng giá trị mặc định 10 mà tổng số câu đã chọn là khác 10,
+        // hoặc vượt quá tổng số câu trong đề hiện tại, tự động đồng bộ khoa học
+        if (first.mcqCount === 0 || first.mcqCount > totalSelectedQuestions || (first.mcqCount === 10 && totalSelectedQuestions !== 10)) {
           const updated = [...examMixPackages];
-          updated[0] = { ...first, mcqCount: totalSelectedQuestions };
+          updated[0] = {
+            ...first,
+            packageName: "Đề thi hiện tại",
+            mcqCount: totalSelectedQuestions,
+          };
           onChangeExamMixPackages(updated);
         }
       }
@@ -180,7 +221,7 @@ export default function ExamSettingsDrawer({
       />
 
       {/* Drawer Panel chính (Chuẩn xác theo Ảnh 1) */}
-      <div className="relative w-full max-w-[380px] sm:max-w-[410px] bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col z-10 animate-in slide-in-from-right duration-200">
+      <div className="relative w-full max-w-[410px] sm:max-w-[450px] bg-white h-full shadow-2xl border-l border-slate-200 flex flex-col z-10 animate-in slide-in-from-right duration-200">
         {/* Nút đóng tròn hình (X) ở góc trên bên trái của Drawer đúng như Ảnh 1 */}
         <button
           type="button"
@@ -282,7 +323,7 @@ export default function ExamSettingsDrawer({
           )}
 
           {/* ============================================================== */}
-          {/* PHẦN TRỘN NHIỀU ĐỀ THI, THÊM NGAY (ẢNH 1) */}
+          {/* PHẦN TRỘN NHIỀU ĐỀ THI, THÊM NGAY (ẢNH 1, 4, 5) */}
           {/* ============================================================== */}
           <div className="space-y-2">
             <div className="text-xs text-slate-700 font-medium">
@@ -300,18 +341,19 @@ export default function ExamSettingsDrawer({
             <div className="space-y-2">
               {examMixPackages.map((pkg, idx) => (
                 <div key={pkg.id || idx} className="flex items-center space-x-1.5">
-                  {/* Dropdown chọn gói đề */}
+                  {/* Dropdown chọn gói đề - Đã deduplicate hoàn toàn, không trùng lặp (Ảnh 5) */}
                   <select
-                    value={pkg.packageName}
+                    value={
+                      pkg.packageName === "Đề thi mới tạo" ? "Đề thi hiện tại" : pkg.packageName
+                    }
                     onChange={(e) => handleUpdatePackage(idx, "packageName", e.target.value)}
-                    className="flex-1 min-w-0 px-2.5 py-2 text-xs border border-slate-300 rounded-lg bg-white outline-none focus:border-red-500 text-slate-800 truncate"
+                    className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs border border-slate-300 rounded-lg bg-white outline-none focus:border-red-500 text-slate-800 font-medium truncate"
+                    title={pkg.packageName}
                   >
-                    <option value="Đề thi mới tạo">Đề thi mới tạo</option>
-                    <option value="Bộ đề Chung Xã Ea Súp">Bộ đề Chung Xã Ea Súp</option>
-                    <option value="Bộ đề Cựu chiến binh">Bộ đề Cựu chiến binh</option>
-                    <option value="Bộ đề Pháp luật Ea Súp 2026">Bộ đề Pháp luật Ea Súp 2026</option>
-                    <option value="Bộ đề Chuyển đổi số Ea Súp">Bộ đề Chuyển đổi số Ea Súp</option>
-                    {availablePackages.map((bp) => (
+                    <option value="Đề thi hiện tại">
+                      Đề thi hiện tại {totalSelectedQuestions > 0 ? `(${totalSelectedQuestions} câu)` : ""}
+                    </option>
+                    {uniquePackages.map((bp) => (
                       <option key={bp.id} value={bp.name}>
                         {bp.name}
                       </option>
@@ -323,7 +365,7 @@ export default function ExamSettingsDrawer({
                     type="number"
                     min="0"
                     max={
-                      (pkg.packageName === "Đề thi mới tạo" || idx === 0) && totalSelectedQuestions > 0
+                      (pkg.packageName === "Đề thi mới tạo" || pkg.packageName === "Đề thi hiện tại" || idx === 0) && totalSelectedQuestions > 0
                         ? totalSelectedQuestions
                         : undefined
                     }
@@ -331,7 +373,7 @@ export default function ExamSettingsDrawer({
                     onChange={(e) =>
                       handleUpdatePackage(idx, "mcqCount", e.target.value)
                     }
-                    className="w-13 px-1 py-2 text-xs text-center border border-slate-300 rounded-lg bg-white outline-none focus:border-red-500 font-medium text-slate-800"
+                    className="w-12 px-1 py-1.5 text-xs text-center border border-slate-300 rounded-lg bg-white outline-none focus:border-red-500 font-bold text-slate-800"
                     title={
                       totalSelectedQuestions > 0
                         ? `Số câu trắc nghiệm sử dụng (Tối đa ${totalSelectedQuestions} câu từ ĐỀ THI HIỆN TẠI)`
@@ -347,7 +389,7 @@ export default function ExamSettingsDrawer({
                     onChange={(e) =>
                       handleUpdatePackage(idx, "essayCount", parseInt(e.target.value, 10) || 0)
                     }
-                    className="w-13 px-1 py-2 text-xs text-center border border-slate-300 rounded-lg bg-white outline-none focus:border-red-500 font-medium text-slate-800"
+                    className="w-11 px-1 py-1.5 text-xs text-center border border-slate-300 rounded-lg bg-white outline-none focus:border-red-500 font-medium text-slate-700"
                     title="Số câu tự luận"
                   />
 
@@ -358,7 +400,7 @@ export default function ExamSettingsDrawer({
                     className="p-1 text-slate-700 hover:text-black cursor-pointer transition-colors"
                     title="Chỉnh sửa cấu hình"
                   >
-                    <Pencil className="w-4 h-4" />
+                    <Pencil className="w-3.5 h-3.5" />
                   </button>
 
                   {/* Nút biểu tượng X xóa */}
@@ -368,22 +410,34 @@ export default function ExamSettingsDrawer({
                     className="p-1 text-slate-700 hover:text-red-600 cursor-pointer transition-colors"
                     title="Xóa gói đề này"
                   >
-                    <X className="w-4 h-4" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
               ))}
             </div>
 
-            {/* Dòng tóm tắt số lượng câu */}
-            <div className="space-y-1 pt-1">
-              <p className="text-xs text-slate-700">
-                Đề thi có <span className="text-[#DC2626] font-bold">{totalMCQ}</span> câu trắc nghiệm và{" "}
-                <span className="text-[#DC2626] font-bold">{totalEssay}</span> câu tự luận.
+            {/* Dòng tóm tắt số lượng câu khoa học - Khớp nối giữa số màu đỏ và màu đen (Ảnh 4) */}
+            <div className="space-y-1.5 pt-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+              <p className="text-xs text-slate-800 font-medium">
+                Đề thi có <span className="text-[#DC2626] font-bold text-sm">{totalMCQ}</span> câu trắc nghiệm và{" "}
+                <span className="text-slate-700 font-bold">{totalEssay}</span> câu tự luận.
               </p>
               {totalSelectedQuestions > 0 && (
-                <p className="text-[11px] text-slate-500">
-                  * Số câu hỏi sử dụng trong cuộc thi: <strong className="text-[#DC2626] font-bold">{Math.min(totalMCQ, totalSelectedQuestions)}</strong> / tối đa <strong className="text-slate-800">{totalSelectedQuestions}</strong> câu đã chọn từ &quot;ĐỀ THI HIỆN TẠI&quot;.
-                </p>
+                <div className="text-[11px] space-y-0.5 leading-snug">
+                  {totalMCQ === totalSelectedQuestions ? (
+                    <p className="text-emerald-700 font-medium">
+                      ✓ Thí sinh sẽ làm toàn bộ 100% (<strong className="text-[#DC2626] font-bold">{totalMCQ}</strong> / <strong className="text-slate-800 font-bold">{totalSelectedQuestions}</strong> câu) từ &quot;ĐỀ THI HIỆN TẠI&quot;.
+                    </p>
+                  ) : totalMCQ < totalSelectedQuestions ? (
+                    <p className="text-amber-800">
+                      * Chế độ thi rút ngẫu nhiên: Mỗi thí sinh làm <strong className="text-[#DC2626] font-bold">{totalMCQ}</strong> câu / từ ngân hàng <strong className="text-slate-800 font-bold">{totalSelectedQuestions}</strong> câu đã chọn trong &quot;ĐỀ THI HIỆN TẠI&quot;.
+                    </p>
+                  ) : (
+                    <p className="text-slate-700">
+                      * Số câu hỏi sử dụng trong cuộc thi: <strong className="text-[#DC2626] font-bold">{totalMCQ}</strong> câu (kết hợp các gói đề trộn) / ngân hàng <strong className="text-slate-800 font-bold">{totalSelectedQuestions}</strong> câu đã chọn.
+                    </p>
+                  )}
+                </div>
               )}
             </div>
           </div>
