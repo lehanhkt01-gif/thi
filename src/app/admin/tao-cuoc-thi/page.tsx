@@ -57,6 +57,7 @@ import SparklineChart from "@/components/SparklineChart";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
 import { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
 import ExamSettingsDrawer, { ExamMixPackageItem } from "@/components/ExamSettingsDrawer";
+import ExamSettingsContent from "@/components/ExamSettingsContent";
 
 export default function ContestWizardPage() {
   // Trạng thái xác thực & Quyền khởi tạo cuộc thi (Ảnh 2)
@@ -401,6 +402,45 @@ export default function ContestWizardPage() {
     } finally {
       setIsSavingStep1(false);
     }
+  };
+
+  // Hàm áp dụng cài đặt đề thi dùng chung: Đồng bộ 2 chiều tức thì giữa cụm nằm cứng và Drawer
+  const handleApplySettingsFromExam = () => {
+    const calculatedTotalMCQ = examMixPackages.reduce(
+      (sum, p) => sum + (Number(p.mcqCount) || 0),
+      0
+    );
+    const effectiveQuestionCount =
+      calculatedTotalMCQ > 0
+        ? calculatedTotalMCQ
+        : questionsList.length > 0
+        ? questionsList.length
+        : questionCount;
+
+    setQuestionCount(effectiveQuestionCount);
+
+    const draft = {
+      ...JSON.parse(localStorage.getItem(`easup_contest_draft_${slug}`) || "{}"),
+      durationMinutes,
+      questionCount: effectiveQuestionCount,
+      maxAttempts,
+      resultVisibility: showResultMode,
+      attemptCalculation,
+      shuffleMode,
+      examMixPackages,
+      updatedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draft));
+    if (slug) {
+      fetch(`/api/contests/${slug}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(draft),
+      }).catch(() => {});
+    }
+    setSaveToastMessage("Đã lưu các thiết lập đề thi tiên tiến thành công!");
+    setShowSaveToast(true);
+    setTimeout(() => setShowSaveToast(false), 3000);
   };
   const [showShareModal, setShowShareModal] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
@@ -2937,9 +2977,16 @@ export default function ContestWizardPage() {
                   <div className="flex items-center space-x-3">
                     <button
                       type="button"
-                      onClick={() => setShowExamSettingsDrawer(true)}
+                      onClick={() => {
+                        const el = document.getElementById("exam-settings-section");
+                        if (el) {
+                          el.scrollIntoView({ behavior: "smooth" });
+                        } else {
+                          setShowExamSettingsDrawer(true);
+                        }
+                      }}
                       className="text-[11px] text-[#DC2626] font-semibold hover:underline flex items-center space-x-1 cursor-pointer"
-                      title="Mở bảng cài đặt đề thi nâng cao"
+                      title="Cuộn tới Cài đặt đề thi ngay bên dưới"
                     >
                       <Settings className="w-3.5 h-3.5" />
                       <span>Cài đặt đề thi</span>
@@ -2996,6 +3043,42 @@ export default function ContestWizardPage() {
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* CỤM CÁC LỆNH CÀI ĐẶT ĐỀ THI NẰM CỨNG NGAY BÊN DƯỚI "ĐỀ THI HIỆN TẠI" (ĐỒNG BỘ ĂN KHỚP 2 CHIỀU TỨC THÌ) */}
+              <div id="exam-settings-section" className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-7 h-7 rounded-lg bg-red-50 text-[#DC2626] flex items-center justify-center font-bold">
+                      <Settings className="w-4 h-4 text-[#DC2626]" />
+                    </div>
+                    <h4 className="text-xs sm:text-sm font-bold text-slate-900 uppercase tracking-wide">
+                      Cài đặt quy cách đề thi
+                    </h4>
+                  </div>
+                  <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                    Đồng bộ 2 chiều tức thì
+                  </span>
+                </div>
+
+                <ExamSettingsContent
+                  totalSelectedQuestions={questionsList.length}
+                  durationMinutes={durationMinutes}
+                  onChangeDurationMinutes={setDurationMinutes}
+                  showResultMode={showResultMode}
+                  onChangeShowResultMode={setShowResultMode}
+                  maxAttempts={maxAttempts}
+                  onChangeMaxAttempts={setMaxAttempts}
+                  attemptCalculation={attemptCalculation}
+                  onChangeAttemptCalculation={setAttemptCalculation}
+                  shuffleMode={shuffleMode}
+                  onChangeShuffleMode={setShuffleMode}
+                  examMixPackages={examMixPackages}
+                  onChangeExamMixPackages={setExamMixPackages}
+                  availablePackages={bankPackages.map((p) => ({ id: p.id, name: p.name }))}
+                  onApplySettings={handleApplySettingsFromExam}
+                  isEmbedded={true}
+                />
               </div>
             </div>
           </div>
@@ -4005,43 +4088,7 @@ export default function ContestWizardPage() {
         onToggleMobilePreview={() => setShowMobileModal(true)}
         onOpenSecurity={() => setShowSecurityModal(true)}
         onOpenShare={() => setShowShareModal(true)}
-        onApplySettings={() => {
-          const calculatedTotalMCQ = examMixPackages.reduce(
-            (sum, p) => sum + (Number(p.mcqCount) || 0),
-            0
-          );
-          const effectiveQuestionCount =
-            calculatedTotalMCQ > 0
-              ? calculatedTotalMCQ
-              : questionsList.length > 0
-              ? questionsList.length
-              : questionCount;
-
-          setQuestionCount(effectiveQuestionCount);
-
-          const draft = {
-            ...JSON.parse(localStorage.getItem(`easup_contest_draft_${slug}`) || "{}"),
-            durationMinutes,
-            questionCount: effectiveQuestionCount,
-            maxAttempts,
-            resultVisibility: showResultMode,
-            attemptCalculation,
-            shuffleMode,
-            examMixPackages,
-            updatedAt: new Date().toISOString(),
-          };
-          localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draft));
-          if (slug) {
-            fetch(`/api/contests/${slug}`, {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(draft),
-            }).catch(() => {});
-          }
-          setSaveToastMessage("Đã lưu các thiết lập đề thi tiên tiến thành công!");
-          setShowSaveToast(true);
-          setTimeout(() => setShowSaveToast(false), 3000);
-        }}
+        onApplySettings={handleApplySettingsFromExam}
       />
     </div>
   );
