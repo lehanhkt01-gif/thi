@@ -28,6 +28,36 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
   const [selectedUnit, setSelectedUnit] = useState("ALL");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+  const [authUser, setAuthUser] = useState<any>(null);
+
+  // Kiểm tra quyền: Chỉ Quản trị viên (ADMIN) mới được xuất file Excel và dùng thanh công cụ nổi
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const saved = localStorage.getItem("cuocthi_admin_auth");
+        if (saved) {
+          const user = JSON.parse(saved);
+          if (user && user.status === "APPROVED") {
+            setAuthUser(user);
+            return;
+          }
+        }
+        setAuthUser(null);
+      } catch (e) {
+        setAuthUser(null);
+      }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("cuocthi_auth_change", checkAuth);
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("cuocthi_auth_change", checkAuth);
+    };
+  }, []);
+
+  const isAdmin = authUser?.role === "ADMIN";
 
   const fetchResults = () => {
     setLoading(true);
@@ -86,20 +116,22 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
           </p>
         </div>
 
-        {/* Action Buttons */}
+        {/* Action Buttons: Nút Xuất file Excel chỉ hiển thị cho Quản trị viên (ADMIN) */}
         <div className="flex items-center space-x-3">
-          <a
-            href={`/api/contests/${slug}/export?${new URLSearchParams({
-              search,
-              unitName: selectedUnit,
-              fromDate,
-              toDate,
-            }).toString()}`}
-            download
-            className="btn-admin-primary text-xs px-4 py-2.5 font-bold bg-emerald-700 hover:bg-emerald-800 border-emerald-800 inline-flex items-center shadow-xs"
-          >
-            <Download className="w-4 h-4 mr-1.5" /> Xuất file Excel (.xlsx)
-          </a>
+          {isAdmin && (
+            <a
+              href={`/api/contests/${slug}/export?${new URLSearchParams({
+                search,
+                unitName: selectedUnit,
+                fromDate,
+                toDate,
+              }).toString()}`}
+              download
+              className="btn-admin-primary text-xs px-4 py-2.5 font-bold bg-emerald-700 hover:bg-emerald-800 border-emerald-800 inline-flex items-center shadow-xs"
+            >
+              <Download className="w-4 h-4 mr-1.5" /> Xuất file Excel (.xlsx)
+            </a>
+          )}
 
           <Link
             href={`/thi/${slug}`}
@@ -289,8 +321,8 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
         )}
       </div>
 
-      {/* Floating Action Bar */}
-      <FloatingActionBar contestSlug={slug} />
+      {/* Floating Action Bar - Chỉ hiển thị cho Quản trị viên (ADMIN) */}
+      {isAdmin && <FloatingActionBar contestSlug={slug} />}
     </div>
   );
 }

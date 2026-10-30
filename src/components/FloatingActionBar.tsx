@@ -72,8 +72,8 @@ export default function FloatingActionBar({
     }
   };
 
-  // Nếu chưa đăng nhập: ẨN TOÀN BỘ BẢNG CÀI ĐẶT BÊN GÓC PHẢI
-  if (!authUser) {
+  // Chỉ hiển thị cho Quản trị viên (ADMIN) - Người dùng cơ sở (USER) và khách truy cập ẩn hoàn toàn
+  if (!authUser || authUser.role !== "ADMIN") {
     return null;
   }
 
