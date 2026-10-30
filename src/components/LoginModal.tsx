@@ -1,7 +1,7 @@
 // src/components/LoginModal.tsx - Modal Đăng nhập / Đăng ký hệ thống chuẩn hóa & Google Sign-In
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Landmark,
   ShieldCheck,
@@ -14,7 +14,6 @@ import {
   User as UserIcon,
   Phone,
   Building2,
-  Sparkles,
 } from "lucide-react";
 
 export interface LoginModalProps {
@@ -77,28 +76,123 @@ export default function LoginModal({
   const [phoneInput, setPhoneInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
-  const [showGoogleChoice, setShowGoogleChoice] = useState(false);
+  const [showEmailInputPrompt, setShowEmailInputPrompt] = useState(false);
   const [customGoogleEmail, setCustomGoogleEmail] = useState("");
+  const [googleClientId, setGoogleClientId] = useState("");
 
-  if (!isOpen) return null;
+  // Tải Google Identity Services (GSI) để kích hoạt hộp chọn tài khoản Google chuẩn từ chính trình duyệt
+  useEffect(() => {
+    if (!isOpen) return;
 
-  // Xử lý đăng nhập Google
-  const handleGoogleLogin = async (overrideEmail?: string, overrideName?: string) => {
+    // Load SDK nếu chưa có
+    if (!document.getElementById("google-gsi-client")) {
+      const script = document.createElement("script");
+      script.id = "google-gsi-client";
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      document.body.appendChild(script);
+    }
+
+    // Lấy Client ID nếu đã cấu hình
+    fetch("/api/auth/google/config")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.clientId) {
+          setGoogleClientId(data.clientId);
+          initGsi(data.clientId);
+        }
+      })
+      .catch(() => {});
+  }, [isOpen]);
+
+  const initGsi = (clientId: string) => {
+    const google = (window as any).google;
+    if (google?.accounts?.id) {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response: any) => {
+          if (response.credential) {
+            handleGoogleCredential(response.credential);
+          }
+        },
+      });
+
+      const btnContainer = document.getElementById("gsiNativeBtn");
+      if (btnContainer) {
+        google.accounts.id.renderButton(btnContainer, {
+          theme: "outline",
+          size: "large",
+          width: "100%",
+          text: "signin_with",
+          shape: "pill",
+        });
+      }
+    }
+  };
+
+  // Xử lý đăng nhập bằng Google Token Credential chuẩn
+  const handleGoogleCredential = async (credential: string) => {
     setGoogleLoading(true);
     try {
-      const emailToUse = (overrideEmail || "lehanhkt01@gmail.com").trim().toLowerCase();
-      const nameToUse =
-        overrideName ||
-        (emailToUse === "lehanhkt01@gmail.com"
-          ? "Lê Hạnh - Quản trị viên Ea Súp"
-          : emailToUse.split("@")[0]);
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ credential }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        alert(data.error || "Đăng nhập Google thất bại");
+        setGoogleLoading(false);
+        return;
+      }
+      syncAuthSession(data.user);
+      if (onSuccess) onSuccess(data.user);
+      onClose();
+    } catch (e: any) {
+      alert("Lỗi kết nối khi xác thực Google: " + e.message);
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
+  // Xử lý đăng nhập Google khi người dùng bấm nút
+  const handleGoogleClick = () => {
+    const google = (window as any).google;
+    if (googleClientId && google?.accounts?.id) {
+      google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          setShowEmailInputPrompt(true);
+        }
+      });
+    } else {
+      // Khi chưa cấu hình OAuth Client ID, hiển thị ô nhập email Google của chính người dùng
+      setShowEmailInputPrompt(true);
+    }
+  };
+
+  // Xác thực tài khoản Google do người dùng tự nhập (không gợi ý tài khoản người khác)
+  const handleCustomGoogleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!customGoogleEmail.trim()) {
+      alert("Vui lòng nhập địa chỉ tài khoản Google (@gmail.com) của bạn!");
+      return;
+    }
+
+    const email = customGoogleEmail.trim().toLowerCase();
+    if (!email.includes("@")) {
+      alert("Địa chỉ email không đúng định dạng!");
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
       const res = await fetch("/api/auth/google", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: emailToUse,
-          name: nameToUse,
+          email,
+          name: email.split("@")[0],
         }),
       });
 
@@ -109,13 +203,9 @@ export default function LoginModal({
         return;
       }
 
-      // Lưu localStorage và bắn sự kiện đồng bộ toàn hệ thống
       syncAuthSession(data.user);
-
-      if (onSuccess) {
-        onSuccess(data.user);
-      }
-      setShowGoogleChoice(false);
+      if (onSuccess) onSuccess(data.user);
+      setShowEmailInputPrompt(false);
       onClose();
     } catch (err: any) {
       alert("Lỗi kết nối khi đăng nhập Google: " + err.message);
@@ -209,12 +299,8 @@ export default function LoginModal({
           return;
         }
 
-        // Đồng bộ session
         syncAuthSession(data.user);
-
-        if (onSuccess) {
-          onSuccess(data.user);
-        }
+        if (onSuccess) onSuccess(data.user);
         onClose();
       } catch (err: any) {
         alert("Lỗi kết nối máy chủ khi đăng nhập: " + err.message);
@@ -223,6 +309,8 @@ export default function LoginModal({
       }
     }
   };
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
@@ -237,7 +325,7 @@ export default function LoginModal({
           <X className="w-4 h-4" />
         </button>
 
-        {/* Tiêu đề Modal (Ảnh 3 chuẩn) */}
+        {/* Tiêu đề Modal */}
         <div className="text-center mb-5">
           <div className="w-12 h-12 rounded-2xl bg-red-100 text-[#DC2626] flex items-center justify-center mx-auto mb-3 shadow-xs">
             <Landmark className="w-6 h-6" />
@@ -263,85 +351,61 @@ export default function LoginModal({
         )}
 
         {/* ============================================================== */}
-        {/* NÚT ĐĂNG NHẬP BẰNG GOOGLE CHÍNH THỨC */}
+        {/* NÚT ĐĂNG NHẬP BẰNG GOOGLE (KHÔNG GỢI Ý TÀI KHOẢN NGƯỜI KHÁC) */}
         {/* ============================================================== */}
         {authMode === "login" && (
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2.5 mb-4">
+            {/* Vùng render nút Google Native nếu có Client ID */}
+            <div id="gsiNativeBtn" className="w-full flex justify-center empty:hidden"></div>
+
             <button
               type="button"
-              onClick={() => setShowGoogleChoice(!showGoogleChoice)}
+              onClick={handleGoogleClick}
               disabled={googleLoading}
               className="w-full flex items-center justify-center space-x-3 py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all cursor-pointer group"
             >
               <GoogleIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
               <span>
-                {googleLoading ? "Đang đồng bộ Google..." : "Đăng nhập bằng Google"}
+                {googleLoading ? "Đang xác thực Google..." : "Đăng nhập bằng Google"}
               </span>
             </button>
 
-            {/* Bảng chọn tài khoản Google / Đăng nhập nhanh */}
-            {showGoogleChoice && (
-              <div className="p-3 rounded-2xl bg-gradient-to-b from-blue-50/70 to-slate-50 border border-blue-200 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+            {/* Ô nhập tài khoản Google của chính máy đang dùng (chỉ hiện khi người dùng bấm vào) */}
+            {showEmailInputPrompt && (
+              <form onSubmit={handleCustomGoogleSubmit} className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center justify-between">
-                  <span>Chọn tài khoản Google để đăng nhập:</span>
+                  <span>Nhập tài khoản Google (@gmail.com) trên máy bạn:</span>
                   <button
                     type="button"
-                    onClick={() => setShowGoogleChoice(false)}
+                    onClick={() => setShowEmailInputPrompt(false)}
                     className="text-slate-400 hover:text-slate-600"
                   >
                     <X className="w-3.5 h-3.5" />
                   </button>
                 </div>
 
-                {/* 1-Click: Admin Google Account */}
-                <button
-                  type="button"
-                  onClick={() => handleGoogleLogin("lehanhkt01@gmail.com", "Lê Hạnh - Quản trị viên Ea Súp")}
-                  className="w-full text-left p-2.5 rounded-xl bg-white hover:bg-blue-50 border border-slate-200 hover:border-blue-300 flex items-center justify-between transition-all cursor-pointer shadow-2xs group"
-                >
-                  <div className="flex items-center space-x-2.5">
-                    <GoogleIcon className="w-4 h-4 shrink-0" />
-                    <div className="text-xs">
-                      <div className="font-bold text-slate-800 group-hover:text-blue-700">
-                        lehanhkt01@gmail.com
-                      </div>
-                      <div className="text-[10px] text-slate-500">
-                        Lê Hạnh (Quản trị viên Hệ thống)
-                      </div>
-                    </div>
-                  </div>
-                  <span className="text-[10px] font-bold px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
-                    Admin
-                  </span>
-                </button>
-
-                {/* Form nhập tài khoản Gmail khác */}
-                <div className="pt-1 border-t border-blue-100 flex items-center space-x-1.5">
+                <div className="flex items-center space-x-2">
                   <input
                     type="email"
+                    required
                     value={customGoogleEmail}
                     onChange={(e) => setCustomGoogleEmail(e.target.value)}
-                    placeholder="Nhập email Google khác (@gmail.com)..."
-                    className="flex-1 px-3 py-1.5 text-xs bg-white border border-slate-300 rounded-lg outline-none focus:border-blue-500"
+                    placeholder="tai-khoan-cua-ban@gmail.com"
+                    className="flex-1 px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-medium text-slate-800"
+                    autoFocus
                   />
                   <button
-                    type="button"
-                    onClick={() => {
-                      if (!customGoogleEmail.trim()) {
-                        alert("Vui lòng nhập địa chỉ email Google!");
-                        return;
-                      }
-                      handleGoogleLogin(customGoogleEmail.trim());
-                    }}
-                    className="px-3 py-1.5 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors cursor-pointer"
+                    type="submit"
+                    disabled={googleLoading}
+                    className="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
                   >
-                    Đăng nhập
+                    Xác nhận
                   </button>
                 </div>
-              </div>
+              </form>
             )}
 
-            {/* Dòng phân cách "hoặc đăng nhập bằng email" */}
+            {/* Dòng phân cách "hoặc bằng mật khẩu" */}
             <div className="relative flex items-center justify-center my-3">
               <div className="border-t border-slate-200 w-full"></div>
               <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider absolute">
@@ -402,7 +466,7 @@ export default function LoginModal({
                 required
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
-                placeholder="lehanhkt01@gmail.com"
+                placeholder="Nhập email của bạn..."
                 className="w-full pl-9 pr-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
               />
             </div>

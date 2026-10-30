@@ -3103,7 +3103,7 @@ export default function AdminDashboardPage() {
                   required
                   value={adminLoginEmail}
                   onChange={(e) => setAdminLoginEmail(e.target.value)}
-                  placeholder={adminLoginRole === "ADMIN" ? "admin@easupso.com" : "nongdan@easupso.com"}
+                  placeholder="Nhập email của bạn..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
                 />
               </div>

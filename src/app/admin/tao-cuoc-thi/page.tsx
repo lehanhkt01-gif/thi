@@ -78,6 +78,9 @@ export default function ContestWizardPage() {
   const [showRegPassword, setShowRegPassword] = useState(false);
   const [showRegConfirmPassword, setShowRegConfirmPassword] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [showGoogleInputPrompt, setShowGoogleInputPrompt] = useState(false);
+  const [customGoogleEmail, setCustomGoogleEmail] = useState("");
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -723,13 +726,24 @@ export default function ContestWizardPage() {
   };
 
   const handleGoogleLogin = async (overrideEmail?: string, overrideName?: string) => {
+    const emailToUse = (overrideEmail || customGoogleEmail).trim().toLowerCase();
+    if (!emailToUse) {
+      const google = typeof window !== "undefined" ? (window as any).google : null;
+      if (google?.accounts?.id) {
+        google.accounts.id.prompt((notification: any) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+            setShowGoogleInputPrompt(true);
+          }
+        });
+        return;
+      }
+      setShowGoogleInputPrompt(true);
+      return;
+    }
+
     try {
-      const emailToUse = (overrideEmail || "lehanhkt01@gmail.com").trim().toLowerCase();
-      const nameToUse =
-        overrideName ||
-        (emailToUse === "lehanhkt01@gmail.com"
-          ? "Lê Hạnh - Quản trị viên Ea Súp"
-          : emailToUse.split("@")[0]);
+      setIsGoogleLoading(true);
+      const nameToUse = overrideName || emailToUse.split("@")[0];
 
       const res = await fetch("/api/auth/google", {
         method: "POST",
@@ -744,6 +758,7 @@ export default function ContestWizardPage() {
       syncAuthSession(data.user);
       setAuthUser(data.user);
       setAuthError("");
+      setShowGoogleInputPrompt(false);
 
       if (slug && data.user) {
         fetch(`/api/contests/${slug}`, {
@@ -1371,12 +1386,48 @@ export default function ContestWizardPage() {
               <div className="space-y-2">
                 <button
                   type="button"
-                  onClick={() => handleGoogleLogin("lehanhkt01@gmail.com")}
+                  onClick={() => handleGoogleLogin()}
+                  disabled={isGoogleLoading}
                   className="w-full flex items-center justify-center space-x-3 py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all cursor-pointer group"
                 >
                   <GoogleIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
-                  <span>Đăng nhập nhanh bằng Google (Admin)</span>
+                  <span>{isGoogleLoading ? "Đang xác thực Google..." : "Đăng nhập bằng Google"}</span>
                 </button>
+
+                {showGoogleInputPrompt && (
+                  <div className="p-3.5 rounded-2xl bg-blue-50/70 border border-blue-200 space-y-2.5 animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center justify-between">
+                      <span>Nhập tài khoản Google (@gmail.com) trên máy bạn:</span>
+                      <button
+                        type="button"
+                        onClick={() => setShowGoogleInputPrompt(false)}
+                        className="text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="email"
+                        required
+                        value={customGoogleEmail}
+                        onChange={(e) => setCustomGoogleEmail(e.target.value)}
+                        placeholder="tai-khoan-cua-ban@gmail.com"
+                        className="flex-1 px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-medium text-slate-800"
+                        autoFocus
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleGoogleLogin(customGoogleEmail)}
+                        disabled={isGoogleLoading}
+                        className="px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 active:scale-95 text-white rounded-xl transition-all cursor-pointer shrink-0 shadow-xs"
+                      >
+                        Xác nhận
+                      </button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="relative flex items-center justify-center my-3">
                   <div className="border-t border-slate-200 w-full"></div>
@@ -1396,7 +1447,7 @@ export default function ContestWizardPage() {
                   required
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="admin@easupso.com hoặc lehanhkt01@gmail.com"
+                  placeholder="Nhập email của bạn..."
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
                 />
               </div>
