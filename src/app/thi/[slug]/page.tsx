@@ -33,7 +33,6 @@ import {
   LogOut,
 } from "lucide-react";
 import AudioPlayerAnNhien from "@/components/AudioPlayerAnNhien";
-import FloatingActionBar from "@/components/FloatingActionBar";
 import LoginModal, { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
 
 interface QuestionItem {
@@ -1358,9 +1357,6 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             if (!phone && user.phone) setPhone(user.phone);
           }}
         />
-
-        {/* Floating Quick Action Bar */}
-        <FloatingActionBar contestSlug={slug} />
       </div>
     );
   }
