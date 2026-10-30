@@ -58,7 +58,7 @@ export async function GET(
         audioUrl: contest.audioUrl,
         resultVisibility: contest.resultVisibility || "SCORE_ONLY",
         attemptCalculation: contest.attemptCalculation || "ENTIRE_CONTEST",
-        shuffleMode: contest.shuffleMode || "NONE",
+        shuffleMode: contest.shuffleMode === "AUTO" || contest.shuffleMode === "ALL" ? "AUTO" : "NONE",
         examMixPackages: contest.examMixPackages || [],
         units: contest.units,
         questions: contest.questions,

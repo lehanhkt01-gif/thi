@@ -38,8 +38,8 @@ export interface ExamSettingsDrawerProps {
   onChangeMaxAttempts: (val: number) => void;
   attemptCalculation: "ENTIRE_CONTEST" | "DAILY" | "WEEKLY";
   onChangeAttemptCalculation: (val: "ENTIRE_CONTEST" | "DAILY" | "WEEKLY") => void;
-  shuffleMode: "NONE" | "ALL" | "QUESTIONS_ONLY" | "ANSWERS_ONLY";
-  onChangeShuffleMode: (val: "NONE" | "ALL" | "QUESTIONS_ONLY" | "ANSWERS_ONLY") => void;
+  shuffleMode: "NONE" | "AUTO";
+  onChangeShuffleMode: (val: "NONE" | "AUTO") => void;
   // Cấu hình trộn nhiều đề thi (Ảnh 1)
   examMixPackages: ExamMixPackageItem[];
   onChangeExamMixPackages: (packages: ExamMixPackageItem[]) => void;
@@ -461,14 +461,12 @@ export default function ExamSettingsDrawer({
                 Trộn câu hỏi
               </label>
               <select
-                value={shuffleMode}
+                value={shuffleMode === "NONE" ? "NONE" : "AUTO"}
                 onChange={(e: any) => onChangeShuffleMode(e.target.value)}
                 className="w-full px-3.5 py-2.5 text-xs sm:text-sm border border-slate-300 rounded-xl bg-white outline-none focus:border-red-500 text-slate-700 font-medium"
               >
                 <option value="NONE">Không trộn</option>
-                <option value="ALL">Trộn câu hỏi và đáp án</option>
-                <option value="QUESTIONS_ONLY">Chỉ trộn câu hỏi</option>
-                <option value="ANSWERS_ONLY">Chỉ trộn đáp án</option>
+                <option value="AUTO">Trộn tự động</option>
               </select>
             </div>
           </div>

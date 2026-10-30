@@ -110,7 +110,7 @@ export interface ContestModel {
   unitGroupId?: string;
   resultVisibility?: "SCORE_ONLY" | "SCORE_AND_ANSWERS" | "HIDDEN";
   attemptCalculation?: "ENTIRE_CONTEST" | "DAILY" | "WEEKLY";
-  shuffleMode?: "NONE" | "ALL" | "QUESTIONS_ONLY" | "ANSWERS_ONLY";
+  shuffleMode?: "NONE" | "AUTO" | "ALL";
   examMixPackages?: any[];
   prize1?: string;
   prize2?: string;
@@ -1830,8 +1830,12 @@ class DataStore {
       contest.questions = [...allQuestions];
       this.saveToDisk();
     }
-    const shuffled = allQuestions.sort(() => 0.5 - Math.random());
-    const selected = shuffled.slice(0, contest.questionCount || 5);
+    // Xử lý chế độ trộn đề thi: "NONE" (Không trộn) và "AUTO" (Trộn tự động)
+    // Câu hỏi luôn đi kèm đáp án tương ứng của chính câu hỏi đó
+    const isShuffle = contest.shuffleMode === "AUTO" || contest.shuffleMode === "ALL";
+    const orderedQuestions = isShuffle ? [...allQuestions].sort(() => 0.5 - Math.random()) : [...allQuestions];
+    const count = Math.min(contest.questionCount || orderedQuestions.length, orderedQuestions.length);
+    const selected = orderedQuestions.slice(0, count);
     const assignedQuestionIds = selected.map((q) => q.id);
 
     const nowIso = new Date().toISOString();
@@ -1861,11 +1865,12 @@ class DataStore {
     // ZERO ANSWER LEAKAGE: Trả về câu hỏi an toàn không chứa đáp án
     const safeQuestions = selected.map((q) => {
       const { correctOptionIds, explanation, ...safeQ } = q;
-      // Trộn phương án lựa chọn
-      const shuffledOptions = [...safeQ.options].sort(() => 0.5 - Math.random());
+      // Nếu Không trộn (NONE): Giữ nguyên thứ tự A, B, C, D gốc của câu hỏi
+      // Nếu Trộn tự động (AUTO): Trộn ngẫu nhiên phương án của chính câu hỏi đó
+      const finalOptions = isShuffle ? [...safeQ.options].sort(() => 0.5 - Math.random()) : [...safeQ.options];
       return {
         ...safeQ,
-        options: shuffledOptions,
+        options: finalOptions,
       };
     });
 

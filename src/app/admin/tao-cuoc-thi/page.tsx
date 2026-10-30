@@ -226,7 +226,7 @@ export default function ContestWizardPage() {
   const [showExamSettingsDrawer, setShowExamSettingsDrawer] = useState(false);
   const [showResultMode, setShowResultMode] = useState<"SCORE_ONLY" | "SCORE_AND_ANSWERS" | "HIDDEN">("SCORE_ONLY");
   const [attemptCalculation, setAttemptCalculation] = useState<"ENTIRE_CONTEST" | "DAILY" | "WEEKLY">("ENTIRE_CONTEST");
-  const [shuffleMode, setShuffleMode] = useState<"NONE" | "ALL" | "QUESTIONS_ONLY" | "ANSWERS_ONLY">("NONE");
+  const [shuffleMode, setShuffleMode] = useState<"NONE" | "AUTO">("NONE");
   const [examMixPackages, setExamMixPackages] = useState<ExamMixPackageItem[]>([
     {
       id: "mix-1",
@@ -1235,7 +1235,7 @@ export default function ContestWizardPage() {
               if (c.maxAttempts !== undefined) setMaxAttempts(c.maxAttempts);
               if (c.resultVisibility) setShowResultMode(c.resultVisibility);
               if (c.attemptCalculation) setAttemptCalculation(c.attemptCalculation);
-              if (c.shuffleMode) setShuffleMode(c.shuffleMode);
+              if (c.shuffleMode) setShuffleMode(c.shuffleMode === "NONE" ? "NONE" : "AUTO");
               if (c.examMixPackages && Array.isArray(c.examMixPackages) && c.examMixPackages.length > 0) {
                 setExamMixPackages(c.examMixPackages);
               }
