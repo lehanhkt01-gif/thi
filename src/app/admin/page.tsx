@@ -906,8 +906,18 @@ export default function AdminDashboardPage() {
     setNewAnnContent("");
   };
 
+  // Danh sách cuộc thi mà tài khoản được quyền xem trong trang quản trị:
+  // - Admin (Toàn quyền): Xem tất cả các cuộc thi trên hệ thống
+  // - Người dùng cơ sở (USER): CHỈ XEM ĐƯỢC các cuộc thi do chính mình tạo
+  // - Chưa đăng nhập: Không xem được danh sách quản trị
+  const visibleContests = contests.filter((c) => {
+    if (!authUser) return false;
+    if (authUser.role === "ADMIN") return true;
+    return canUserManageContest(c);
+  });
+
   // Filtered contests
-  const filteredContests = contests.filter((c) => {
+  const filteredContests = visibleContests.filter((c) => {
     const matchesSearch =
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.slug.toLowerCase().includes(searchQuery.toLowerCase());
@@ -916,6 +926,15 @@ export default function AdminDashboardPage() {
       (statusFilter === "PUBLISHED" && c.status === "PUBLISHED") ||
       (statusFilter === "DRAFT" && c.status === "DRAFT");
     return matchesSearch && matchesStatus;
+  });
+
+  // Danh sách cuộc thi bình chọn Ảnh/Video phân quyền:
+  // - Admin: Xem tất cả
+  // - Người dùng: Chỉ xem cuộc thi do mình tạo
+  const visibleMediaContests = mediaContests.filter((c) => {
+    if (!authUser) return false;
+    if (authUser.role === "ADMIN") return true;
+    return canUserManageMediaContest(c);
   });
 
   return (
@@ -1246,7 +1265,27 @@ export default function AdminDashboardPage() {
             {/* ========================================================= */}
             {/* TAB NỘI DUNG 1: DANH SÁCH CUỘC THI TRẮC NGHIỆM */}
             {/* ========================================================= */}
-            {(!authUser || activeTab === "trac-nghiem") && (
+            {!authUser ? (
+              <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center my-6 shadow-xs max-w-lg mx-auto">
+                <div className="w-16 h-16 rounded-2xl bg-red-100 text-[#DC2626] flex items-center justify-center mx-auto mb-4 shadow-xs">
+                  <Lock className="w-8 h-8" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 mb-2">
+                  Yêu Cầu Đăng Nhập
+                </h3>
+                <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+                  Vui lòng đăng nhập tài khoản Quản trị viên (Admin) hoặc tài khoản Người dùng đã được phê duyệt để quản lý các cuộc thi của đơn vị bạn.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowAdminLoginModal(true)}
+                  className="w-full py-3 rounded-full text-sm font-bold bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-md flex items-center justify-center space-x-2 cursor-pointer"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span>Đăng nhập hệ thống</span>
+                </button>
+              </div>
+            ) : activeTab === "trac-nghiem" && (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-200 gap-2">
                   <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
@@ -1264,7 +1303,7 @@ export default function AdminDashboardPage() {
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      Tất cả ({contests.length})
+                      Tất cả ({visibleContests.length})
                     </button>
                     <button
                       type="button"
@@ -1275,7 +1314,7 @@ export default function AdminDashboardPage() {
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      Đang diễn ra
+                      Đang diễn ra ({visibleContests.filter((c) => c.status === "PUBLISHED").length})
                     </button>
                     <button
                       type="button"
@@ -1286,7 +1325,7 @@ export default function AdminDashboardPage() {
                           : "text-slate-600 hover:text-slate-900"
                       }`}
                     >
-                      Bản nháp
+                      Bản nháp ({visibleContests.filter((c) => c.status === "DRAFT").length})
                     </button>
                   </div>
                 </div>
@@ -1306,7 +1345,9 @@ export default function AdminDashboardPage() {
                 {/* List of Contests Cards */}
                 {filteredContests.length === 0 ? (
                   <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 text-xs sm:text-sm">
-                    Không tìm thấy cuộc thi nào phù hợp. Hãy bấm nút <strong>Tạo mới</strong> để khởi tạo cuộc thi đầu tiên!
+                    {authUser?.role === "ADMIN"
+                      ? "Không tìm thấy cuộc thi nào phù hợp. Hãy bấm nút Tạo mới để khởi tạo cuộc thi đầu tiên!"
+                      : "Bạn chưa tạo cuộc thi nào. Hãy bấm nút Tạo mới để bắt đầu khởi tạo cuộc thi của đơn vị mình!"}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
@@ -1533,12 +1574,12 @@ export default function AdminDashboardPage() {
                             <input
                               type="checkbox"
                               checked={
-                                mediaContests.length > 0 &&
-                                selectedMediaContestIds.length === mediaContests.length
+                                visibleMediaContests.length > 0 &&
+                                selectedMediaContestIds.length === visibleMediaContests.length
                               }
                               onChange={(e) => {
                                 if (e.target.checked) {
-                                  setSelectedMediaContestIds(mediaContests.map((c) => c.id));
+                                  setSelectedMediaContestIds(visibleMediaContests.map((c) => c.id));
                                 } else {
                                   setSelectedMediaContestIds([]);
                                 }
@@ -1557,7 +1598,7 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {mediaContests
+                        {visibleMediaContests
                           .filter((c) =>
                             !mediaSearchQuery ||
                             c.title.toLowerCase().includes(mediaSearchQuery.toLowerCase())
