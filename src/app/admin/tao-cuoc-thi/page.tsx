@@ -90,25 +90,80 @@ export default function ContestWizardPage() {
   const bannerFileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
+  // Xử lý nén ảnh trên Client Canvas (chuyển đổi ảnh chụp nặng thành kích thước tối ưu < 500KB)
+  const compressImage = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxWidth = 1600;
+          const maxHeight = 900;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const dataUrl = canvas.toDataURL("image/webp", 0.88);
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  resolve({ blob, dataUrl });
+                } else {
+                  resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+                }
+              },
+              "image/webp",
+              0.88
+            );
+          } else {
+            resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+          }
+        };
+        img.onerror = () => {
+          resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+        };
+        img.src = readerEvent.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // Xử lý tải ảnh banner lên từ máy tính / điện thoại
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Xem trước ngay lập tức bằng FileReader Base64
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setBannerUrl(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+    if (!file.type.startsWith("image/")) {
+      alert("Vui lòng chọn tệp hình ảnh hợp lệ (JPG, PNG, WEBP, GIF)!");
+      return;
+    }
 
-    // Gửi tệp lên API /api/upload để lưu trữ lâu dài
     try {
       setIsUploadingBanner(true);
+
+      // Nén ảnh tự động trên client
+      const { blob, dataUrl } = await compressImage(file);
+
+      // Hiển thị xem trước ngay lập tức bằng dataUrl
+      setBannerUrl(dataUrl);
+
+      // Gửi tệp lên API /api/upload để lưu trữ lâu dài trên server
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".webp"));
 
       const res = await fetch("/api/upload", {
         method: "POST",
@@ -118,9 +173,11 @@ export default function ContestWizardPage() {
       const data = await res.json();
       if (data.success && data.url) {
         setBannerUrl(data.url);
+      } else {
+        console.warn("Upload server trả về cảnh báo, duy trì ảnh preview:", data.error);
       }
-    } catch (err) {
-      console.error("Lỗi khi lưu ảnh lên server:", err);
+    } catch (err: any) {
+      console.warn("Lỗi khi gửi ảnh lên server, tự động duy trì ảnh hiển thị:", err);
     } finally {
       setIsUploadingBanner(false);
       if (e.target) e.target.value = "";
@@ -1919,6 +1976,12 @@ export default function ContestWizardPage() {
                     src={bannerUrl || "/banner-easup.png"}
                     alt="Banner cuộc thi"
                     className="w-full h-28 object-cover transition-transform duration-300 group-hover:scale-102"
+                    onError={(e) => {
+                      const target = e.currentTarget;
+                      if (!target.src.includes("banner-easup.png")) {
+                        target.src = "/banner-easup.png";
+                      }
+                    }}
                   />
 
                   {/* Nút (X) tròn ở góc trên bên trái đúng như ảnh chụp */}
