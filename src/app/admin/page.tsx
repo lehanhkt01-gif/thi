@@ -54,6 +54,7 @@ import {
 import * as XLSX from "xlsx";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
+import LoginModal from "@/components/LoginModal";
 
 export default function AdminDashboardPage() {
   // Navigation State
@@ -3063,86 +3064,18 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* MODAL ĐĂNG NHẬP VÀO HỆ THỐNG */}
-      {showAdminLoginModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-dialog border border-slate-200 relative">
-            <button
-              onClick={() => setShowAdminLoginModal(false)}
-              className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-
-            <div className="text-center mb-5">
-              <div className="w-12 h-12 rounded-2xl bg-red-100 text-[#DC2626] flex items-center justify-center mx-auto mb-3 shadow-xs">
-                <Landmark className="w-6 h-6" />
-              </div>
-              <h3 className="text-lg font-black text-slate-900">
-                Đăng Nhập Vào Hệ Thống
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Đăng nhập tài khoản Quản trị viên (Admin) hoặc Người dùng cơ sở
-              </p>
-            </div>
-
-            <form onSubmit={handleAdminFormLogin} className="space-y-4">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-600 flex items-center space-x-2">
-                <ShieldCheck className="w-4 h-4 text-slate-500 shrink-0" />
-                <span>
-                  Hệ thống tự động phân quyền theo tài khoản đã được phê duyệt. Tài khoản mới tạo mặc định quyền <strong>Người dùng</strong>.
-                </span>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Email / Tên đăng nhập <span className="text-red-600">*</span>
-                </label>
-                <input
-                  type="email"
-                  required
-                  value={adminLoginEmail}
-                  onChange={(e) => setAdminLoginEmail(e.target.value)}
-                  placeholder="Nhập email của bạn..."
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Mật khẩu <span className="text-red-600">*</span>
-                </label>
-                <div className="relative">
-                  <input
-                    type={showAdminLoginPassword ? "text" : "password"}
-                    required
-                    value={adminLoginPassword}
-                    onChange={(e) => setAdminLoginPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-3.5 pr-10 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-red-600 outline-none"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowAdminLoginPassword(!showAdminLoginPassword)}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-700 cursor-pointer transition-colors"
-                    title={showAdminLoginPassword ? "Ẩn mật khẩu" : "Hiện mật khẩu"}
-                  >
-                    {showAdminLoginPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 rounded-full text-sm font-bold bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-md mt-2 flex items-center justify-center space-x-2 cursor-pointer"
-              >
-                <LogIn className="w-4 h-4" />
-                <span>Đăng nhập hệ thống</span>
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* MODAL ĐĂNG NHẬP VÀO HỆ THỐNG - ĐỒNG BỘ 100% TOÀN HỆ THỐNG */}
+      <LoginModal
+        isOpen={showAdminLoginModal}
+        onClose={() => setShowAdminLoginModal(false)}
+        onSuccess={(user) => {
+          setAuthUser(user);
+          setShowAdminLoginModal(false);
+          if (user.role === "USER" && activeTab === "quan-ly-nguoi-dung") {
+            setActiveTab("trac-nghiem");
+          }
+        }}
+      />
       {/* MODAL NHẬP ĐỒNG LOẠT ĐỀ THI TỪ FILE EXCEL (PHÂN QUYỀN RIÊNG TƯ & THEO BỘ ĐỀ) */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">

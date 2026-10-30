@@ -280,13 +280,38 @@ export default function ContestWizardPage() {
   };
 
   // Lưu thiết lập thông tin bắt buộc từ modal
-  const handleSaveRequiredFields = () => {
+  const handleSaveRequiredFields = async () => {
     const labels = PROPOSED_REQUIRED_FIELDS
       .filter((f) => selectedRequiredFields.includes(f.id))
       .map((f) => f.label)
       .join(", ");
     setRequiredFields(labels);
     setShowRequiredFieldsModal(false);
+
+    // Đồng bộ 2 chiều ngay lập tức vào draft và Server
+    if (slug) {
+      try {
+        const localDraftStr = localStorage.getItem(`easup_contest_draft_${slug}`);
+        const draftObj = localDraftStr ? JSON.parse(localDraftStr) : {};
+        draftObj.requiredFields = labels;
+        draftObj.requiredFieldKeys = selectedRequiredFields;
+        localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draftObj));
+
+        await fetch(`/api/contests/${slug}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-role": authUser?.role || "",
+          },
+          body: JSON.stringify({
+            requiredFields: labels,
+            requiredFieldKeys: selectedRequiredFields,
+          }),
+        });
+      } catch (e) {
+        console.warn("Lỗi lưu requiredFields:", e);
+      }
+    }
   };
 
   // Lưu Bước 1 và chuyển tiếp sang Bước 2 (Yêu cầu 4)
@@ -309,6 +334,7 @@ export default function ContestWizardPage() {
         requirePortrait,
         fullScreenExam,
         requiredFields,
+        requiredFieldKeys: selectedRequiredFields,
         customLeaderboard,
         durationMinutes,
         maxAttempts,
@@ -1121,6 +1147,7 @@ export default function ContestWizardPage() {
           themeColor,
           shortDesc,
           requiredFields,
+          requiredFieldKeys: selectedRequiredFields,
           customLeaderboard,
           examPassword,
           requirePortrait,
@@ -1244,7 +1271,23 @@ export default function ContestWizardPage() {
               if (c.examPassword) setExamPassword(c.examPassword);
               if (c.requirePortrait) setRequirePortrait(c.requirePortrait);
               if (c.fullScreenExam !== undefined) setFullScreenExam(c.fullScreenExam);
-              if (c.requiredFields) setRequiredFields(c.requiredFields);
+              if (c.requiredFields) {
+                setRequiredFields(c.requiredFields);
+                if (c.requiredFieldKeys && Array.isArray(c.requiredFieldKeys) && c.requiredFieldKeys.length > 0) {
+                  setSelectedRequiredFields(c.requiredFieldKeys);
+                } else {
+                  const lower = c.requiredFields.toLowerCase();
+                  const parsed: string[] = ["fullName"];
+                  if (lower.includes("cccd") || lower.includes("định danh")) parsed.push("cccd");
+                  if (lower.includes("điện thoại") || lower.includes("phone")) parsed.push("phone");
+                  if (lower.includes("email")) parsed.push("email");
+                  if (lower.includes("ngày sinh")) parsed.push("birthday");
+                  if (lower.includes("giới tính")) parsed.push("gender");
+                  if (lower.includes("nghề nghiệp")) parsed.push("job");
+                  if (lower.includes("công tác") || lower.includes("lớp")) parsed.push("workplace");
+                  setSelectedRequiredFields(parsed);
+                }
+              }
               if (c.customLeaderboard) setCustomLeaderboard(c.customLeaderboard);
               if (c.prize1) setPrize1(c.prize1);
               if (c.prize2) setPrize2(c.prize2);
@@ -1355,6 +1398,8 @@ export default function ContestWizardPage() {
               if (d.prize4Count) setPrize4Count(d.prize4Count);
               if (d.unitGroupId) setSelectedGroupId(d.unitGroupId);
               if (d.unitGroupName) setUnitGroupName(d.unitGroupName);
+              if (d.requiredFields) setRequiredFields(d.requiredFields);
+              if (d.requiredFieldKeys) setSelectedRequiredFields(d.requiredFieldKeys);
             }
           }
         } catch (e) {

@@ -79,7 +79,11 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
   const [cccd, setCccd] = useState("");
   const [phone, setPhone] = useState("");
   const [unitId, setUnitId] = useState("");
-  const [birthYear, setBirthYear] = useState("");
+  const [email, setEmail] = useState("");
+  const [birthday, setBirthday] = useState("");
+  const [gender, setGender] = useState("");
+  const [job, setJob] = useState("");
+  const [workplace, setWorkplace] = useState("");
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [regError, setRegError] = useState("");
   const [starting, setStarting] = useState(false);
@@ -91,6 +95,32 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     hasReachedMaxAttempts: boolean;
     highestScore?: number | null;
   } | null>(null);
+
+  // Helper kiểm tra trường thông tin nào bắt buộc dựa theo thiết lập cuộc thi (Đồng bộ 2 chiều với Ảnh 3)
+  const isFieldRequired = (fieldKey: string): boolean => {
+    if (fieldKey === "fullName") return true;
+
+    const reqKeys: string[] = contest?.requiredFieldKeys || [];
+    if (reqKeys.length > 0) {
+      return reqKeys.includes(fieldKey);
+    }
+
+    const rf = (contest?.requiredFields || "").toLowerCase();
+    if (!rf) {
+      return ["fullName", "cccd", "phone", "unitId"].includes(fieldKey);
+    }
+
+    if (fieldKey === "cccd") return rf.includes("cccd") || rf.includes("định danh");
+    if (fieldKey === "phone") return rf.includes("điện thoại") || rf.includes("phone") || rf.includes("sđt");
+    if (fieldKey === "email") return rf.includes("email");
+    if (fieldKey === "birthday") return rf.includes("ngày sinh") || rf.includes("năm sinh");
+    if (fieldKey === "gender") return rf.includes("giới tính");
+    if (fieldKey === "job") return rf.includes("nghề nghiệp");
+    if (fieldKey === "workplace") return rf.includes("công tác") || rf.includes("lớp") || rf.includes("mssv");
+    if (fieldKey === "unitId") return true;
+
+    return false;
+  };
 
   // Informational Modals (Thể lệ, Kế hoạch)
   const [infoModal, setInfoModal] = useState<"rules" | "plan" | null>(null);
@@ -312,16 +342,20 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     }
   };
 
-  // Đồng bộ 2 chiều: Xác minh số CCCD với danh sách thí sinh và số lượt thi
-  const verifyCccd = async (val: string) => {
-    const clean = val.replace(/\D/g, "");
-    if (clean.length < 9) {
+  // Đồng bộ 2 chiều: Xác minh thí sinh bằng CCCD hoặc Số điện thoại với hồ sơ và số lượt thi
+  const verifyParticipant = async ({ cccdVal, phoneVal }: { cccdVal?: string; phoneVal?: string }) => {
+    const cleanCccd = (cccdVal !== undefined ? cccdVal : cccd).replace(/\D/g, "");
+    const cleanPhone = (phoneVal !== undefined ? phoneVal : phone).replace(/\D/g, "");
+
+    const identifier = cleanCccd.length >= 9 ? cleanCccd : (cleanPhone.length >= 9 ? cleanPhone : "");
+    if (!identifier) {
       setCccdSyncStatus(null);
       return;
     }
     setCheckingCccd(true);
     try {
-      const res = await fetch(`/api/contests/${slug}/start?cccd=${clean}`);
+      const queryParam = cleanCccd.length >= 9 ? `cccd=${cleanCccd}` : `phone=${cleanPhone}`;
+      const res = await fetch(`/api/contests/${slug}/start?${queryParam}`);
       const data = await res.json();
       if (data.success) {
         setCccdSyncStatus({
@@ -332,12 +366,20 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           highestScore: data.highestScore,
         });
 
-        // Tự động điền thông tin (đồng bộ từ danh sách vào form) nếu chưa nhập hoặc cần đồng bộ
+        // Tự động điền thông tin (đồng bộ 2 chiều từ danh sách vào form) nếu chưa nhập hoặc cần đồng bộ
         if (data.participant) {
           if (data.participant.fullName) setFullName(data.participant.fullName);
           if (data.participant.phone) setPhone(data.participant.phone);
           if (data.participant.unitId) setUnitId(data.participant.unitId);
-          if (data.participant.birthYear) setBirthYear(String(data.participant.birthYear));
+          if (data.participant.email) setEmail(data.participant.email);
+          if (data.participant.gender) setGender(data.participant.gender);
+          if (data.participant.job) setJob(data.participant.job);
+          if (data.participant.workplace) setWorkplace(data.participant.workplace);
+          if (data.participant.birthday) {
+            setBirthday(data.participant.birthday);
+          } else if (data.participant.birthYear) {
+            setBirthday(String(data.participant.birthYear));
+          }
         }
 
         if (data.hasReachedMaxAttempts) {
@@ -349,7 +391,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
         }
       }
     } catch (e) {
-      console.warn("Lỗi xác minh CCCD:", e);
+      console.warn("Lỗi xác minh thí sinh:", e);
     } finally {
       setCheckingCccd(false);
     }
@@ -359,10 +401,23 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     const clean = val.replace(/\D/g, "");
     setCccd(clean);
     if (clean.length >= 9) {
-      verifyCccd(clean);
-    } else {
+      verifyParticipant({ cccdVal: clean });
+    } else if (!phone || phone.length < 9) {
       setCccdSyncStatus(null);
       setRegError("");
+    }
+  };
+
+  const handlePhoneChange = (val: string) => {
+    const clean = val.replace(/\D/g, "");
+    setPhone(clean);
+    if (!cccd || cccd.length < 9) {
+      if (clean.length >= 9) {
+        verifyParticipant({ phoneVal: clean });
+      } else {
+        setCccdSyncStatus(null);
+        setRegError("");
+      }
     }
   };
 
@@ -376,13 +431,48 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
       return;
     }
 
-    if (!cccd.trim() || cccd.trim().length < 9) {
+    if (!fullName.trim()) {
+      setRegError("Vui lòng nhập Họ tên thí sinh!");
+      return;
+    }
+
+    if (isFieldRequired("cccd") && (!cccd.trim() || cccd.trim().length < 9)) {
       setRegError("Vui lòng nhập đúng số CCCD/Mã định danh (từ 9 đến 12 chữ số)!");
       return;
     }
 
-    if (!fullName.trim() || !phone.trim() || !unitId) {
-      setRegError("Vui lòng điền đầy đủ Họ tên, Số điện thoại và Đơn vị dự thi!");
+    if (isFieldRequired("phone") && (!phone.trim() || phone.trim().length < 9)) {
+      setRegError("Vui lòng nhập Số điện thoại liên hệ hợp lệ!");
+      return;
+    }
+
+    if (isFieldRequired("email") && (!email.trim() || !email.includes("@"))) {
+      setRegError("Vui lòng nhập Email hợp lệ!");
+      return;
+    }
+
+    if (isFieldRequired("birthday") && !birthday.trim()) {
+      setRegError("Vui lòng nhập Ngày sinh của bạn!");
+      return;
+    }
+
+    if (isFieldRequired("gender") && !gender.trim()) {
+      setRegError("Vui lòng chọn Giới tính!");
+      return;
+    }
+
+    if (isFieldRequired("job") && !job.trim()) {
+      setRegError("Vui lòng nhập Nghề nghiệp!");
+      return;
+    }
+
+    if (isFieldRequired("workplace") && !workplace.trim()) {
+      setRegError("Vui lòng nhập Lớp, MSSV hoặc Nơi công tác!");
+      return;
+    }
+
+    if (!unitId) {
+      setRegError("Vui lòng chọn Đơn vị dự thi!");
       return;
     }
 
@@ -393,10 +483,14 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           fullName,
-          cccd,
+          cccd: cccd.trim() || phone.trim() || "ANONYMOUS",
           phone,
           unitId,
-          birthYear,
+          email,
+          birthday,
+          gender,
+          job,
+          workplace,
         }),
       });
 
@@ -1174,7 +1268,9 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                   Đăng ký tài khoản dự thi
                 </h3>
                 <p className="text-xs sm:text-sm text-slate-500 mt-1">
-                  Nhập số CCCD/Mã định danh để bắt đầu quá trình đăng ký
+                  {isFieldRequired("cccd")
+                    ? "Nhập số CCCD/Mã định danh để bắt đầu quá trình đăng ký"
+                    : "Nhập thông tin thí sinh để bắt đầu làm bài thi"}
                 </p>
               </div>
 
@@ -1185,7 +1281,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 </div>
               )}
 
-              {/* Status Badge khi đồng bộ CCCD 2 chiều thành công */}
+              {/* Status Badge khi đồng bộ thí sinh 2 chiều thành công */}
               {cccdSyncStatus && !regError && (
                 <div className="mb-4 p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-800 flex items-center justify-between">
                   <div className="flex items-center space-x-1.5 font-medium">
@@ -1203,54 +1299,131 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
               )}
 
               <form onSubmit={handleStartExam} className="space-y-4">
-                {/* Floating Border Input for CCCD (Ảnh 5 & Ảnh 1) */}
-                <div className="relative pt-1">
-                  <div className="border border-slate-300 rounded-xl px-3.5 pt-3 pb-2.5 focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-all bg-white relative">
-                    <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-semibold text-slate-500">
-                      Nhập số CCCD/Mã định danh của bạn
-                    </label>
-                    <div className="flex items-center">
-                      <input
-                        type="text"
-                        required
-                        value={cccd}
-                        onChange={(e) => handleCccdChange(e.target.value)}
-                        maxLength={12}
-                        placeholder="Nhập 12 số CCCD / Mã định danh..."
-                        className="w-full text-sm sm:text-base font-semibold text-slate-900 outline-none bg-transparent"
-                      />
-                      {checkingCccd && (
-                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0 ml-2" />
-                      )}
+                {/* Floating Border Input for CCCD (Ảnh 1 & 3) */}
+                {isFieldRequired("cccd") && (
+                  <div className="relative pt-1">
+                    <div className="border border-slate-300 rounded-xl px-3.5 pt-3 pb-2.5 focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-all bg-white relative">
+                      <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-semibold text-slate-500">
+                        Nhập số CCCD/Mã định danh của bạn
+                      </label>
+                      <div className="flex items-center">
+                        <input
+                          type="text"
+                          required
+                          value={cccd}
+                          onChange={(e) => handleCccdChange(e.target.value)}
+                          maxLength={12}
+                          placeholder="Nhập 12 số CCCD / Mã định danh..."
+                          className="w-full text-sm sm:text-base font-semibold text-slate-900 outline-none bg-transparent"
+                        />
+                        {checkingCccd && (
+                          <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0 ml-2" />
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
 
-                {/* Additional Profile Fields (Đồng bộ 2 chiều) */}
+                {/* Additional Profile Fields (Đồng bộ 2 chiều với Cài đặt đề thi Ảnh 3) */}
                 <div className="space-y-3 pt-1">
-                  {/* Họ và tên */}
+                  {/* Họ và tên (Bắt buộc khóa) */}
                   <div>
                     <input
                       type="text"
                       required
-                      placeholder="Họ và Tên thí sinh"
+                      placeholder="Họ và Tên thí sinh *"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
                     />
                   </div>
 
                   {/* Số điện thoại */}
-                  <div>
-                    <input
-                      type="tel"
-                      required
-                      placeholder="Số điện thoại liên hệ"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none"
-                    />
-                  </div>
+                  {isFieldRequired("phone") && (
+                    <div>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="Số điện thoại liên hệ *"
+                        value={phone}
+                        onChange={(e) => handlePhoneChange(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
+                      />
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  {isFieldRequired("email") && (
+                    <div>
+                      <input
+                        type="email"
+                        required
+                        placeholder="Địa chỉ Email *"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
+                      />
+                    </div>
+                  )}
+
+                  {/* Ngày sinh */}
+                  {isFieldRequired("birthday") && (
+                    <div>
+                      <input
+                        type="date"
+                        required
+                        placeholder="Ngày sinh *"
+                        value={birthday}
+                        onChange={(e) => setBirthday(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
+                      />
+                    </div>
+                  )}
+
+                  {/* Giới tính */}
+                  {isFieldRequired("gender") && (
+                    <div>
+                      <select
+                        value={gender}
+                        onChange={(e) => setGender(e.target.value)}
+                        required
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none bg-white font-medium text-slate-800"
+                      >
+                        <option value="">-- Chọn giới tính * --</option>
+                        <option value="Nam">Nam</option>
+                        <option value="Nữ">Nữ</option>
+                        <option value="Khác">Khác</option>
+                      </select>
+                    </div>
+                  )}
+
+                  {/* Nghề nghiệp */}
+                  {isFieldRequired("job") && (
+                    <div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Nghề nghiệp *"
+                        value={job}
+                        onChange={(e) => setJob(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
+                      />
+                    </div>
+                  )}
+
+                  {/* Lớp, MSSV, Nơi công tác */}
+                  {isFieldRequired("workplace") && (
+                    <div>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Lớp, MSSV, Nơi công tác *"
+                        value={workplace}
+                        onChange={(e) => setWorkplace(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
+                      />
+                    </div>
+                  )}
 
                   {/* Đơn vị tham gia */}
                   <div>
@@ -1260,7 +1433,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                       required
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none bg-white font-medium text-slate-800"
                     >
-                      <option value="">-- Chọn đơn vị tham gia --</option>
+                      <option value="">-- Chọn đơn vị tham gia * --</option>
                       {(contest.units || []).map((u: any) => (
                         <option key={u.id} value={u.id}>
                           {u.name}

@@ -40,6 +40,7 @@ export async function GET(
         maxAttempts: contest.maxAttempts,
         hasTieBreaker: contest.hasTieBreaker,
         requiredFields: contest.requiredFields,
+        requiredFieldKeys: contest.requiredFieldKeys || [],
         customLeaderboard: contest.customLeaderboard,
         examPassword: contest.examPassword,
         requirePortrait: contest.requirePortrait,

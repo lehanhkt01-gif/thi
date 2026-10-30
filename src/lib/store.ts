@@ -102,6 +102,7 @@ export interface ContestModel {
   themeColor?: string;
   shortDesc?: string;
   requiredFields?: string;
+  requiredFieldKeys?: string[];
   customLeaderboard?: string;
   examPassword?: string;
   requirePortrait?: string;
@@ -171,6 +172,11 @@ export interface ParticipantModel {
   cccd: string;
   phone: string;
   birthYear: number;
+  email?: string;
+  birthday?: string;
+  gender?: string;
+  job?: string;
+  workplace?: string;
   address?: string;
   createdAt: string;
 }
@@ -1673,21 +1679,31 @@ class DataStore {
     phone: string,
     unitId: string,
     birthYear?: number,
-    address?: string
+    address?: string,
+    extra?: {
+      email?: string;
+      birthday?: string;
+      gender?: string;
+      job?: string;
+      workplace?: string;
+    }
   ): ParticipantModel {
     this.loadFromDisk();
     const contest = this.getContestById(contestId);
     const unit = contest?.units.find((u) => u.id === unitId) || { name: "Thôn 1", id: unitId };
-    const cleanCccd = cccd.trim();
+    const cleanCccd = cccd ? cccd.trim() : (phone ? `TEL_${phone.trim()}` : `AUTO_${Date.now()}`);
+    const cleanPhone = phone ? phone.trim() : "";
 
-    // 1. Đồng bộ 2 chiều: tìm trong contest hiện tại
+    // 1. Đồng bộ 2 chiều: tìm trong contest hiện tại (bằng CCCD hoặc SĐT)
     let existing = this.participants.find(
-      (p) => p.contestId === contestId && p.cccd === cleanCccd
+      (p) => p.contestId === contestId && ((cleanCccd && p.cccd === cleanCccd) || (cleanPhone && p.phone === cleanPhone))
     );
 
     // 2. Nếu chưa có trong contest hiện tại, tìm trong hồ sơ thí sinh toàn hệ thống
     if (!existing) {
-      const systemCandidate = this.participants.find((p) => p.cccd === cleanCccd);
+      const systemCandidate = this.participants.find(
+        (p) => (cleanCccd && p.cccd === cleanCccd) || (cleanPhone && p.phone === cleanPhone)
+      );
       if (systemCandidate) {
         existing = {
           id: `p-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -1696,8 +1712,13 @@ class DataStore {
           unitName: unit.name,
           fullName: (fullName && fullName.trim()) || systemCandidate.fullName,
           cccd: cleanCccd,
-          phone: (phone && phone.trim()) || systemCandidate.phone,
+          phone: cleanPhone || systemCandidate.phone,
           birthYear: birthYear || systemCandidate.birthYear || 2000,
+          email: extra?.email || systemCandidate.email,
+          birthday: extra?.birthday || systemCandidate.birthday,
+          gender: extra?.gender || systemCandidate.gender,
+          job: extra?.job || systemCandidate.job,
+          workplace: extra?.workplace || systemCandidate.workplace,
           address: address || systemCandidate.address,
           createdAt: new Date().toISOString(),
         };
@@ -1708,13 +1729,19 @@ class DataStore {
     if (existing) {
       // Đồng bộ 2 chiều: cập nhật lại nếu thí sinh sửa thông tin khi đăng ký
       if (fullName && fullName.trim()) existing.fullName = fullName.trim();
-      if (phone && phone.trim()) existing.phone = phone.trim();
+      if (cleanPhone) existing.phone = cleanPhone;
+      if (cleanCccd && !existing.cccd.startsWith("TEL_")) existing.cccd = cleanCccd;
       if (unit && unit.id) {
         existing.unitId = unit.id;
         existing.unitName = unit.name;
       }
       if (birthYear) existing.birthYear = birthYear;
       if (address) existing.address = address;
+      if (extra?.email) existing.email = extra.email;
+      if (extra?.birthday) existing.birthday = extra.birthday;
+      if (extra?.gender) existing.gender = extra.gender;
+      if (extra?.job) existing.job = extra.job;
+      if (extra?.workplace) existing.workplace = extra.workplace;
 
       // Đồng bộ 2 chiều sang các lượt thi (attempts) đã có của thí sinh này
       for (const a of this.attempts) {
@@ -1735,8 +1762,13 @@ class DataStore {
       unitName: unit.name,
       fullName: fullName.trim(),
       cccd: cleanCccd,
-      phone: phone.trim(),
+      phone: cleanPhone,
       birthYear: birthYear || 2000,
+      email: extra?.email,
+      birthday: extra?.birthday,
+      gender: extra?.gender,
+      job: extra?.job,
+      workplace: extra?.workplace,
       address,
       createdAt: new Date().toISOString(),
     };
@@ -1752,19 +1784,25 @@ class DataStore {
     );
   }
 
-  public getParticipantByCccd(cccd: string, contestId?: string): {
+  public getParticipantByCccd(cccdOrPhone: string, contestId?: string): {
     participant: ParticipantModel | null;
     submittedAttemptsCount: number;
     maxAttempts: number;
     highestScoreAttempt?: ExamAttemptModel | null;
   } {
     this.loadFromDisk();
-    const cleanCccd = cccd.trim();
+    const clean = cccdOrPhone ? cccdOrPhone.trim() : "";
+    if (!clean) {
+      return { participant: null, submittedAttemptsCount: 0, maxAttempts: 3, highestScoreAttempt: null };
+    }
+
     let p = contestId
-      ? this.participants.find((item) => item.contestId === contestId && item.cccd === cleanCccd)
+      ? this.participants.find(
+          (item) => item.contestId === contestId && (item.cccd === clean || item.phone === clean)
+        )
       : null;
     if (!p) {
-      p = this.participants.find((item) => item.cccd === cleanCccd) || null;
+      p = this.participants.find((item) => item.cccd === clean || item.phone === clean) || null;
     }
 
     let submittedAttemptsCount = 0;
@@ -1776,7 +1814,10 @@ class DataStore {
       if (contest) maxAttempts = contest.maxAttempts || 3;
 
       const userAttempts = this.attempts.filter(
-        (a) => a.contestId === contestId && (a.participantCccd === cleanCccd || (p && a.participantId === p.id)) && !!a.submittedAt
+        (a) =>
+          a.contestId === contestId &&
+          (a.participantCccd === clean || (p && (a.participantId === p.id || a.participantCccd === p.cccd))) &&
+          !!a.submittedAt
       );
       submittedAttemptsCount = userAttempts.length;
 
