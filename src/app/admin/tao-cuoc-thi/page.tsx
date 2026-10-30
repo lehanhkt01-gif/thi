@@ -55,6 +55,7 @@ import {
 import FloatingActionBar from "@/components/FloatingActionBar";
 import SparklineChart from "@/components/SparklineChart";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
+import { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
 
 export default function ContestWizardPage() {
   // Trạng thái xác thực & Quyền khởi tạo cuộc thi (Ảnh 2)
@@ -664,6 +665,50 @@ export default function ContestWizardPage() {
     }
   };
 
+  const handleGoogleLogin = async (overrideEmail?: string, overrideName?: string) => {
+    try {
+      const emailToUse = (overrideEmail || "lehanhkt01@gmail.com").trim().toLowerCase();
+      const nameToUse =
+        overrideName ||
+        (emailToUse === "lehanhkt01@gmail.com"
+          ? "Lê Hạnh - Quản trị viên Ea Súp"
+          : emailToUse.split("@")[0]);
+
+      const res = await fetch("/api/auth/google", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailToUse, name: nameToUse }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setAuthError(data.error || "Không thể đăng nhập Google");
+        return;
+      }
+      syncAuthSession(data.user);
+      setAuthUser(data.user);
+      setAuthError("");
+
+      if (slug && data.user) {
+        fetch(`/api/contests/${slug}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-role": data.user.role || "",
+            "x-user-email": data.user.email || "",
+            "x-user-id": data.user.id || "",
+          },
+          body: JSON.stringify({
+            creatorEmail: data.user.email,
+            creatorId: data.user.id,
+            creatorName: data.user.name,
+          }),
+        }).catch(() => {});
+      }
+    } catch (e: any) {
+      setAuthError("Lỗi kết nối máy chủ Google: " + e.message);
+    }
+  };
+
   const handleAdminRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regOrgName.trim() || !regEmail.trim() || !regPhone.trim() || !regPassword.trim() || !regConfirmPassword.trim()) {
@@ -1264,7 +1309,27 @@ export default function ContestWizardPage() {
 
           {/* FORM ĐĂNG NHẬP (ẢNH 5) */}
           {authTab === "login" ? (
-            <form onSubmit={handleAdminLogin} className="space-y-4">
+            <div className="space-y-4">
+              {/* Nút Đăng nhập Google */}
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={() => handleGoogleLogin("lehanhkt01@gmail.com")}
+                  className="w-full flex items-center justify-center space-x-3 py-2.5 px-4 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs sm:text-sm shadow-xs hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <GoogleIcon className="w-5 h-5 group-hover:scale-110 transition-transform" />
+                  <span>Đăng nhập nhanh bằng Google (Admin)</span>
+                </button>
+
+                <div className="relative flex items-center justify-center my-3">
+                  <div className="border-t border-slate-200 w-full"></div>
+                  <span className="bg-white px-3 text-[10px] font-bold text-slate-400 uppercase tracking-wider absolute">
+                    Hoặc qua mật khẩu
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleAdminLogin} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
                   Email / Tên tài khoản <span className="text-red-600">*</span>
@@ -1323,6 +1388,7 @@ export default function ContestWizardPage() {
                 </button>
               </div>
             </form>
+          </div>
           ) : (
             /* FORM ĐĂNG KÝ */
             <form onSubmit={handleAdminRegister} className="space-y-4">

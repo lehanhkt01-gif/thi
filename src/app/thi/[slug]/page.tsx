@@ -30,9 +30,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Sparkles,
+  LogOut,
 } from "lucide-react";
 import AudioPlayerAnNhien from "@/components/AudioPlayerAnNhien";
 import FloatingActionBar from "@/components/FloatingActionBar";
+import LoginModal, { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
 
 interface QuestionItem {
   id: string;
@@ -93,6 +95,36 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
   // Informational Modals (Thể lệ, Kế hoạch)
   const [infoModal, setInfoModal] = useState<"rules" | "plan" | null>(null);
+
+  // Authentication State & SSO Sync (Đồng bộ đăng nhập hệ thống & Google)
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      try {
+        const saved = localStorage.getItem("cuocthi_admin_auth");
+        if (saved) {
+          const user = JSON.parse(saved);
+          if (user && user.status === "APPROVED") {
+            setAuthUser(user);
+            return;
+          }
+        }
+        setAuthUser(null);
+      } catch (e) {
+        setAuthUser(null);
+      }
+    };
+
+    checkAuth();
+    window.addEventListener("storage", checkAuth);
+    window.addEventListener("cuocthi_auth_change", checkAuth);
+    return () => {
+      window.removeEventListener("storage", checkAuth);
+      window.removeEventListener("cuocthi_auth_change", checkAuth);
+    };
+  }, []);
 
   // Leaderboard filters & state (Ảnh 4)
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
@@ -520,13 +552,56 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
               </a>
             </nav>
 
-            <button
-              onClick={() => setShowRegisterModal(true)}
-              style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-              className="text-xs font-bold text-white hover:opacity-90 px-3.5 py-1.5 rounded-full transition-all shadow-xs cursor-pointer"
-            >
-              Vào thi
-            </button>
+            <div className="flex items-center space-x-2">
+              {/* Nút Đăng nhập / Trạng thái tài khoản (Ảnh 2 chuẩn) */}
+              {authUser ? (
+                <div className="flex items-center space-x-1.5">
+                  <div
+                    className="inline-flex items-center space-x-1.5 bg-blue-50 border border-blue-200 pl-2.5 pr-3 py-1 rounded-full text-xs text-blue-900 font-bold shadow-2xs max-w-[150px] sm:max-w-[200px]"
+                    title={`Đang đăng nhập: ${authUser.name} (${authUser.role === "ADMIN" ? "Quản trị viên" : "Người dùng"})`}
+                  >
+                    <span className={`w-2 h-2 rounded-full shrink-0 ${authUser.role === "ADMIN" ? "bg-red-600" : "bg-blue-600"}`}></span>
+                    <span className="truncate">{authUser.name}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      syncAuthSession(null);
+                      setAuthUser(null);
+                    }}
+                    className="p-1.5 rounded-full text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                    title="Đăng xuất"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(true)}
+                  className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-700 hover:text-[#DC2626] bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer shadow-2xs"
+                  title="Đăng nhập tài khoản"
+                >
+                  <User className="w-3.5 h-3.5 mr-1.5 text-slate-600" />
+                  <span>Đăng nhập</span>
+                </button>
+              )}
+
+              {/* Nút Vào thi */}
+              <button
+                onClick={() => {
+                  if (!authUser) {
+                    setShowLoginModal(true);
+                  } else {
+                    setShowRegisterModal(true);
+                  }
+                }}
+                style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
+                className="text-xs font-bold text-white hover:opacity-90 px-3.5 py-1.5 rounded-full transition-all shadow-xs cursor-pointer"
+              >
+                Vào thi
+              </button>
+            </div>
           </div>
         </header>
 
@@ -683,24 +758,49 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             <span className="w-16 sm:w-24 text-center">Giây</span>
           </div>
 
-          {/* Big Pill Button "THAM GIA" (Ảnh 3) */}
-          <div className="space-y-2">
+          {/* Big Pill Button "THAM GIA" & Nút Đăng nhập Google (Ảnh 1 chuẩn) */}
+          <div className="space-y-3">
             <button
-              onClick={() => setShowRegisterModal(true)}
+              onClick={() => {
+                if (!authUser) {
+                  setShowLoginModal(true);
+                } else {
+                  setShowRegisterModal(true);
+                }
+              }}
               style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
               className="inline-flex items-center justify-center px-12 py-3.5 rounded-full text-base sm:text-lg font-black text-white transition-all shadow-md hover:shadow-xl hover:scale-105 active:scale-95 uppercase tracking-wide cursor-pointer hover:opacity-95"
             >
               THAM GIA
             </button>
-            <div>
-              <button
-                onClick={() => setShowRegisterModal(true)}
-                style={{ color: contest?.themeColor || "#DC2626" }}
-                className="text-xs hover:underline font-semibold"
-              >
-                Bạn cần đăng nhập để dự thi
-              </button>
-            </div>
+
+            {authUser ? (
+              <div className="flex items-center justify-center space-x-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-4 rounded-full max-w-md mx-auto shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span>Đã đăng nhập: <strong>{authUser.name}</strong> • Sẵn sàng tham gia</span>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center space-y-2">
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(true)}
+                  style={{ color: contest?.themeColor || "#DC2626" }}
+                  className="text-xs hover:underline font-semibold cursor-pointer"
+                >
+                  Bạn cần đăng nhập để dự thi
+                </button>
+
+                {/* Nút Đăng nhập bằng Google tại vị trí thời gian đếm ngược */}
+                <button
+                  type="button"
+                  onClick={() => setShowLoginModal(true)}
+                  className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-slate-50 active:bg-slate-100 border border-slate-300 rounded-full text-xs font-bold text-slate-700 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+                >
+                  <GoogleIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                  <span>Đăng nhập bằng Google</span>
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Loa An Nhiên đọc thể lệ */}
@@ -1243,6 +1343,17 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             </div>
           </div>
         )}
+
+        {/* MODAL ĐĂNG NHẬP HỆ THỐNG & GOOGLE SIGN-IN */}
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onSuccess={(user) => {
+            setAuthUser(user);
+            if (!fullName && user.name) setFullName(user.name);
+            if (!phone && user.phone) setPhone(user.phone);
+          }}
+        />
 
         {/* Floating Quick Action Bar */}
         <FloatingActionBar contestSlug={slug} />
