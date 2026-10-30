@@ -425,6 +425,44 @@ export default function ContestWizardPage() {
   const [examMode, setExamMode] = useState<"manual" | "bank">("bank");
   const [questionsList, setQuestionsList] = useState<any[]>([]);
 
+  // Tự động thiết lập số câu hỏi trong đề thi là tổng số câu hỏi đã chọn từ "ĐỀ THI HIỆN TẠI"
+  // Khống chế số câu hỏi sử dụng trong cuộc thi luôn nhỏ hơn hoặc bằng tối đa trong tổng số trên
+  useEffect(() => {
+    const totalSelected = questionsList.length;
+    if (totalSelected > 0) {
+      setQuestionCount((prev) => {
+        if (!prev || prev > totalSelected) {
+          return totalSelected;
+        }
+        return prev;
+      });
+
+      setExamMixPackages((prev) => {
+        if (prev.length > 0) {
+          const first = prev[0];
+          const currentCount = first.mcqCount;
+          // Nếu chưa có hoặc lớn hơn tổng số câu đã chọn, tự động đặt bằng tổng số câu đã chọn
+          const newCount = (!currentCount || currentCount > totalSelected) ? totalSelected : currentCount;
+          return [
+            {
+              ...first,
+              mcqCount: newCount,
+            },
+            ...prev.slice(1),
+          ];
+        }
+        return [
+          {
+            id: "mix-1",
+            packageName: "Đề thi mới tạo",
+            mcqCount: totalSelected,
+            essayCount: 0,
+          },
+        ];
+      });
+    }
+  }, [questionsList.length]);
+
   // AI Generator state
   const [aiFile, setAiFile] = useState<File | null>(null);
   const [aiTopic, setAiTopic] = useState("Luật Đất đai 2024 và Luật Căn cước 2023");
@@ -1071,7 +1109,9 @@ export default function ContestWizardPage() {
           startTime,
           endTime,
           durationMinutes,
-          questionCount: questionsList.length || questionCount,
+          questionCount: questionsList.length > 0
+            ? Math.min(examMixPackages[0]?.mcqCount || questionsList.length, questionsList.length)
+            : (questionCount || 5),
           maxAttempts,
           resultVisibility: showResultMode,
           attemptCalculation,
@@ -3898,6 +3938,7 @@ export default function ContestWizardPage() {
       <ExamSettingsDrawer
         isOpen={showExamSettingsDrawer}
         onClose={() => setShowExamSettingsDrawer(false)}
+        totalSelectedQuestions={questionsList.length}
         durationMinutes={durationMinutes}
         onChangeDurationMinutes={setDurationMinutes}
         showResultMode={showResultMode}

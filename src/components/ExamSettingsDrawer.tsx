@@ -27,6 +27,8 @@ export interface ExamMixPackageItem {
 export interface ExamSettingsDrawerProps {
   isOpen: boolean;
   onClose: () => void;
+  // Tổng số câu hỏi đã chọn trong "ĐỀ THI HIỆN TẠI"
+  totalSelectedQuestions?: number;
   // Các cài đặt nâng cao đề thi (Ảnh 1)
   durationMinutes: number;
   onChangeDurationMinutes: (val: number) => void;
@@ -54,6 +56,7 @@ export interface ExamSettingsDrawerProps {
 export default function ExamSettingsDrawer({
   isOpen,
   onClose,
+  totalSelectedQuestions = 0,
   durationMinutes,
   onChangeDurationMinutes,
   showResultMode,
@@ -102,16 +105,48 @@ export default function ExamSettingsDrawer({
     onChangeExamMixPackages([...examMixPackages, newPkg]);
   };
 
+  // Khi mở drawer hoặc khi totalSelectedQuestions thay đổi, tự động kiểm tra và đồng bộ
+  useEffect(() => {
+    if (totalSelectedQuestions > 0 && examMixPackages.length > 0) {
+      const first = examMixPackages[0];
+      if (first.packageName === "Đề thi mới tạo" || first.packageName === "Đề thi hiện tại") {
+        if (first.mcqCount > totalSelectedQuestions || first.mcqCount === 0) {
+          const updated = [...examMixPackages];
+          updated[0] = { ...first, mcqCount: totalSelectedQuestions };
+          onChangeExamMixPackages(updated);
+        }
+      }
+    }
+  }, [totalSelectedQuestions, isOpen]);
+
   // Cập nhật thông số từng dòng gói đề
   const handleUpdatePackage = (
     index: number,
     field: keyof ExamMixPackageItem,
     value: any
   ) => {
+    let sanitizedValue = value;
+    if (field === "mcqCount") {
+      const num = parseInt(value, 10);
+      sanitizedValue = isNaN(num) || num < 0 ? 0 : num;
+      // Khống chế số câu hỏi cần sử dụng phải nhỏ hơn hoặc bằng tối đa trong tổng số trên
+      if (
+        (examMixPackages[index]?.packageName === "Đề thi mới tạo" || index === 0) &&
+        totalSelectedQuestions > 0
+      ) {
+        if (sanitizedValue > totalSelectedQuestions) {
+          sanitizedValue = totalSelectedQuestions;
+        }
+      }
+    } else if (field === "essayCount") {
+      const num = parseInt(value, 10);
+      sanitizedValue = isNaN(num) || num < 0 ? 0 : num;
+    }
+
     const updated = [...examMixPackages];
     updated[index] = {
       ...updated[index],
-      [field]: value,
+      [field]: sanitizedValue,
     };
     onChangeExamMixPackages(updated);
   };
@@ -283,16 +318,25 @@ export default function ExamSettingsDrawer({
                     ))}
                   </select>
 
-                  {/* Ô nhập số câu trắc nghiệm */}
+                  {/* Ô nhập số câu trắc nghiệm (nhỏ hơn hoặc bằng tối đa tổng số câu ĐỀ THI HIỆN TẠI) */}
                   <input
                     type="number"
                     min="0"
+                    max={
+                      (pkg.packageName === "Đề thi mới tạo" || idx === 0) && totalSelectedQuestions > 0
+                        ? totalSelectedQuestions
+                        : undefined
+                    }
                     value={pkg.mcqCount}
                     onChange={(e) =>
-                      handleUpdatePackage(idx, "mcqCount", parseInt(e.target.value, 10) || 0)
+                      handleUpdatePackage(idx, "mcqCount", e.target.value)
                     }
                     className="w-13 px-1 py-2 text-xs text-center border border-slate-300 rounded-lg bg-white outline-none focus:border-red-500 font-medium text-slate-800"
-                    title="Số câu trắc nghiệm"
+                    title={
+                      totalSelectedQuestions > 0
+                        ? `Số câu trắc nghiệm sử dụng (Tối đa ${totalSelectedQuestions} câu từ ĐỀ THI HIỆN TẠI)`
+                        : "Số câu trắc nghiệm"
+                    }
                   />
 
                   {/* Ô nhập số câu tự luận */}
@@ -331,10 +375,17 @@ export default function ExamSettingsDrawer({
             </div>
 
             {/* Dòng tóm tắt số lượng câu */}
-            <p className="text-xs text-slate-700 pt-1">
-              Đề thi có <span className="text-[#DC2626] font-bold">{totalMCQ}</span> câu trắc nghiệm và{" "}
-              <span className="text-[#DC2626] font-bold">{totalEssay}</span> câu tự luận.
-            </p>
+            <div className="space-y-1 pt-1">
+              <p className="text-xs text-slate-700">
+                Đề thi có <span className="text-[#DC2626] font-bold">{totalMCQ}</span> câu trắc nghiệm và{" "}
+                <span className="text-[#DC2626] font-bold">{totalEssay}</span> câu tự luận.
+              </p>
+              {totalSelectedQuestions > 0 && (
+                <p className="text-[11px] text-slate-500">
+                  * Số câu hỏi sử dụng trong cuộc thi: <strong className="text-[#DC2626] font-bold">{Math.min(totalMCQ, totalSelectedQuestions)}</strong> / tối đa <strong className="text-slate-800">{totalSelectedQuestions}</strong> câu đã chọn từ &quot;ĐỀ THI HIỆN TẠI&quot;.
+                </p>
+              )}
+            </div>
           </div>
 
           {/* Đường phân cách chuẩn như Ảnh 1 */}
