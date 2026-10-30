@@ -1678,6 +1678,98 @@ class DataStore {
     return { success: true };
   }
 
+  // Admin tạo bộ đề mới (có thể tạo bộ đề chung isSystem=true hoặc bộ đề riêng)
+  public createQuestionPackage(
+    packageData: { name: string; description?: string; isSystem?: boolean },
+    user?: { email?: string; role?: string; id?: string; name?: string }
+  ): { success: boolean; package?: QuestionPackageModel; error?: string } {
+    if (!packageData.name || !packageData.name.trim()) {
+      return { success: false, error: "Vui lòng nhập tên bộ đề!" };
+    }
+
+    const isSystem = !!packageData.isSystem;
+    if (isSystem && user?.role !== "ADMIN") {
+      return { success: false, error: "Chỉ Admin mới có quyền tạo bộ đề dùng chung của toàn xã!" };
+    }
+
+    const newPkg: QuestionPackageModel = {
+      id: `pkg-${isSystem ? "common-" : ""}${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+      name: packageData.name.trim(),
+      description: packageData.description?.trim() || (isSystem ? "Bộ đề dùng chung toàn xã Ea Súp" : `Bộ đề do ${user?.name || user?.email || "Người dùng"} tạo`),
+      questionCount: 0,
+      creatorEmail: user?.email,
+      creatorId: user?.id,
+      creatorName: user?.name,
+      isSystem,
+      createdAt: new Date().toISOString(),
+    };
+
+    this.questionPackages.unshift(newPkg);
+    this.saveToDisk();
+    return { success: true, package: newPkg };
+  }
+
+  // Admin nhân bản từ bộ đề riêng thành bộ đề chung cho toàn xã Ea Súp
+  public clonePackageToCommon(
+    sourcePackageId: string,
+    user?: { email?: string; role?: string; id?: string; name?: string }
+  ): { success: boolean; newPackage?: QuestionPackageModel; count?: number; error?: string } {
+    if (user?.role !== "ADMIN") {
+      return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền nhân bản thành bộ đề chung!" };
+    }
+
+    const sourcePkg = this.questionPackages.find((p) => p.id === sourcePackageId);
+    if (!sourcePkg) {
+      return { success: false, error: "Không tìm thấy bộ đề nguồn cần nhân bản!" };
+    }
+
+    const sourceQuestions = this.questionBank.filter((q) => q.packageId === sourcePackageId);
+    if (sourceQuestions.length === 0) {
+      return { success: false, error: "Bộ đề nguồn hiện chưa có câu hỏi nào để nhân bản!" };
+    }
+
+    const cleanName = sourcePkg.name
+      .replace(/^\[Bộ đề Chung\]\s*/i, "")
+      .replace(/^\[Chung\]\s*/i, "")
+      .trim();
+
+    const commonPkgId = `pkg-common-${Date.now()}`;
+    const commonPkg: QuestionPackageModel = {
+      id: commonPkgId,
+      name: `[Bộ đề Chung] ${cleanName}`,
+      description: sourcePkg.description || `Bộ đề dùng chung toàn xã Ea Súp nhân bản từ "${sourcePkg.name}"`,
+      questionCount: sourceQuestions.length,
+      creatorEmail: user?.email,
+      creatorId: user?.id,
+      creatorName: "Ban Quản trị Xã Ea Súp (Admin)",
+      isSystem: true,
+      createdAt: new Date().toISOString(),
+    };
+
+    const clonedQuestions: QuestionModel[] = sourceQuestions.map((q, idx) => ({
+      ...q,
+      id: `q-cmn-${Date.now()}-${idx + 1}`,
+      packageId: commonPkgId,
+      packageName: commonPkg.name,
+      isPrivate: false,
+      isSystem: true,
+      creatorEmail: user?.email,
+      creatorId: user?.id,
+      creatorName: "Ban Quản trị Xã Ea Súp (Admin)",
+      createdAt: new Date().toISOString(),
+    }));
+
+    this.questionPackages.unshift(commonPkg);
+    this.questionBank.unshift(...clonedQuestions);
+    this.saveToDisk();
+
+    return {
+      success: true,
+      newPackage: commonPkg,
+      count: clonedQuestions.length,
+    };
+  }
+
   public registerOrGetParticipant(
     contestId: string,
     fullName: string,

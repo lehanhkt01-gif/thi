@@ -179,23 +179,6 @@ export default function ExamSettingsContent({
 
   return (
     <div className="space-y-4 text-slate-800">
-      {/* Hộp gợi ý mũi tên lên (Ảnh 1) */}
-      {!tipDismissed && (
-        <div className="flex items-start space-x-2 text-xs text-slate-700 pb-3 border-b border-slate-200">
-          <span className="text-base font-bold leading-none mt-0.5 select-none">↑</span>
-          <p className="flex-1 leading-snug">
-            Chọn nút xem trước và nhấn tham gia để thi thử ngay sau khi cài đặt xong đề thi.{" "}
-            <button
-              type="button"
-              onClick={() => setTipDismissed(true)}
-              className="text-[#DC2626] font-semibold hover:underline cursor-pointer"
-            >
-              Đã hiểu
-            </button>
-          </p>
-        </div>
-      )}
-
       {/* ============================================================== */}
       {/* PHẦN TRỘN NHIỀU ĐỀ THI, THÊM NGAY (ẢNH 1, 4, 5) */}
       {/* ============================================================== */}

@@ -45,6 +45,63 @@ export async function GET(req: NextRequest) {
   }
 }
 
+export async function POST(req: NextRequest) {
+  try {
+    const userRole = req.headers.get("x-user-role") || undefined;
+    const userEmail = req.headers.get("x-user-email") || undefined;
+    const userId = req.headers.get("x-user-id") || undefined;
+    const userName = req.headers.get("x-user-name") || undefined;
+
+    const user = { email: userEmail, role: userRole, id: userId, name: userName };
+    const body = await req.json();
+
+    // 1. Admin nhân bản từ bộ đề riêng thành bộ đề chung
+    if (body.action === "CLONE_TO_COMMON") {
+      if (!body.packageId) {
+        return NextResponse.json({ error: "Thiếu mã bộ đề cần nhân bản!" }, { status: 400 });
+      }
+      const res = store.clonePackageToCommon(body.packageId, user);
+      if (!res.success) {
+        return NextResponse.json({ error: res.error }, { status: 403 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: `Đã nhân bản thành công bộ đề chung cho toàn xã Ea Súp với ${res.count} câu hỏi!`,
+        package: res.newPackage,
+      });
+    }
+
+    // 2. Admin hoặc người dùng tạo bộ đề mới
+    if (body.action === "CREATE_PACKAGE") {
+      const res = store.createQuestionPackage(
+        {
+          name: body.name,
+          description: body.description,
+          isSystem: !!body.isSystem,
+        },
+        user
+      );
+      if (!res.success) {
+        return NextResponse.json({ error: res.error }, { status: 400 });
+      }
+      return NextResponse.json({
+        success: true,
+        message: body.isSystem
+          ? "Đã tạo bộ đề dùng chung toàn xã Ea Súp thành công!"
+          : "Đã tạo bộ đề mới thành công!",
+        package: res.package,
+      });
+    }
+
+    return NextResponse.json({ error: "Hành động không hợp lệ!" }, { status: 400 });
+  } catch (error: any) {
+    return NextResponse.json(
+      { error: "Lỗi xử lý bộ đề: " + error.message },
+      { status: 500 }
+    );
+  }
+}
+
 export async function DELETE(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

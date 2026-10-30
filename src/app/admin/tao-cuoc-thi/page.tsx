@@ -1047,6 +1047,199 @@ export default function ContestWizardPage() {
     setQuestionsList((prev) => prev.filter((q) => !filterIds.has(q.id)));
   };
 
+  // State quản lý bộ đề chung
+  const [showCreateCommonPkgModal, setShowCreateCommonPkgModal] = useState(false);
+  const [commonPkgName, setCommonPkgName] = useState("");
+  const [commonPkgDesc, setCommonPkgDesc] = useState("");
+  const [isProcessingPkg, setIsProcessingPkg] = useState(false);
+
+  // Xóa cả bộ đề (Admin toàn quyền hoặc Người tạo bộ đề)
+  const handleDeletePackage = async (pkg: any) => {
+    if (!pkg) return;
+    const canDelete =
+      authUser?.role === "ADMIN" ||
+      (pkg.creatorEmail && pkg.creatorEmail.toLowerCase() === authUser?.email?.toLowerCase()) ||
+      (pkg.creatorId && pkg.creatorId === authUser?.id);
+
+    if (!canDelete) {
+      alert("Bạn không có quyền xóa bộ đề này!");
+      return;
+    }
+
+    if (
+      !confirm(
+        `CẢNH BÁO:\nBạn có chắc chắn muốn xóa bộ đề "${pkg.name}" và toàn bộ ${pkg.questionCount || 0} câu hỏi bên trong khỏi hệ thống?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsProcessingPkg(true);
+      const res = await fetch(`/api/questions/bank?packageId=${pkg.id}`, {
+        method: "DELETE",
+        headers: {
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Không thể xóa bộ đề!");
+        return;
+      }
+      alert("Đã xóa bộ đề thành công!");
+      setSelectedBankPackageId("ALL");
+      loadBankQuestionsAndPackages("ALL");
+    } catch (err: any) {
+      alert("Lỗi khi xóa bộ đề: " + err.message);
+    } finally {
+      setIsProcessingPkg(false);
+    }
+  };
+
+  // Xóa từng câu hỏi trong kho (Admin toàn quyền hoặc Người tạo câu hỏi)
+  const handleDeleteQuestionFromBank = async (q: any) => {
+    if (!q) return;
+    const canDelete =
+      authUser?.role === "ADMIN" ||
+      (q.creatorEmail && q.creatorEmail.toLowerCase() === authUser?.email?.toLowerCase()) ||
+      (q.creatorId && q.creatorId === authUser?.id);
+
+    if (!canDelete) {
+      alert("Bạn không có quyền xóa câu hỏi này!");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn xóa vĩnh viễn câu hỏi:\n"${q.content.slice(0, 70)}..."\nkhỏi kho đề thi?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/questions/bank?id=${q.id}`, {
+        method: "DELETE",
+        headers: {
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Không thể xóa câu hỏi!");
+        return;
+      }
+      // Tự động bỏ câu hỏi khỏi đề thi hiện tại nếu đang được chọn
+      setQuestionsList((prev) => prev.filter((item) => item.id !== q.id));
+      loadBankQuestionsAndPackages(selectedBankPackageId, bankSearchQuery);
+    } catch (err: any) {
+      alert("Lỗi khi xóa câu hỏi: " + err.message);
+    }
+  };
+
+  // Admin nhân bản từ bộ đề riêng thành bộ đề chung cho toàn xã Ea Súp
+  const handleClonePackageToCommon = async (pkg: any) => {
+    if (!pkg) return;
+    if (authUser?.role !== "ADMIN") {
+      alert("Chỉ Quản trị viên (Admin) mới có quyền nhân bản thành bộ đề chung!");
+      return;
+    }
+
+    if (
+      !confirm(
+        `Bạn có chắc chắn muốn nhân bản bộ đề riêng "${pkg.name}" thành Bộ đề Chung cho toàn xã Ea Súp cùng sử dụng?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setIsProcessingPkg(true);
+      const res = await fetch("/api/questions/bank", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+          "x-user-name": authUser?.name || "",
+        },
+        body: JSON.stringify({
+          action: "CLONE_TO_COMMON",
+          packageId: pkg.id,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Không thể nhân bản bộ đề!");
+        return;
+      }
+      alert(data.message || "Đã nhân bản thành công bộ đề chung cho toàn xã Ea Súp!");
+      if (data.package?.id) {
+        setSelectedBankPackageId(data.package.id);
+        loadBankQuestionsAndPackages(data.package.id);
+      } else {
+        loadBankQuestionsAndPackages();
+      }
+    } catch (err: any) {
+      alert("Lỗi khi nhân bản bộ đề: " + err.message);
+    } finally {
+      setIsProcessingPkg(false);
+    }
+  };
+
+  // Admin tạo bộ đề chung mới
+  const handleCreateCommonPackage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!commonPkgName.trim()) {
+      alert("Vui lòng nhập tên bộ đề chung!");
+      return;
+    }
+    try {
+      setIsProcessingPkg(true);
+      const res = await fetch("/api/questions/bank", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+          "x-user-name": authUser?.name || "",
+        },
+        body: JSON.stringify({
+          action: "CREATE_PACKAGE",
+          name: commonPkgName.trim(),
+          description: commonPkgDesc.trim(),
+          isSystem: true,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Không thể tạo bộ đề chung!");
+        return;
+      }
+      alert("Đã tạo bộ đề dùng chung thành công!");
+      setCommonPkgName("");
+      setCommonPkgDesc("");
+      setShowCreateCommonPkgModal(false);
+      if (data.package?.id) {
+        setSelectedBankPackageId(data.package.id);
+        loadBankQuestionsAndPackages(data.package.id);
+      } else {
+        loadBankQuestionsAndPackages();
+      }
+    } catch (err: any) {
+      alert("Lỗi khi tạo bộ đề chung: " + err.message);
+    } finally {
+      setIsProcessingPkg(false);
+    }
+  };
+
   // Nạp thống kê cho Bước 5
   useEffect(() => {
     if (currentStep === 5) {
@@ -2763,6 +2956,19 @@ export default function ContestWizardPage() {
                         Tất cả ({bankPackages.reduce((acc, p) => acc + (p.questionCount || 0), 0) || bankQuestions.length})
                       </button>
 
+                      {/* Admin có quyền tạo bộ đề dùng chung toàn xã */}
+                      {authUser?.role === "ADMIN" && (
+                        <button
+                          type="button"
+                          onClick={() => setShowCreateCommonPkgModal(true)}
+                          className="px-2.5 py-1.5 rounded-xl text-xs font-bold bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 transition-all flex items-center space-x-1 cursor-pointer"
+                          title="Quản trị viên tạo bộ đề dùng chung mới cho toàn xã Ea Súp"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Tạo bộ đề chung</span>
+                        </button>
+                      )}
+
                       {bankPackages.map((pkg) => {
                         const isSelected = selectedBankPackageId === pkg.id;
                         return (
@@ -2796,6 +3002,66 @@ export default function ContestWizardPage() {
                         );
                       })}
                     </div>
+
+                    {/* Thanh tác vụ bộ đề đang chọn (Admin toàn quyền hoặc Người tạo đề thi) */}
+                    {(() => {
+                      if (selectedBankPackageId === "ALL") return null;
+                      const currentPkg = bankPackages.find((p) => p.id === selectedBankPackageId);
+                      if (!currentPkg) return null;
+
+                      const canDelete =
+                        authUser?.role === "ADMIN" ||
+                        (currentPkg.creatorEmail && currentPkg.creatorEmail.toLowerCase() === authUser?.email?.toLowerCase()) ||
+                        (currentPkg.creatorId && currentPkg.creatorId === authUser?.id);
+
+                      return (
+                        <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-amber-50/90 border border-amber-200 rounded-xl text-xs mt-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-slate-800">
+                              {currentPkg.isSystem ? "🏛️ Bộ đề Chung:" : "📁 Bộ đề Riêng:"} {currentPkg.name}
+                            </span>
+                            <span className="text-[11px] text-slate-500 font-medium">
+                              ({currentPkg.questionCount || 0} câu)
+                            </span>
+                            {currentPkg.creatorName && (
+                              <span className="text-[10px] text-slate-500 bg-white px-2 py-0.5 rounded border border-slate-200">
+                                Tạo bởi: {currentPkg.creatorName}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            {/* Admin nhân bản từ bộ đề riêng thành bộ đề chung */}
+                            {authUser?.role === "ADMIN" && !currentPkg.isSystem && (
+                              <button
+                                type="button"
+                                onClick={() => handleClonePackageToCommon(currentPkg)}
+                                disabled={isProcessingPkg}
+                                className="px-2.5 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center space-x-1.5 shadow-2xs transition-all cursor-pointer"
+                                title="Nhân bản bộ đề riêng này thành Bộ đề Chung cho toàn xã Ea Súp"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Nhân bản sang bộ đề chung</span>
+                              </button>
+                            )}
+
+                            {/* Quyền xóa bộ đề: Admin toàn quyền hoặc Người tạo bộ đề */}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeletePackage(currentPkg)}
+                                disabled={isProcessingPkg}
+                                className="px-2.5 py-1.5 rounded-lg bg-white hover:bg-red-50 text-red-600 hover:text-red-700 font-bold text-xs border border-red-200 flex items-center space-x-1 transition-all cursor-pointer"
+                                title="Xóa cả bộ đề này khỏi kho"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Xóa bộ đề</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   {/* THANH THAO TÁC NHANH & THỐNG KÊ */}
@@ -2844,6 +3110,11 @@ export default function ContestWizardPage() {
                     <div className="space-y-3 max-h-[580px] overflow-y-auto pr-1">
                       {bankQuestions.map((q, idx) => {
                         const isAdded = questionsList.some((item) => item.id === q.id);
+                        const canDeleteQ =
+                          authUser?.role === "ADMIN" ||
+                          (q.creatorEmail && q.creatorEmail.toLowerCase() === authUser?.email?.toLowerCase()) ||
+                          (q.creatorId && q.creatorId === authUser?.id);
+
                         return (
                           <div
                             key={q.id || idx}
@@ -2873,7 +3144,7 @@ export default function ContestWizardPage() {
                                 )}
                               </div>
 
-                              <div className="flex items-center space-x-2 shrink-0">
+                              <div className="flex items-center space-x-1.5 shrink-0">
                                 <span className="text-[10px] bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold border border-slate-200">
                                   {q.points || 10} điểm
                                 </span>
@@ -2900,6 +3171,18 @@ export default function ContestWizardPage() {
                                     </>
                                   )}
                                 </button>
+
+                                {/* Quyền xóa câu hỏi: Admin toàn quyền HOẶC Người tạo câu hỏi */}
+                                {canDeleteQ && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteQuestionFromBank(q)}
+                                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 border border-slate-200 hover:border-red-200 transition-colors cursor-pointer"
+                                    title="Xóa câu hỏi này khỏi kho (Admin toàn quyền & Người tạo câu hỏi)"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </div>
                             </div>
 
@@ -2944,30 +3227,6 @@ export default function ContestWizardPage() {
 
             {/* Cột Phải: Drawer Thông Báo & Danh Sách Đề Thi (Ảnh 3) */}
             <div className="lg:col-span-4 space-y-4">
-              {/* Thông báo hướng dẫn xem trước (Ảnh 3) */}
-              {!step2NoticeDismissed && (
-                <div className="p-3 bg-red-50/80 border border-red-200 rounded-xl text-xs text-slate-700 relative flex items-start space-x-2">
-                  <span className="text-[#DC2626] font-bold text-sm leading-none mt-0.5">↑</span>
-                  <div className="flex-1 pr-4">
-                    Chọn nút xem trước và nhấn tham gia để thi thử ngay sau khi cài đặt xong đề thi.{" "}
-                    <button
-                      type="button"
-                      onClick={() => setStep2NoticeDismissed(true)}
-                      className="text-[#DC2626] font-bold underline hover:text-red-800"
-                    >
-                      Đã hiểu
-                    </button>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setStep2NoticeDismissed(true)}
-                    className="absolute top-2.5 right-2 text-slate-400 hover:text-slate-600"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
               {/* Danh sách đề thi */}
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
@@ -4090,6 +4349,85 @@ export default function ContestWizardPage() {
         onOpenShare={() => setShowShareModal(true)}
         onApplySettings={handleApplySettingsFromExam}
       />
+
+      {/* Modal Admin Tạo Bộ Đề Dùng Chung Toàn Xã */}
+      {showCreateCommonPkgModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 relative animate-scale-up">
+            <button
+              type="button"
+              onClick={() => setShowCreateCommonPkgModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-4">
+              <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                <Layers className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 uppercase">
+                  TẠO BỘ ĐỀ CHUNG TOÀN XÃ
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Dành riêng cho Quản trị viên (Admin) thiết lập ngân hàng câu hỏi dùng chung
+                </p>
+              </div>
+            </div>
+
+            <form onSubmit={handleCreateCommonPackage} className="space-y-3.5">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Tên bộ đề chung <span className="text-red-600">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={commonPkgName}
+                  onChange={(e) => setCommonPkgName(e.target.value)}
+                  placeholder="Ví dụ: Bộ đề Chung Pháp Luật Xã Ea Súp 2026..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600 font-medium"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Mô tả bộ đề (không bắt buộc)
+                </label>
+                <textarea
+                  rows={2}
+                  value={commonPkgDesc}
+                  onChange={(e) => setCommonPkgDesc(e.target.value)}
+                  placeholder="Mô tả nội dung, chuyên đề hoặc nghị quyết..."
+                  className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-red-600 font-medium resize-none"
+                />
+              </div>
+
+              <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-xl text-[11px] text-blue-900 leading-relaxed">
+                🏛️ <strong>Lưu ý:</strong> Bộ đề dùng chung sẽ được hiển thị công khai cho toàn bộ cán bộ, nhân dân và các tổ chức đoàn thể trong toàn xã Ea Súp xem và chọn khi tạo cuộc thi.
+              </div>
+
+              <div className="flex items-center justify-end space-x-2.5 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowCreateCommonPkgModal(false)}
+                  className="btn-admin-secondary text-xs px-4 py-2 cursor-pointer"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isProcessingPkg}
+                  className="btn-admin-primary text-xs px-5 py-2 font-bold cursor-pointer"
+                >
+                  {isProcessingPkg ? "Đang xử lý..." : "+ Tạo bộ đề chung ngay"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
