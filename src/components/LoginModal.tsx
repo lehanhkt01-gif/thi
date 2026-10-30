@@ -4,8 +4,6 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Landmark,
-  ShieldCheck,
   Eye,
   EyeOff,
   CheckCircle2,
@@ -72,22 +70,6 @@ export default function LoginModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Khung hỗ trợ nhập tài khoản Google trực tiếp trên máy
-  const [showQuickBox, setShowQuickBox] = useState(true);
-  const [emailQuickLogin, setEmailQuickLogin] = useState("");
-  const quickEmailInputRef = React.useRef<HTMLInputElement>(null);
-
-  // Tự động khôi phục tài khoản Google đã lưu trên máy này
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("easup_google_email");
-        if (saved && !emailQuickLogin) {
-          setEmailQuickLogin(saved);
-        }
-      } catch (e) {}
-    }
-  }, [isOpen]);
 
   // Thông tin đăng nhập mật khẩu
   const [emailInput, setEmailInput] = useState("");
@@ -291,23 +273,16 @@ export default function LoginModal({
       }
     }
 
-    // 1.2 Nếu đã có sẵn email trong ô nhập trên máy -> Đăng nhập luôn
-    if (emailQuickLogin.trim()) {
-      await executeGoogleLoginWithEmail(emailQuickLogin);
-      return;
-    }
-
-    // 1.3 Nếu có tài khoản Google đã từng lưu trên máy này
+    // 1.2 Nếu có tài khoản Google đã từng lưu trên máy này
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("easup_google_email");
       if (saved && saved.includes("@")) {
-        setEmailQuickLogin(saved);
         await executeGoogleLoginWithEmail(saved);
         return;
       }
     }
 
-    // 1.4 Nếu cấu hình NextAuth
+    // 1.3 Nếu cấu hình NextAuth
     const nextAuth = typeof window !== "undefined" ? (window as any).nextAuth : null;
     if (nextAuth && typeof nextAuth.signIn === "function") {
       setIsGoogleLoading(true);
@@ -321,51 +296,21 @@ export default function LoginModal({
       }
     }
 
-    // 1.5 Nếu có Google Identity Services client ID, thử gọi One Tap prompt
+    // 1.4 Nếu có Google Identity Services client ID, thử gọi One Tap prompt
     const google = typeof window !== "undefined" ? (window as any).google : null;
     if (googleClientId && google?.accounts?.id) {
       setIsGoogleLoading(true);
-      google.accounts.id.prompt((notification: any) => {
-        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-          setShowQuickBox(true);
-          promptForEmail();
-        }
+      google.accounts.id.prompt(() => {
         setIsGoogleLoading(false);
       });
       return;
     }
 
-    // 1.6 Mở khung nhập & yêu cầu người dùng xác nhận email trên máy
-    promptForEmail();
-  };
-
-  // Mở popup hoặc focus vào ô nhập để người dùng gõ email Google
-  const promptForEmail = () => {
-    setShowQuickBox(true);
-    setTimeout(() => {
-      quickEmailInputRef.current?.focus();
-      quickEmailInputRef.current?.select();
-    }, 100);
-
-    const entered = window.prompt(
-      "Nhập địa chỉ tài khoản Google (@gmail.com) trên thiết bị của bạn để đăng nhập:",
-      emailQuickLogin || ""
-    );
+    // 1.5 Dự phòng khi mạng chậm hoặc SDK chưa nạp xong
+    const entered = window.prompt("Nhập địa chỉ tài khoản Google (@gmail.com) của bạn để đăng nhập:");
     if (entered && entered.trim()) {
-      setEmailQuickLogin(entered.trim());
       executeGoogleLoginWithEmail(entered.trim());
     }
-  };
-
-  // 2. Hàm xử lý đăng nhập Google nhanh theo nút "Xác nhận"
-  const handleQuickEmailLogin = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (!emailQuickLogin.trim()) {
-      alert("Vui lòng nhập địa chỉ tài khoản Google (@gmail.com) trên máy bạn!");
-      quickEmailInputRef.current?.focus();
-      return;
-    }
-    await executeGoogleLoginWithEmail(emailQuickLogin);
   };
 
   // 3. Xử lý đăng nhập / đăng ký qua mật khẩu
@@ -480,45 +425,31 @@ export default function LoginModal({
         </button>
 
         {/* ============================================================== */}
-        {/* 1. HEADER MODAL: ICON TÒA NHÀ & TIÊU ĐỀ */}
+        {/* 1. HEADER MODAL: LOGO TRANG WEB THI.EASUPSO.COM & TIÊU ĐỀ */}
         {/* ============================================================== */}
-        <div className="text-center mb-5">
-          <div className="bg-red-50 text-red-500 rounded-2xl w-14 h-14 flex items-center justify-center mx-auto mb-3 shadow-xs">
-            <Landmark className="w-7 h-7" />
+        <div className="text-center mb-6">
+          <div className="w-16 h-16 rounded-full p-1 bg-white border-2 border-red-100 shadow-sm mx-auto mb-3 flex items-center justify-center overflow-hidden">
+            <img
+              src="/logo.png"
+              alt="Logo thi.easupso.com"
+              className="w-full h-full object-contain rounded-full"
+            />
           </div>
-          <h3 className="text-2xl font-bold text-slate-800 text-center">
-            {authMode === "login" ? "Đăng Nhập Hệ Thống" : "Đăng Ký Tài Khoản Mới"}
+          <h3 className="text-2xl font-black text-slate-800 text-center uppercase tracking-tight">
+            {authMode === "login" ? "ĐĂNG NHẬP" : "ĐĂNG KÝ TÀI KHOẢN"}
           </h3>
-          <p className="text-sm text-slate-500 text-center mt-1">
-            {authMode === "login"
-              ? "Đăng nhập tài khoản hệ thống (Mặc định: Người dùng; Admin: Khi được phân quyền)"
-              : "Đăng ký tài khoản cho cơ quan, chi bộ, thôn buôn (Cần Admin xét duyệt)"}
-          </p>
         </div>
 
         {/* ============================================================== */}
-        {/* 2. HỘP THÔNG BÁO PHÂN QUYỀN (NOTICE BOX) */}
+        {/* 2. NÚT ĐĂNG NHẬP BẰNG GOOGLE CHUẨN (PRIMARY ACTION) */}
         {/* ============================================================== */}
         {authMode === "login" && (
-          <div className="bg-slate-50/80 border border-slate-200 rounded-2xl p-3.5 flex items-start gap-3 mt-4 mb-4">
-            <ShieldCheck className="text-slate-500 w-5 h-5 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-slate-600 leading-relaxed">
-              Hệ thống tự động phân quyền theo tài khoản đã được phê duyệt. Tài khoản mới tạo mặc định quyền{" "}
-              <strong className="text-slate-800 font-bold">Người dùng</strong>.
-            </p>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* 3. NÚT ĐĂNG NHẬP BẰNG GOOGLE CHUẨN (PRIMARY ACTION) */}
-        {/* ============================================================== */}
-        {authMode === "login" && (
-          <div className="space-y-3 mb-4">
+          <div className="space-y-4 mb-4">
             <button
               type="button"
               onClick={handleGoogleLogin}
               disabled={isGoogleLoading}
-              className="border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-xl w-full flex items-center justify-center gap-3 transition-all shadow-sm cursor-pointer disabled:opacity-70 group"
+              className="border border-slate-300 hover:border-slate-400 hover:bg-slate-50 text-slate-700 font-semibold py-3 px-4 rounded-xl w-full flex items-center justify-center gap-3 transition-all shadow-sm cursor-pointer disabled:opacity-70 group active:scale-[0.99]"
             >
               {isGoogleLoading ? (
                 <Loader2 className="w-5 h-5 animate-spin text-blue-600" />
@@ -530,50 +461,7 @@ export default function LoginModal({
               </span>
             </button>
 
-            {/* ============================================================== */}
-            {/* 4. KHUNG NHẬP TÀI KHOẢN GOOGLE TRỰC TIẾP TRÊN MÁY (FALLBACK) */}
-            {/* ============================================================== */}
-            {showQuickBox && (
-              <form
-                onSubmit={handleQuickEmailLogin}
-                className="border border-blue-200 bg-blue-50/50 rounded-2xl p-3.5 mt-3 animate-in fade-in slide-in-from-top-2 duration-200"
-              >
-                <div className="text-xs font-bold text-blue-900 flex justify-between items-center mb-2">
-                  <span>NHẬP TÀI KHOẢN GOOGLE (@GMAIL.COM) TRÊN MÁY BẠN:</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowQuickBox(false)}
-                    className="text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
-                    title="Ẩn khung nhập"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <input
-                    ref={quickEmailInputRef}
-                    type="email"
-                    required
-                    value={emailQuickLogin}
-                    onChange={(e) => setEmailQuickLogin(e.target.value)}
-                    placeholder="tai-khoan-cua-ban@gmail.com"
-                    className="border border-slate-200 flex-1 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl bg-white transition-all"
-                  />
-                  <button
-                    type="submit"
-                    disabled={isGoogleLoading}
-                    className="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all shadow-sm cursor-pointer shrink-0 active:scale-95 disabled:opacity-70"
-                  >
-                    {isGoogleLoading ? "Đang xử lý..." : "Xác nhận"}
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* ============================================================== */}
-            {/* 5. VẠCH NGĂN CÁCH "HOẶC BẰNG MẬT KHẨU" */}
-            {/* ============================================================== */}
+            {/* Vạch ngăn cách "HOẶC BẰNG MẬT KHẨU" */}
             <div className="relative flex items-center justify-center my-4">
               <div className="border-t border-slate-200 w-full"></div>
               <span className="bg-white px-3 text-xs font-semibold text-slate-400 uppercase tracking-wider absolute">
@@ -582,6 +470,7 @@ export default function LoginModal({
             </div>
           </div>
         )}
+
 
         {/* ============================================================== */}
         {/* 6. PHẦN ĐĂNG NHẬP / ĐĂNG KÝ MẬT KHẨU BÊN DƯỚI */}
