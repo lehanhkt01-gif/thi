@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence, type Variants } from "framer-motion";
 import {
@@ -17,17 +17,17 @@ import {
 // 1. MOTION DESIGN TOKENS (CANVA & APPLE MOTION SPECIFICATION)
 // =========================================================================
 
-// Bộ Easing chuẩn điện ảnh (Cực êm ở điểm dừng)
+// Đường cong Easing điện ảnh cao cấp (Cực êm ở điểm dừng)
 const easeCanva: [number, number, number, number] = [0.16, 1, 0.3, 1];
 const easeIn: [number, number, number, number] = [0.4, 0, 1, 1];
 
-// Variants cho Lớp 1: Badge đơn vị & Số thứ tự trang
+// LỚP 1: Badge đơn vị & Số thứ tự trang (delay: 0s)
 const badgeVariants: Variants = {
   initial: { opacity: 0, y: 8 },
   animate: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.38, delay: 0, ease: easeCanva },
+    transition: { duration: 0.35, delay: 0, ease: easeCanva },
   },
   exit: {
     opacity: 0,
@@ -36,7 +36,7 @@ const badgeVariants: Variants = {
   },
 };
 
-// Variants cho Lớp 2: Tiêu đề cuộc thi (Heading chữ hoa có hiệu ứng làm nét)
+// LỚP 2: Tiêu đề cuộc thi (Heading chữ hoa trắng, blur 4px -> 0px, delay: 0.05s)
 const headingVariants: Variants = {
   initial: { opacity: 0, y: 16, filter: "blur(4px)" },
   animate: {
@@ -53,7 +53,7 @@ const headingVariants: Variants = {
   },
 };
 
-// Variants cho Lớp 3: Tên đơn vị phụ và đoạn mô tả thể lệ
+// LỚP 3: Tên đơn vị phụ và đoạn mô tả thể lệ (delay: 0.12s, y: 12px -> 0px)
 const subTextVariants: Variants = {
   initial: { opacity: 0, y: 12 },
   animate: {
@@ -68,7 +68,7 @@ const subTextVariants: Variants = {
   },
 };
 
-// Variants cho Lớp 4: Khối metadata (Thời gian làm bài, số câu)
+// LỚP 4: Khối metadata thời gian & số lượng câu hỏi (delay: 0.18s, y: 10px -> 0px)
 const metaVariants: Variants = {
   initial: { opacity: 0, y: 10 },
   animate: {
@@ -83,13 +83,13 @@ const metaVariants: Variants = {
   },
 };
 
-// Variants cho Khối Hình ảnh bên phải (Fade in + Ken Burns vi mô 1.04 -> 1.0)
+// Khối Hình ảnh bên phải: Fade-in 0.5s + Ken Burns vi mô scale 1.04 -> 1.0
 const imageVariants: Variants = {
   initial: { opacity: 0, scale: 1.04 },
   animate: {
     opacity: 1,
     scale: 1,
-    transition: { duration: 0.6, ease: easeCanva },
+    transition: { duration: 0.55, ease: easeCanva },
   },
   exit: {
     opacity: 0,
@@ -99,7 +99,7 @@ const imageVariants: Variants = {
 };
 
 // =========================================================================
-// 2. MOCK DATA CHUẨN XÁC THEO HÌNH ẢNH THỰC TẾ
+// 2. MOCK DATA CHUẨN XÁC THEO HỆ THỐNG THỰC TẾ & HÌNH ẢNH MẪU
 // =========================================================================
 export interface ContestSliderItem {
   id: string;
@@ -116,28 +116,28 @@ export interface ContestSliderItem {
 
 export const MOCK_CONTEST_SLIDES: ContestSliderItem[] = [
   {
+    id: "slide-hoi-nong-dan-ea-sup",
+    title: "CUỘC THI TÌM HIỂU NGHỊ QUYẾT HỘI NÔNG DÂN XÃ EA SÚP",
+    subTitle: "ỦY BAN NHÂN DÂN XÃ EA SÚP",
+    desc: "Mỗi thí sinh được tham gia tối đa 3 lượt để tìm hiểu, bằng cách trắc nghiệm.",
+    bannerUrl: "/banners/banner-nong-dan-ea-sup.jpg",
+    slug: "cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup",
+    badgeText: "ĐƠN VỊ: ỦY BAN NHÂN DÂN XÃ EA SÚP",
+    duration: 15,
+    qCount: 10,
+    tagline: "VINH DANH & TRAO THƯỞNG",
+  },
+  {
     id: "slide-phu-nu-ea-sup",
     title: "CUỘC THI TÌM HIỂU NGHỊ QUYẾT, PHÁP LUẬT PHỤ NỮ",
-    subTitle: "HỘI PHỤ NỮ EA SÚP",
-    desc: "Mỗi thí sinh được tham gia tối đa 3 lượt để tìm hiểu, bằng cách trắc nghiệm.",
+    subTitle: "HỘI LIÊN HIỆP PHỤ NỮ XÃ EA SÚP",
+    desc: "Mỗi thí sinh được tham gia tối đa 3 lượt để tìm hiểu, bằng cách trắc nghiệm trực tuyến.",
     bannerUrl: "/images/contest_stage_banner.jpg",
     slug: "cuoc-thi-tim-hieu-nghi-quyet-phap-luat-phu-nu",
     badgeText: "ĐƠN VỊ: HỘI PHỤ NỮ EA SÚP",
     duration: 30,
     qCount: 30,
     tagline: "VINH DANH & TRAO THƯỞNG",
-  },
-  {
-    id: "slide-hoi-nong-dan-ea-sup",
-    title: "CUỘC THI TÌM HIỂU NGHỊ QUYẾT ĐẠI HỘI HỘI NÔNG DÂN XÃ EA SÚP",
-    subTitle: "BAN THƯỜNG VỤ HỘI NÔNG DÂN XÃ EA SÚP",
-    desc: "Đoàn kết, đổi mới, xây dựng tổ chức Hội Nông dân vững mạnh, văn minh, hiện đại.",
-    bannerUrl: "/banners/banner-nong-dan-ea-sup.jpg",
-    slug: "cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup",
-    badgeText: "ĐƠN VỊ: HỘI NÔNG DÂN XÃ EA SÚP",
-    duration: 15,
-    qCount: 20,
-    tagline: "LAN TỎA NÔNG THÔN MỚI",
   },
   {
     id: "slide-thanh-nien-ea-sup",
@@ -148,7 +148,7 @@ export const MOCK_CONTEST_SLIDES: ContestSliderItem[] = [
     slug: "cuoc-thi-nghi-quyet-doan-mttq-ea-sup",
     badgeText: "ĐƠN VỊ: ĐOÀN THANH NIÊN EA SÚP",
     duration: 20,
-    qCount: 30,
+    qCount: 20,
     tagline: "TIÊN PHONG CHUYỂN ĐỔI SỐ",
   },
   {
@@ -192,7 +192,7 @@ export const MOCK_CONTEST_SLIDES: ContestSliderItem[] = [
 // =========================================================================
 // 3. COMPONENT CHÍNH: ContestHeroSlider
 // =========================================================================
-interface ContestHeroSliderProps {
+export interface ContestHeroSliderProps {
   contests?: Array<{
     id: string;
     title: string;
@@ -203,32 +203,38 @@ interface ContestHeroSliderProps {
     durationMinutes?: number;
     questionCount?: number;
   }>;
-  autoPlayInterval?: number; // Mặc định 5500ms
+  autoPlayInterval?: number; // Mặc định 5000ms (5 giây)
 }
 
 export default function ContestHeroSlider({
   contests,
-  autoPlayInterval = 5500,
+  autoPlayInterval = 5000,
 }: ContestHeroSliderProps) {
-  // Gộp danh sách cuộc thi thực tế với mock data để luôn có slider sinh động
-  const slides = React.useMemo<ContestSliderItem[]>(() => {
+  // Gộp danh sách cuộc thi thực tế với mock data để đảm bảo trải nghiệm phong phú
+  const slides = useMemo<ContestSliderItem[]>(() => {
     if (contests && contests.length > 0) {
       const fromProps: ContestSliderItem[] = contests.map((c, idx) => ({
         id: c.id || `contest-${idx}`,
         title: c.title,
-        subTitle: (c.organizerName || "HỆ THỐNG THI TRỰC TUYẾN").toUpperCase(),
+        subTitle: (c.organizerName || "ỦY BAN NHÂN DÂN XÃ EA SÚP").toUpperCase(),
         desc:
           c.shortDesc ||
-          "Hệ thống thi trắc nghiệm trực tuyến thông minh, bảo mật cao và đánh giá kết quả tức thì.",
-        bannerUrl: c.bannerUrl || (idx % 2 === 0 ? "/images/contest_stage_banner.jpg" : "/banner-easup.png"),
+          "Mỗi thí sinh được tham gia tối đa 3 lượt để tìm hiểu, bằng cách trắc nghiệm.",
+        bannerUrl:
+          c.bannerUrl ||
+          (idx % 2 === 0
+            ? "/banners/banner-nong-dan-ea-sup.jpg"
+            : "/banners/cuocthi-phapluat-2026.jpg"),
         slug: c.slug,
-        badgeText: c.organizerName ? `ĐƠN VỊ: ${c.organizerName.toUpperCase()}` : "ĐƠN VỊ: XÃ EA SÚP",
-        duration: c.durationMinutes || 20,
-        qCount: c.questionCount || 20,
+        badgeText: c.organizerName
+          ? `ĐƠN VỊ: ${c.organizerName.toUpperCase()}`
+          : "ĐƠN VỊ: ỦY BAN NHÂN DÂN XÃ EA SÚP",
+        duration: c.durationMinutes || 15,
+        qCount: c.questionCount || 10,
         tagline: "VINH DANH & TRAO THƯỞNG",
       }));
 
-      // Nếu số lượng ít hơn 3, bổ sung từ mock data mẫu
+      // Nếu ít hơn 3, kết hợp thêm từ mock slides mẫu
       if (fromProps.length < 3) {
         return [...fromProps, ...MOCK_CONTEST_SLIDES.slice(fromProps.length)];
       }
@@ -258,7 +264,7 @@ export default function ContestHeroSlider({
     setProgress(0);
   };
 
-  // Quản lý Timer và Thanh tiến trình (Pause on hover/touch)
+  // Quản lý Timer và Thanh tiến trình vi mô (Pause on hover/touch)
   useEffect(() => {
     if (isPaused || slides.length <= 1) return;
 
@@ -286,19 +292,19 @@ export default function ContestHeroSlider({
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={() => setIsPaused(true)}
       onTouchEnd={() => setIsPaused(false)}
-      className="lg:col-span-7 bg-gradient-to-br from-[#0F2847] via-[#0A4378] to-[#032952] text-white rounded-3xl border border-sky-500/30 p-5 sm:p-7 relative overflow-hidden flex flex-col justify-between shadow-xl select-none group/slider"
+      className="lg:col-span-7 bg-[#0b2545] text-white rounded-3xl border border-sky-600/30 p-5 sm:p-7 relative overflow-hidden flex flex-col justify-between shadow-2xl select-none group/slider"
       style={{
         transform: "translate3d(0, 0, 0)",
         willChange: "transform, opacity",
       }}
     >
-      {/* Dynamic Ambient Background Glow (Hiệu ứng ánh sáng nền mờ điện ảnh) */}
-      <div className="absolute right-0 top-0 w-96 h-96 bg-sky-400/15 rounded-full blur-3xl pointer-events-none transition-all duration-700" />
+      {/* Dynamic Ambient Background Glow (Hiệu ứng ánh sáng nền mờ điện ảnh Apple-style) */}
+      <div className="absolute right-0 top-0 w-96 h-96 bg-sky-500/10 rounded-full blur-3xl pointer-events-none transition-all duration-700" />
       <div className="absolute -left-12 -bottom-12 w-72 h-72 bg-red-600/10 rounded-full blur-3xl pointer-events-none" />
 
-      {/* Main Slide Content: AnimatePresence mode="wait" để chữ đổi mượt mà */}
+      {/* Main Slide Content: AnimatePresence mode="wait" để đổi chữ & ảnh mượt mà */}
       <div className="relative z-10 min-h-[195px] flex items-center">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-center w-full">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-5 lg:gap-6 items-center w-full">
           {/* CỘT TRÁI: STAGGERED CASCADING ANIMATION (CANVA STYLE) */}
           <div className="md:col-span-7 flex flex-col justify-center">
             <AnimatePresence mode="wait">
@@ -315,30 +321,32 @@ export default function ContestHeroSlider({
                   exit="exit"
                   className="flex items-center gap-2"
                 >
-                  <div className="inline-flex items-center space-x-1.5 px-3 py-0.5 rounded-full text-[10px] sm:text-[11px] font-bold bg-amber-400/20 text-amber-300 border border-amber-300/30 uppercase tracking-wider shadow-2xs backdrop-blur-xs">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-300 shrink-0" />
-                    <span className="truncate max-w-[210px]">{currentSlide.badgeText}</span>
+                  <div className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-full text-[11px] sm:text-xs font-bold bg-[#143862]/80 text-amber-300 border border-sky-400/25 shadow-xs backdrop-blur-md">
+                    <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                    <span className="truncate max-w-[210px] sm:max-w-[260px]">
+                      {currentSlide.badgeText}
+                    </span>
                   </div>
 
                   {slides.length > 1 && (
-                    <span className="text-[10px] sm:text-[11px] font-bold text-sky-200/90 bg-white/10 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
-                      {currentIndex + 1} / {slides.length}
+                    <span className="text-[10px] sm:text-[11px] font-bold text-sky-200/90 bg-[#143862]/80 border border-sky-400/25 px-2.5 py-1 rounded-full backdrop-blur-md">
+                      {currentIndex + 1}/{slides.length}
                     </span>
                   )}
                 </motion.div>
 
-                {/* LỚP 2: Tiêu đề cuộc thi (Delay: 0.05s, Easing Canva, blur -> sharp) */}
+                {/* LỚP 2: Tiêu đề cuộc thi (Delay: 0.05s, Easing Canva, blur(4px) -> blur(0px)) */}
                 <motion.h3
                   variants={headingVariants}
                   initial="initial"
                   animate="animate"
                   exit="exit"
-                  className="text-lg sm:text-xl md:text-[22px] font-black text-white tracking-tight uppercase leading-snug line-clamp-2 min-h-[54px] flex items-center drop-shadow-sm"
+                  className="text-lg sm:text-xl md:text-[22px] lg:text-[23px] font-black text-white tracking-tight uppercase leading-snug line-clamp-2 min-h-[54px] flex items-center drop-shadow-sm"
                 >
                   {currentSlide.title}
                 </motion.h3>
 
-                {/* LỚP 3: Tên đơn vị phụ và mô tả thể lệ (Delay: 0.12s) */}
+                {/* LỚP 3: Tên đơn vị phụ và mô tả thể lệ (Delay: 0.12s, y: 12px -> 0px) */}
                 <motion.div
                   variants={subTextVariants}
                   initial="initial"
@@ -346,10 +354,10 @@ export default function ContestHeroSlider({
                   exit="exit"
                   className="space-y-1.5"
                 >
-                  <div className="text-[11px] sm:text-xs font-bold text-sky-200 uppercase tracking-wider truncate">
+                  <div className="text-[11px] sm:text-xs font-bold text-sky-200/95 uppercase tracking-wider truncate">
                     {currentSlide.subTitle}
                   </div>
-                  <p className="text-xs sm:text-[13px] text-slate-200/95 leading-relaxed line-clamp-2">
+                  <p className="text-xs sm:text-[13px] text-slate-200/90 leading-relaxed line-clamp-2">
                     {currentSlide.desc}
                   </p>
                 </motion.div>
@@ -361,17 +369,17 @@ export default function ContestHeroSlider({
                     initial="initial"
                     animate="animate"
                     exit="exit"
-                    className="flex items-center gap-4 text-[11px] sm:text-xs text-sky-200/90 pt-0.5"
+                    className="flex items-center gap-4 text-xs sm:text-[13px] text-sky-200/90 pt-1"
                   >
                     {currentSlide.duration && (
                       <span className="flex items-center font-medium">
-                        <Clock className="w-3.5 h-3.5 mr-1 text-amber-400 shrink-0" />
+                        <Clock className="w-3.5 h-3.5 mr-1.5 text-amber-400 shrink-0" />
                         <span>{currentSlide.duration} phút</span>
                       </span>
                     )}
                     {currentSlide.qCount && (
                       <span className="flex items-center font-medium">
-                        <CheckCircle2 className="w-3.5 h-3.5 mr-1 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="w-3.5 h-3.5 mr-1.5 text-emerald-400 shrink-0" />
                         <span>{currentSlide.qCount} câu hỏi</span>
                       </span>
                     )}
@@ -381,11 +389,11 @@ export default function ContestHeroSlider({
             </AnimatePresence>
           </div>
 
-          {/* CỘT PHẢI: KHỐI HÌNH ẢNH (KEN BURNS VI MÔ 1.04 -> 1.0) */}
+          {/* CỘT PHẢI: KHỐI HÌNH ẢNH (KEN BURNS VI MÔ SCALE 1.04 -> 1.0) */}
           <div className="md:col-span-5 flex justify-center">
             <Link
               href={`/thi/${currentSlide.slug}`}
-              className="relative w-full max-w-[320px] md:max-w-none block rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl group/img"
+              className="relative w-full max-w-[320px] md:max-w-none block rounded-2xl overflow-hidden border border-white/20 shadow-2xl group/img"
               style={{
                 transform: "translate3d(0, 0, 0)",
                 willChange: "transform, opacity",
@@ -408,7 +416,7 @@ export default function ContestHeroSlider({
                       e.currentTarget.src = "/banner-easup.png";
                     }}
                   />
-                  {/* Dải băng vinh danh dưới chân ảnh chuẩn hình ảnh */}
+                  {/* Dải băng vinh danh dưới chân ảnh chuẩn nhận diện */}
                   <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/55 to-transparent pt-4 pb-2 px-3 text-center">
                     <span className="text-[10px] sm:text-[11px] font-bold text-amber-300 uppercase tracking-wider flex items-center justify-center gap-1.5 drop-shadow-sm">
                       <Trophy className="w-3.5 h-3.5 text-amber-300 shrink-0" />
@@ -423,12 +431,12 @@ export default function ContestHeroSlider({
       </div>
 
       {/* THANH ĐIỀU HƯỚNG DƯỚI: NÚT CTA, PREV/NEXT & PAGINATION PILL */}
-      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-4 mt-3 border-t border-sky-800/80">
+      <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-4 mt-4 border-t border-sky-800/60">
         {/* Nút Đỏ "THAM GIA DỰ THI NGAY" + Mũi tên điều hướng */}
         <div className="flex items-center gap-2 sm:gap-3">
           <Link
             href={`/thi/${currentSlide.slug}`}
-            className="inline-flex items-center px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-black bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-md hover:shadow-lg active:scale-95 group/btn"
+            className="inline-flex items-center px-5 sm:px-6 py-2.5 sm:py-3 rounded-full text-xs sm:text-sm font-black bg-[#DC2626] hover:bg-[#B91C1C] text-white transition-all shadow-md hover:shadow-red-600/30 active:scale-95 group/btn"
           >
             <span>THAM GIA DỰ THI NGAY</span>
             <motion.span
@@ -467,9 +475,9 @@ export default function ContestHeroSlider({
         </div>
 
         {/* PHÂN TRANG: VIÊN THUỐC VÀNG ACTIVE PILL (LAYOUTID) + TIẾN TRÌNH THỜI GIAN */}
-        <div className="flex items-center gap-4 sm:gap-6">
+        <div className="flex items-center gap-3 sm:gap-5">
           {slides.length > 1 && (
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1.5 sm:space-x-2">
               {slides.map((_, idx) => {
                 const isActive = idx === currentIndex;
                 return (
@@ -479,13 +487,13 @@ export default function ContestHeroSlider({
                     className="relative flex items-center justify-center cursor-pointer p-0.5"
                   >
                     {isActive ? (
-                      /* Viên thuốc vàng lướt mượt mà nhờ layoutId="activePill" */
+                      /* Viên thuốc vàng lướt mượt mà nhờ layoutId="activePill" của Framer Motion */
                       <motion.div
                         layoutId="activePill"
                         transition={{
                           type: "spring",
-                          stiffness: 380,
-                          damping: 32,
+                          stiffness: 360,
+                          damping: 30,
                         }}
                         className="relative h-2.5 w-7 sm:w-8 rounded-full bg-amber-400 overflow-hidden shadow-xs"
                       >
@@ -511,9 +519,15 @@ export default function ContestHeroSlider({
             </div>
           )}
 
+          {/* Dấu chấm tròn phân cách nhẹ */}
+          <div className="w-1.5 h-1.5 rounded-full bg-white/25 hidden sm:block" />
+
           {/* Dòng chữ nhận diện chân trang */}
           <div className="text-xs sm:text-[13px] text-sky-200 hidden sm:block tracking-wide">
-            WEBSITE: <strong className="text-white font-mono font-bold text-xs sm:text-sm">cuocthi.easupso.com</strong>
+            WEBSITE:{" "}
+            <strong className="text-white font-mono font-bold text-xs sm:text-sm">
+              cuocthi.easupso.com
+            </strong>
           </div>
         </div>
       </div>
