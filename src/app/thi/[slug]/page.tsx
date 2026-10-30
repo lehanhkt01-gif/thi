@@ -1174,75 +1174,80 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     const isUrgent = timeLeftSeconds < 120;
 
     return (
-      <div className="max-w-2xl mx-auto px-4 py-4 sm:py-6">
-        {/* Sticky Top Timer & Anti-Cheat Header */}
-        <div className="sticky top-16 z-30 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-2xl p-3 shadow-sm mb-4">
-          <div className="flex items-center justify-between">
-            {/* Server Timer */}
-            <div className="flex items-center space-x-2">
-              <div
-                className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-mono font-bold text-sm sm:text-base ${
-                  isUrgent
-                    ? "bg-red-600 text-white animate-pulse"
-                    : "bg-slate-900 text-white"
-                }`}
-              >
-                <Clock className="w-4 h-4" />
-                <span>{formatTime(timeLeftSeconds)}</span>
-              </div>
-              <span className="text-[11px] text-slate-500 hidden sm:inline">
-                Đồng hồ máy chủ
-              </span>
-            </div>
-
-            {/* Tab switch warning & 4G Auto-save */}
-            <div className="flex items-center space-x-2">
-              {tabSwitchCount > 0 && (
-                <div className="flex items-center px-2 py-1 bg-amber-100 text-amber-800 rounded text-xs font-semibold">
-                  <AlertTriangle className="w-3.5 h-3.5 mr-1" />
-                  <span>Rời màn hình: {tabSwitchCount}</span>
-                </div>
-              )}
-              {lastSavedTime && (
-                <div className="hidden sm:flex items-center text-[10px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded">
-                  <Save className="w-3 h-3 mr-1" />
-                  <span>Đã lưu {lastSavedTime}</span>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setShowConfirmModal(true)}
-                className="btn-admin-primary px-3 py-1.5 text-xs font-bold"
-              >
-                Nộp bài
-              </button>
-            </div>
-          </div>
-
-          {/* Question Jump Grid (1 - N) */}
-          <div className="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between overflow-x-auto gap-1.5">
-            {questions.map((q, idx) => {
-              const isAnswered = !!(answers[q.id] && answers[q.id].length > 0);
-              const isCurrent = idx === currentQIndex;
-              return (
-                <button
-                  key={q.id}
-                  type="button"
-                  onClick={() => setCurrentQIndex(idx)}
-                  className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center flex-shrink-0 ${
-                    isCurrent
-                      ? "bg-[#0052CC] text-white ring-2 ring-blue-200"
-                      : isAnswered
-                      ? "bg-emerald-600 text-white"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+      <div className="w-full min-h-screen bg-[#F8FAFC]">
+        {/* Sticky Top Timer & Anti-Cheat Header - ĐƯA LÊN TRÊN CÙNG, KHÔNG CHE KHUẤT CÂU HỎI VÀ CÔNG CỤ */}
+        <div className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+          <div className="max-w-3xl mx-auto px-4 py-2.5 sm:py-3">
+            <div className="flex items-center justify-between gap-2">
+              {/* Server Timer */}
+              <div className="flex items-center space-x-2 shrink-0">
+                <div
+                  className={`flex items-center space-x-1.5 px-3 py-1.5 rounded-lg font-mono font-bold text-sm sm:text-base ${
+                    isUrgent
+                      ? "bg-red-600 text-white animate-pulse"
+                      : "bg-slate-900 text-white"
                   }`}
                 >
-                  {idx + 1}
+                  <Clock className="w-4 h-4" />
+                  <span>{formatTime(timeLeftSeconds)}</span>
+                </div>
+                <span className="text-[11px] text-slate-500 hidden sm:inline">
+                  Đồng hồ máy chủ
+                </span>
+              </div>
+
+              {/* Tab switch warning & 4G Auto-save & Nộp bài */}
+              <div className="flex items-center space-x-2">
+                {tabSwitchCount > 0 && (
+                  <div className="flex items-center px-2 py-1 bg-amber-100 text-amber-800 rounded-lg text-[11px] font-semibold">
+                    <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                    <span>Rời màn hình: {tabSwitchCount}</span>
+                  </div>
+                )}
+                {lastSavedTime && (
+                  <div className="hidden sm:flex items-center text-[10px] text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                    <Save className="w-3 h-3 mr-1 text-emerald-600" />
+                    <span>Đã lưu {lastSavedTime}</span>
+                  </div>
+                )}
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmModal(true)}
+                  className="bg-[#DC2626] hover:bg-[#B91C1C] text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-xs transition-colors cursor-pointer"
+                >
+                  Nộp bài
                 </button>
-              );
-            })}
+              </div>
+            </div>
+
+            {/* Question Jump Grid (1 - N) */}
+            <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-start sm:justify-center overflow-x-auto gap-1.5 py-0.5">
+              {questions.map((q, idx) => {
+                const isAnswered = !!(answers[q.id] && answers[q.id].length > 0);
+                const isCurrent = idx === currentQIndex;
+                return (
+                  <button
+                    key={q.id}
+                    type="button"
+                    onClick={() => setCurrentQIndex(idx)}
+                    className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center shrink-0 cursor-pointer ${
+                      isCurrent
+                        ? "bg-[#0052CC] text-white ring-2 ring-blue-300 shadow-xs"
+                        : isAnswered
+                        ? "bg-emerald-600 text-white"
+                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
+
+        {/* Question Card Container (Đủ khoảng cách, tuyệt đối không bị che khuất) */}
+        <div className="max-w-2xl mx-auto px-4 pt-6 pb-12">
 
         {/* Question Card */}
         {currentQ && (
@@ -1342,6 +1347,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             />
           </div>
         )}
+        </div>
 
         {/* Confirm Submit Modal */}
         {showConfirmModal && (
@@ -1358,7 +1364,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 <button
                   type="button"
                   onClick={() => setShowConfirmModal(false)}
-                  className="btn-admin-secondary text-xs py-2.5"
+                  className="btn-admin-secondary text-xs py-2.5 cursor-pointer"
                 >
                   Kiểm tra lại
                 </button>
@@ -1366,7 +1372,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                   type="button"
                   disabled={submitting}
                   onClick={() => handleFinalSubmit(false)}
-                  className="btn-admin-primary text-xs py-2.5 font-bold bg-[#0052CC] hover:bg-blue-700 border-blue-700"
+                  className="bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs py-2.5 font-bold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
                   {submitting ? "Đang chấm..." : "Xác nhận nộp"}
                 </button>

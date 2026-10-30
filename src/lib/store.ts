@@ -625,7 +625,9 @@ class DataStore {
   }
 
   // --- Persistent Storage Engine (Lưu trữ bền vững không mất dữ liệu) ---
-  private loadFromDisk() {
+  private lastLoadedMtime: number = 0;
+
+  public loadFromDisk(force = false) {
     if (!fsModule || !pathModule) return;
     try {
       const dataDir = pathModule.join(process.cwd(), "data");
@@ -633,8 +635,21 @@ class DataStore {
         fsModule.mkdirSync(dataDir, { recursive: true });
       }
       const dbFile = pathModule.join(dataDir, "database.json");
-      if (fsModule.existsSync(dbFile)) {
-        const raw = fsModule.readFileSync(dbFile, "utf-8");
+      const backupFile = pathModule.join(dataDir, "database.backup.json");
+
+      let targetFile = dbFile;
+      if (!fsModule.existsSync(dbFile) && fsModule.existsSync(backupFile)) {
+        targetFile = backupFile;
+      }
+
+      if (fsModule.existsSync(targetFile)) {
+        const stat = fsModule.statSync(targetFile);
+        if (!force && this.lastLoadedMtime && stat.mtimeMs <= this.lastLoadedMtime) {
+          return;
+        }
+        this.lastLoadedMtime = stat.mtimeMs;
+
+        const raw = fsModule.readFileSync(targetFile, "utf-8");
         if (raw && raw.trim()) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed.contests) && parsed.contests.length > 0) {
@@ -664,10 +679,23 @@ class DataStore {
             this.questionBank = parsed.questionBank;
           }
           if (Array.isArray(parsed.participants)) {
-            this.participants = parsed.participants;
+            const pMap = new Map<string, ParticipantModel>();
+            for (const p of parsed.participants) pMap.set(p.id, p);
+            for (const p of this.participants) pMap.set(p.id, p);
+            this.participants = Array.from(pMap.values());
           }
           if (Array.isArray(parsed.attempts)) {
-            this.attempts = parsed.attempts;
+            const aMap = new Map<string, ExamAttemptModel>();
+            for (const a of parsed.attempts) aMap.set(a.id, a);
+            for (const a of this.attempts) {
+              const diskA = aMap.get(a.id);
+              if (diskA && diskA.submittedAt && !a.submittedAt) {
+                aMap.set(a.id, { ...diskA, ...a, submittedAt: diskA.submittedAt });
+              } else {
+                aMap.set(a.id, a);
+              }
+            }
+            this.attempts = Array.from(aMap.values());
           }
         }
       } else {
@@ -687,6 +715,37 @@ class DataStore {
         fsModule.mkdirSync(dataDir, { recursive: true });
       }
       const dbFile = pathModule.join(dataDir, "database.json");
+      const backupFile = pathModule.join(dataDir, "database.backup.json");
+
+      // Đọc và hợp nhất với dữ liệu đang có trên đĩa trước khi ghi để chống mất mát hoàn toàn
+      if (fsModule.existsSync(dbFile)) {
+        try {
+          const raw = fsModule.readFileSync(dbFile, "utf-8");
+          if (raw && raw.trim()) {
+            const diskData = JSON.parse(raw);
+            if (Array.isArray(diskData.participants)) {
+              const pMap = new Map<string, ParticipantModel>();
+              for (const p of diskData.participants) pMap.set(p.id, p);
+              for (const p of this.participants) pMap.set(p.id, p);
+              this.participants = Array.from(pMap.values());
+            }
+            if (Array.isArray(diskData.attempts)) {
+              const aMap = new Map<string, ExamAttemptModel>();
+              for (const a of diskData.attempts) aMap.set(a.id, a);
+              for (const a of this.attempts) {
+                const diskA = aMap.get(a.id);
+                if (diskA && diskA.submittedAt && !a.submittedAt) {
+                  aMap.set(a.id, { ...diskA, ...a, submittedAt: diskA.submittedAt });
+                } else {
+                  aMap.set(a.id, a);
+                }
+              }
+              this.attempts = Array.from(aMap.values());
+            }
+          }
+        } catch (e) {}
+      }
+
       const payload = {
         contests: this.contests,
         mediaContests: this.mediaContests,
@@ -698,7 +757,15 @@ class DataStore {
         attempts: this.attempts,
         lastSavedAt: new Date().toISOString(),
       };
-      fsModule.writeFileSync(dbFile, JSON.stringify(payload, null, 2), "utf-8");
+
+      const jsonStr = JSON.stringify(payload, null, 2);
+      fsModule.writeFileSync(dbFile, jsonStr, "utf-8");
+      fsModule.writeFileSync(backupFile, jsonStr, "utf-8");
+
+      try {
+        const stat = fsModule.statSync(dbFile);
+        this.lastLoadedMtime = stat.mtimeMs;
+      } catch (e) {}
     } catch (err) {
       console.error("[DataStore] Lỗi ghi cơ sở dữ liệu bền vững:", err);
     }
@@ -1401,6 +1468,7 @@ class DataStore {
     birthYear?: number,
     address?: string
   ): ParticipantModel {
+    this.loadFromDisk();
     const contest = this.getContestById(contestId);
     const unit = contest?.units.find((u) => u.id === unitId) || { name: "Thôn 1", id: unitId };
 
@@ -1414,6 +1482,7 @@ class DataStore {
       existing.unitId = unit.id;
       existing.unitName = unit.name;
       if (birthYear) existing.birthYear = birthYear;
+      this.saveToDisk();
       return existing;
     }
 
@@ -1435,6 +1504,7 @@ class DataStore {
   }
 
   public getParticipantAttempts(contestId: string, participantId: string): ExamAttemptModel[] {
+    this.loadFromDisk();
     return this.attempts.filter(
       (a) => a.contestId === contestId && a.participantId === participantId
     );
@@ -1445,6 +1515,7 @@ class DataStore {
     participantId: string,
     ipAddress?: string
   ): { attempt: ExamAttemptModel; safeQuestions: Partial<QuestionModel>[] } {
+    this.loadFromDisk();
     const contest = this.getContestById(contestId);
     if (!contest) throw new Error("Cuộc thi không tồn tại!");
 
@@ -1529,6 +1600,7 @@ class DataStore {
       explanation: string;
     }[];
   } {
+    this.loadFromDisk(true);
     const attempt = this.attempts.find((a) => a.id === attemptId);
     if (!attempt) throw new Error("Lượt thi không tồn tại hoặc đã bị hủy!");
 
@@ -1648,6 +1720,7 @@ class DataStore {
       toDate?: string;
     }
   ) {
+    this.loadFromDisk();
     let list = this.attempts.filter((a) => a.contestId === contestId && a.submittedAt);
 
     if (filters?.search) {
@@ -1684,6 +1757,7 @@ class DataStore {
   }
 
   public getSystemStats() {
+    this.loadFromDisk();
     const now = new Date();
 
     const activeContests = this.contests.filter((c) => {
@@ -1726,6 +1800,4 @@ export const store =
     ? global.__easupDataStore
     : new DataStore();
 
-if (process.env.NODE_ENV !== "production") {
-  global.__easupDataStore = store;
-}
+global.__easupDataStore = store;
