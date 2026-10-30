@@ -1970,8 +1970,16 @@ class DataStore {
   }
 
   public getContestStats(contestId: string) {
-    const contestAttempts = this.attempts.filter((a) => a.contestId === contestId && a.submittedAt);
-    const contestParticipants = this.participants.filter((p) => p.contestId === contestId);
+    this.loadFromDisk();
+    const contest = this.getContestById(contestId) || this.getContestBySlug(contestId);
+    const validIds = new Set<string>([contestId]);
+    if (contest) {
+      validIds.add(contest.id);
+      validIds.add(contest.slug);
+    }
+
+    const contestAttempts = this.attempts.filter((a) => validIds.has(a.contestId) && !!a.submittedAt);
+    const contestParticipants = this.participants.filter((p) => validIds.has(p.contestId));
 
     const totalAttempts = contestAttempts.length;
     const totalParticipants = contestParticipants.length;
@@ -2010,7 +2018,14 @@ class DataStore {
     }
   ) {
     this.loadFromDisk();
-    let list = this.attempts.filter((a) => a.contestId === contestId && a.submittedAt);
+    const contest = this.getContestById(contestId) || this.getContestBySlug(contestId);
+    const validIds = new Set<string>([contestId]);
+    if (contest) {
+      validIds.add(contest.id);
+      validIds.add(contest.slug);
+    }
+
+    let list = this.attempts.filter((a) => validIds.has(a.contestId) && !!a.submittedAt);
 
     if (filters?.search) {
       const q = filters.search.toLowerCase().trim();
@@ -2097,20 +2112,27 @@ class DataStore {
       return c.status === "DRAFT" || new Date(c.startTime) > now;
     }).length;
 
+    // Đồng bộ 2 chiều: Đếm chính xác toàn bộ các lượt thi đã nộp bài của mọi thí sinh
+    const submittedAttempts = this.attempts.filter((a) => !!a.submittedAt);
+    const totalAttempts = submittedAttempts.length;
+
+    // Số lượt thi trong 7 ngày gần nhất
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const attempts7Days = this.attempts.filter((a) => {
-      if (!a.submittedAt) return false;
-      return new Date(a.submittedAt) >= sevenDaysAgo;
+    const attempts7Days = submittedAttempts.filter((a) => {
+      return new Date(a.submittedAt!) >= sevenDaysAgo;
     }).length;
 
-    const totalAttempts = this.attempts.filter((a) => !!a.submittedAt).length;
-    const totalParticipants = this.participants.length;
+    // Tổng số thí sinh thực tế (loại bỏ CCCD trùng lặp)
+    const uniqueParticipants = new Set(
+      this.participants.map((p) => (p.cccd || "").trim()).filter(Boolean)
+    );
+    const totalParticipants = uniqueParticipants.size > 0 ? uniqueParticipants.size : this.participants.length;
 
     return {
       upcomingContests,
       activeContests,
-      totalAttempts7Days: attempts7Days > 0 ? attempts7Days : totalAttempts,
       totalAttempts,
+      totalAttempts7Days: attempts7Days,
       totalParticipants,
       totalContests: this.contests.length,
     };

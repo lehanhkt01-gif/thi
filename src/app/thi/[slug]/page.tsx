@@ -475,6 +475,10 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
       if (contest && cccd) {
         localStorage.removeItem(`easup_draft_${contest.id}_${cccd.trim()}`);
       }
+
+      // Phát sự kiện đồng bộ 2 chiều tức thời tới tất cả các trang và tab khác
+      window.dispatchEvent(new Event("storage"));
+      window.dispatchEvent(new Event("cuocthi_exam_submitted"));
     } catch (err: any) {
       alert("Lỗi kết nối nộp bài: " + err.message);
     } finally {

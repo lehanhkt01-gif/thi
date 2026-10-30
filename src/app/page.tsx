@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import FloatingActionBar from "@/components/FloatingActionBar";
 import HeroContestCarousel from "@/components/HeroContestCarousel";
+import HomeStatsCards from "@/components/HomeStatsCards";
 import { store } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
@@ -42,48 +43,9 @@ export default function HomePage() {
               />
             </div>
 
-            {/* 3 chỉ số thống kê thu gọn: Nằm gọn gàng bên dưới, tuyệt đối không che khuất hình ảnh */}
+            {/* 3 chỉ số thống kê thu gọn: Đồng bộ 2 chiều thời gian thực (Sắp diễn ra, Đang diễn ra, Tổng lượt thi) */}
             <div className="p-2 sm:p-2.5 bg-slate-50/90 border-t border-slate-200/70">
-              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
-                {/* Card 1: Sắp diễn ra */}
-                <div className="bg-white hover:bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-2xs transition-colors flex items-center justify-between">
-                  <div className="min-w-0 pr-1">
-                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block truncate">Sắp diễn ra</span>
-                    <div className="text-sm sm:text-base font-black text-slate-900 leading-none mt-0.5">
-                      {stats.upcomingContests ?? 0}
-                    </div>
-                  </div>
-                  <div className="w-6 h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                    <Calendar className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-
-                {/* Card 2: Đang diễn ra */}
-                <div className="bg-white hover:bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-2xs transition-colors flex items-center justify-between">
-                  <div className="min-w-0 pr-1">
-                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block truncate">Đang diễn ra</span>
-                    <div className="text-sm sm:text-base font-black text-red-600 leading-none mt-0.5">
-                      {stats.activeContests ?? (contests.filter((c: any) => c.status === "PUBLISHED").length || 0)}
-                    </div>
-                  </div>
-                  <div className="w-6 h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                    <Calendar className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-
-                {/* Card 3: 7 ngày qua */}
-                <div className="bg-white hover:bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-2xs transition-colors flex items-center justify-between">
-                  <div className="min-w-0 pr-1">
-                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block truncate">7 ngày qua</span>
-                    <div className="text-sm sm:text-base font-black text-emerald-700 leading-none mt-0.5">
-                      {new Intl.NumberFormat("vi-VN").format(stats.totalAttempts7Days ?? stats.totalAttempts ?? 0)}
-                    </div>
-                  </div>
-                  <div className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                    <BarChart3 className="w-3.5 h-3.5" />
-                  </div>
-                </div>
-              </div>
+              <HomeStatsCards initialStats={stats} />
             </div>
           </div>
 
