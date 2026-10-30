@@ -40,12 +40,12 @@ export async function POST(
       address
     );
 
-    // Kiểm tra số lượt thi đã thực hiện
-    const userAttempts = store.getParticipantAttempts(contest.id, participant.id);
-    if (userAttempts.length >= contest.maxAttempts) {
+    // Kiểm tra số lượt thi đã nộp bài thành công (chỉ tính lượt đã nộp bài)
+    const userAttempts = store.getParticipantAttempts(contest.id, participant.id, true);
+    if (userAttempts.length >= (contest.maxAttempts || 3)) {
       return NextResponse.json(
         {
-          error: `Bạn đã tham gia đủ tối đa ${contest.maxAttempts} lượt thi theo thể lệ quy định!`,
+          error: `Bạn đã tham gia đủ tối đa ${contest.maxAttempts || 3} lượt thi theo thể lệ quy định!`,
           hasReachedMaxAttempts: true,
           previousAttempts: userAttempts.map((a) => ({
             id: a.id,
@@ -76,7 +76,7 @@ export async function POST(
         cccd: participant.cccd,
         unitName: participant.unitName,
         attemptNumber: userAttempts.length + 1,
-        maxAttempts: contest.maxAttempts,
+        maxAttempts: contest.maxAttempts || 3,
       },
       durationMinutes: contest.durationMinutes,
       startedAt: attempt.startedAt,
@@ -118,7 +118,28 @@ export async function GET(
       });
     }
 
-    return NextResponse.json({ success: true, message: "Sẵn sàng thi" });
+    // Tra cứu đồng bộ 2 chiều thông tin thí sinh và số lượt thi theo CCCD
+    const lookup = store.getParticipantByCccd(cccd, contest.id);
+    return NextResponse.json({
+      success: true,
+      exists: !!lookup.participant,
+      participant: lookup.participant
+        ? {
+            id: lookup.participant.id,
+            fullName: lookup.participant.fullName,
+            phone: lookup.participant.phone,
+            unitId: lookup.participant.unitId,
+            unitName: lookup.participant.unitName,
+            birthYear: lookup.participant.birthYear,
+          }
+        : null,
+      submittedAttemptsCount: lookup.submittedAttemptsCount,
+      maxAttempts: lookup.maxAttempts,
+      remainingAttempts: Math.max(0, lookup.maxAttempts - lookup.submittedAttemptsCount),
+      hasReachedMaxAttempts: lookup.submittedAttemptsCount >= lookup.maxAttempts,
+      highestScore: lookup.highestScoreAttempt?.score ?? null,
+      highestScoreDuration: lookup.highestScoreAttempt?.durationSeconds ?? null,
+    });
   } catch (error: any) {
     return NextResponse.json(
       { error: "Lỗi kết nối phòng thi: " + error.message },

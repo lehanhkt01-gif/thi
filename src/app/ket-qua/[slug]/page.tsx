@@ -204,11 +204,11 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
           <div className="flex items-center space-x-2">
             <Award className="w-5 h-5 text-[#DC2626]" />
             <h3 className="text-sm font-bold text-slate-900">
-              Danh Sách Xếp Hạng Chi Tiết ({data?.leaderboard?.length || 0} lượt thi)
+              Danh Sách Xếp Hạng Chi Tiết ({data?.leaderboard?.length || 0} thí sinh)
             </h3>
           </div>
           <span className="text-xs text-slate-500">
-            Tiêu chí: Điểm cao nhất → Thời gian làm bài ngắn nhất
+            Tiêu chí: Điểm cao nhất (lưu lần thi cao điểm nhất) → Thời gian làm bài ngắn nhất
           </span>
         </div>
 
@@ -230,7 +230,7 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
                   <th className="py-3 px-4">Họ và Tên</th>
                   <th className="py-3 px-4">Đơn vị</th>
                   <th className="py-3 px-4">Ngày dự thi</th>
-                  <th className="py-3 px-4">Kết quả</th>
+                  <th className="py-3 px-4">Kết quả (Cao nhất)</th>
                   <th className="py-3 px-4">Độ chính xác (%)</th>
                   <th className="py-3 px-4">Thời gian làm</th>
                   <th className="py-3 px-4">Dự đoán người thi</th>
@@ -257,8 +257,13 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
                       )}
                     </td>
                     <td className="py-3.5 px-4 font-bold text-slate-900">
-                      {row.fullName}
-                      <div className="text-[10px] text-slate-400 font-normal">{row.cccd}</div>
+                      <div>{row.fullName}</div>
+                      <div className="text-[10px] text-slate-400 font-normal flex items-center space-x-1.5 mt-0.5">
+                        <span>{row.cccd}</span>
+                        <span className="text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-medium">
+                          Đã thi {row.attemptCount || 1}/{row.maxAttempts || 3} lượt
+                        </span>
+                      </div>
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-700">{row.unitName}</td>
                     <td className="py-3.5 px-4 text-slate-500">

@@ -45,6 +45,8 @@ export async function GET(
       durationSeconds: item.durationSeconds,
       tieBreakerPrediction: item.tieBreakerPrediction,
       submittedAt: item.submittedAt,
+      attemptCount: (item as any).attemptCount || 1,
+      maxAttempts: contest.maxAttempts || 3,
     }));
 
     return NextResponse.json({

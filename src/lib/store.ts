@@ -1568,17 +1568,52 @@ class DataStore {
     this.loadFromDisk();
     const contest = this.getContestById(contestId);
     const unit = contest?.units.find((u) => u.id === unitId) || { name: "Thôn 1", id: unitId };
+    const cleanCccd = cccd.trim();
 
-    const existing = this.participants.find(
-      (p) => p.contestId === contestId && p.cccd === cccd.trim()
+    // 1. Đồng bộ 2 chiều: tìm trong contest hiện tại
+    let existing = this.participants.find(
+      (p) => p.contestId === contestId && p.cccd === cleanCccd
     );
 
+    // 2. Nếu chưa có trong contest hiện tại, tìm trong hồ sơ thí sinh toàn hệ thống
+    if (!existing) {
+      const systemCandidate = this.participants.find((p) => p.cccd === cleanCccd);
+      if (systemCandidate) {
+        existing = {
+          id: `p-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          contestId,
+          unitId: unit.id,
+          unitName: unit.name,
+          fullName: (fullName && fullName.trim()) || systemCandidate.fullName,
+          cccd: cleanCccd,
+          phone: (phone && phone.trim()) || systemCandidate.phone,
+          birthYear: birthYear || systemCandidate.birthYear || 2000,
+          address: address || systemCandidate.address,
+          createdAt: new Date().toISOString(),
+        };
+        this.participants.push(existing);
+      }
+    }
+
     if (existing) {
-      existing.fullName = fullName.trim();
-      existing.phone = phone.trim();
-      existing.unitId = unit.id;
-      existing.unitName = unit.name;
+      // Đồng bộ 2 chiều: cập nhật lại nếu thí sinh sửa thông tin khi đăng ký
+      if (fullName && fullName.trim()) existing.fullName = fullName.trim();
+      if (phone && phone.trim()) existing.phone = phone.trim();
+      if (unit && unit.id) {
+        existing.unitId = unit.id;
+        existing.unitName = unit.name;
+      }
       if (birthYear) existing.birthYear = birthYear;
+      if (address) existing.address = address;
+
+      // Đồng bộ 2 chiều sang các lượt thi (attempts) đã có của thí sinh này
+      for (const a of this.attempts) {
+        if (a.participantId === existing.id || a.participantCccd === cleanCccd) {
+          a.participantName = existing.fullName;
+          a.unitName = existing.unitName;
+        }
+      }
+
       this.saveToDisk();
       return existing;
     }
@@ -1589,7 +1624,7 @@ class DataStore {
       unitId: unit.id,
       unitName: unit.name,
       fullName: fullName.trim(),
-      cccd: cccd.trim(),
+      cccd: cleanCccd,
       phone: phone.trim(),
       birthYear: birthYear || 2000,
       address,
@@ -1600,11 +1635,57 @@ class DataStore {
     return newParticipant;
   }
 
-  public getParticipantAttempts(contestId: string, participantId: string): ExamAttemptModel[] {
+  public getParticipantAttempts(contestId: string, participantId: string, onlySubmitted = true): ExamAttemptModel[] {
     this.loadFromDisk();
     return this.attempts.filter(
-      (a) => a.contestId === contestId && a.participantId === participantId
+      (a) => a.contestId === contestId && a.participantId === participantId && (!onlySubmitted || !!a.submittedAt)
     );
+  }
+
+  public getParticipantByCccd(cccd: string, contestId?: string): {
+    participant: ParticipantModel | null;
+    submittedAttemptsCount: number;
+    maxAttempts: number;
+    highestScoreAttempt?: ExamAttemptModel | null;
+  } {
+    this.loadFromDisk();
+    const cleanCccd = cccd.trim();
+    let p = contestId
+      ? this.participants.find((item) => item.contestId === contestId && item.cccd === cleanCccd)
+      : null;
+    if (!p) {
+      p = this.participants.find((item) => item.cccd === cleanCccd) || null;
+    }
+
+    let submittedAttemptsCount = 0;
+    let maxAttempts = 3;
+    let highestScoreAttempt: ExamAttemptModel | null = null;
+
+    if (contestId) {
+      const contest = this.getContestById(contestId);
+      if (contest) maxAttempts = contest.maxAttempts || 3;
+
+      const userAttempts = this.attempts.filter(
+        (a) => a.contestId === contestId && (a.participantCccd === cleanCccd || (p && a.participantId === p.id)) && !!a.submittedAt
+      );
+      submittedAttemptsCount = userAttempts.length;
+
+      if (userAttempts.length > 0) {
+        userAttempts.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (a.durationSeconds !== b.durationSeconds) return a.durationSeconds - b.durationSeconds;
+          return new Date(a.submittedAt!).getTime() - new Date(b.submittedAt!).getTime();
+        });
+        highestScoreAttempt = userAttempts[0];
+      }
+    }
+
+    return {
+      participant: p,
+      submittedAttemptsCount,
+      maxAttempts,
+      highestScoreAttempt,
+    };
   }
 
   public startAttempt(
@@ -1619,11 +1700,16 @@ class DataStore {
     const participant = this.participants.find((p) => p.id === participantId);
     if (!participant) throw new Error("Thí sinh chưa đăng ký thông tin!");
 
-    // Kiểm tra số lượt thi
-    const userAttempts = this.getParticipantAttempts(contestId, participantId);
-    if (userAttempts.length >= contest.maxAttempts) {
-      throw new Error(`Bạn đã hoàn thành tối đa ${contest.maxAttempts} lượt thi của cuộc thi này!`);
+    // Kiểm tra số lượt thi đã nộp bài thành công (chỉ tính lượt đã nộp bài)
+    const submittedAttempts = this.getParticipantAttempts(contestId, participantId, true);
+    if (submittedAttempts.length >= (contest.maxAttempts || 3)) {
+      throw new Error(`Bạn đã hoàn thành tối đa ${contest.maxAttempts || 3} lượt thi theo thể lệ quy định!`);
     }
+
+    // Tự động dọn dẹp các lượt thi dở dang (chưa nộp) trước đó của thí sinh này
+    this.attempts = this.attempts.filter(
+      (a) => !(a.contestId === contestId && a.participantId === participantId && !a.submittedAt)
+    );
 
     // Lấy danh sách câu hỏi và tráo thứ tự
     let allQuestions = [...(contest.questions || [])];
@@ -1843,14 +1929,52 @@ class DataStore {
       list = list.filter((a) => new Date(a.submittedAt!).getTime() <= to);
     }
 
+    // Nhóm theo từng thí sinh (CCCD / participantId) và chỉ lưu/hiển thị lần thi có ĐIỂM CAO NHẤT
+    const candidateMap = new Map<string, { bestAttempt: ExamAttemptModel; allAttempts: ExamAttemptModel[] }>();
+
+    for (const att of list) {
+      const key = (att.participantCccd || att.participantId).trim();
+      const existingGroup = candidateMap.get(key);
+      if (!existingGroup) {
+        candidateMap.set(key, { bestAttempt: att, allAttempts: [att] });
+      } else {
+        existingGroup.allAttempts.push(att);
+        // So sánh để chọn lần cao điểm nhất (nếu bằng điểm, chọn thời gian làm ít nhất, nộp sớm nhất)
+        const currentBest = existingGroup.bestAttempt;
+        let isBetter = false;
+        if (att.score > currentBest.score) {
+          isBetter = true;
+        } else if (att.score === currentBest.score) {
+          if (att.durationSeconds < currentBest.durationSeconds) {
+            isBetter = true;
+          } else if (att.durationSeconds === currentBest.durationSeconds) {
+            if (new Date(att.submittedAt!).getTime() < new Date(currentBest.submittedAt!).getTime()) {
+              isBetter = true;
+            }
+          }
+        }
+        if (isBetter) {
+          existingGroup.bestAttempt = att;
+        }
+      }
+    }
+
+    // Danh sách xếp hạng chứa toàn bộ thông tin của lần cao điểm nhất kèm số lượt đã thi
+    const deduplicatedList = Array.from(candidateMap.values()).map(({ bestAttempt, allAttempts }) => {
+      return {
+        ...bestAttempt,
+        attemptCount: allAttempts.length, // Số lượt đã tham gia (tối đa 3)
+      };
+    });
+
     // Sắp xếp: Điểm cao nhất -> Thời gian làm ít nhất -> Thời điểm nộp sớm nhất
-    list.sort((a, b) => {
+    deduplicatedList.sort((a, b) => {
       if (b.score !== a.score) return b.score - a.score;
       if (a.durationSeconds !== b.durationSeconds) return a.durationSeconds - b.durationSeconds;
       return new Date(a.submittedAt!).getTime() - new Date(b.submittedAt!).getTime();
     });
 
-    return list;
+    return deduplicatedList;
   }
 
   public getSystemStats() {

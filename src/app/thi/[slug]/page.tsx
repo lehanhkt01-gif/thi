@@ -82,6 +82,14 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
   const [acceptedConsent, setAcceptedConsent] = useState(true);
   const [regError, setRegError] = useState("");
   const [starting, setStarting] = useState(false);
+  const [checkingCccd, setCheckingCccd] = useState(false);
+  const [cccdSyncStatus, setCccdSyncStatus] = useState<{
+    exists: boolean;
+    submittedAttemptsCount: number;
+    maxAttempts: number;
+    hasReachedMaxAttempts: boolean;
+    highestScore?: number | null;
+  } | null>(null);
 
   // Informational Modals (Thể lệ, Kế hoạch)
   const [infoModal, setInfoModal] = useState<"rules" | "plan" | null>(null);
@@ -273,6 +281,60 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     }
   };
 
+  // Đồng bộ 2 chiều: Xác minh số CCCD với danh sách thí sinh và số lượt thi
+  const verifyCccd = async (val: string) => {
+    const clean = val.replace(/\D/g, "");
+    if (clean.length < 9) {
+      setCccdSyncStatus(null);
+      return;
+    }
+    setCheckingCccd(true);
+    try {
+      const res = await fetch(`/api/contests/${slug}/start?cccd=${clean}`);
+      const data = await res.json();
+      if (data.success) {
+        setCccdSyncStatus({
+          exists: data.exists,
+          submittedAttemptsCount: data.submittedAttemptsCount || 0,
+          maxAttempts: data.maxAttempts || 3,
+          hasReachedMaxAttempts: !!data.hasReachedMaxAttempts,
+          highestScore: data.highestScore,
+        });
+
+        // Tự động điền thông tin (đồng bộ từ danh sách vào form) nếu chưa nhập hoặc cần đồng bộ
+        if (data.participant) {
+          if (data.participant.fullName) setFullName(data.participant.fullName);
+          if (data.participant.phone) setPhone(data.participant.phone);
+          if (data.participant.unitId) setUnitId(data.participant.unitId);
+          if (data.participant.birthYear) setBirthYear(String(data.participant.birthYear));
+        }
+
+        if (data.hasReachedMaxAttempts) {
+          setRegError(
+            `Bạn đã tham gia đủ tối đa ${data.maxAttempts || 3} lượt thi theo thể lệ quy định! (Lần cao nhất: ${data.highestScore ?? 0} điểm)`
+          );
+        } else {
+          setRegError("");
+        }
+      }
+    } catch (e) {
+      console.warn("Lỗi xác minh CCCD:", e);
+    } finally {
+      setCheckingCccd(false);
+    }
+  };
+
+  const handleCccdChange = (val: string) => {
+    const clean = val.replace(/\D/g, "");
+    setCccd(clean);
+    if (clean.length >= 9) {
+      verifyCccd(clean);
+    } else {
+      setCccdSyncStatus(null);
+      setRegError("");
+    }
+  };
+
   // 6. Bắt đầu thi (Gọi API /start an toàn - Zero Answer Leakage)
   const handleStartExam = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -284,7 +346,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     }
 
     if (!cccd.trim() || cccd.trim().length < 9) {
-      setRegError("Thí sinh không tồn tại trong danh sách thí sinh của cuộc thi. Vui lòng kiểm tra lại số CCCD/Mã định danh!");
+      setRegError("Vui lòng nhập đúng số CCCD/Mã định danh (từ 9 đến 12 chữ số)!");
       return;
     }
 
@@ -1020,26 +1082,48 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 </div>
               )}
 
+              {/* Status Badge khi đồng bộ CCCD 2 chiều thành công */}
+              {cccdSyncStatus && !regError && (
+                <div className="mb-4 p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-800 flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 font-medium">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                    <span>
+                      {cccdSyncStatus.exists
+                        ? `Đã đồng bộ • Lượt thi ${cccdSyncStatus.submittedAttemptsCount + 1}/${cccdSyncStatus.maxAttempts}`
+                        : `Thí sinh mới • Lượt thi 1/${cccdSyncStatus.maxAttempts}`}
+                    </span>
+                  </div>
+                  <span className="text-[11px] text-blue-600 font-semibold bg-blue-100/80 px-2 py-0.5 rounded-full">
+                    Lưu điểm cao nhất
+                  </span>
+                </div>
+              )}
+
               <form onSubmit={handleStartExam} className="space-y-4">
-                {/* Floating Border Input for CCCD (Ảnh 5) */}
+                {/* Floating Border Input for CCCD (Ảnh 5 & Ảnh 1) */}
                 <div className="relative pt-1">
-                  <div className="border border-slate-300 rounded-xl px-3.5 pt-3 pb-2.5 focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-all bg-white">
+                  <div className="border border-slate-300 rounded-xl px-3.5 pt-3 pb-2.5 focus-within:border-blue-600 focus-within:ring-1 focus-within:ring-blue-600 transition-all bg-white relative">
                     <label className="absolute -top-2 left-3 bg-white px-1 text-[11px] font-semibold text-slate-500">
                       Nhập số CCCD/Mã định danh của bạn
                     </label>
-                    <input
-                      type="text"
-                      required
-                      value={cccd}
-                      onChange={(e) => setCccd(e.target.value.replace(/\D/g, ""))}
-                      maxLength={12}
-                      placeholder="Nhập 12 số CCCD / Mã định danh..."
-                      className="w-full text-sm sm:text-base font-semibold text-slate-900 outline-none bg-transparent"
-                    />
+                    <div className="flex items-center">
+                      <input
+                        type="text"
+                        required
+                        value={cccd}
+                        onChange={(e) => handleCccdChange(e.target.value)}
+                        maxLength={12}
+                        placeholder="Nhập 12 số CCCD / Mã định danh..."
+                        className="w-full text-sm sm:text-base font-semibold text-slate-900 outline-none bg-transparent"
+                      />
+                      {checkingCccd && (
+                        <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin flex-shrink-0 ml-2" />
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {/* Additional Profile Fields */}
+                {/* Additional Profile Fields (Đồng bộ 2 chiều) */}
                 <div className="space-y-3 pt-1">
                   {/* Họ và tên */}
                   <div>
@@ -1083,9 +1167,9 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                   </div>
                 </div>
 
-                {/* Pink Callout Box (Ảnh 5) */}
+                {/* Pink Callout Box (Ảnh 1 & Thể lệ 3 lần thi) */}
                 <div className="p-3 rounded-xl bg-[#FFF1F2] border border-red-200/80 text-center text-xs text-red-700 italic">
-                  Bạn cần khai báo đúng thông tin, thông tin tạo tài khoản sẽ không được điều chỉnh
+                  Hệ thống tự động đồng bộ 2 chiều thông tin thí sinh. Mỗi thí sinh được phép thi 3 lần, hệ thống sẽ lưu toàn bộ thông tin của lần cao điểm nhất.
                 </div>
 
                 {/* Consent Checkbox (Ảnh 5) */}
@@ -1120,8 +1204,8 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 {/* Action Button "➔ Tiếp tục" (Ảnh 5) */}
                 <button
                   type="submit"
-                  disabled={starting}
-                  className="w-full py-3.5 rounded-full text-base font-bold bg-[#0052CC] hover:bg-blue-700 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center space-x-2 cursor-pointer mt-2"
+                  disabled={starting || !!cccdSyncStatus?.hasReachedMaxAttempts}
+                  className="w-full py-3.5 rounded-full text-base font-bold bg-[#0052CC] hover:bg-blue-700 disabled:bg-slate-300 text-white transition-all shadow-md hover:shadow-lg flex items-center justify-center space-x-2 cursor-pointer disabled:cursor-not-allowed mt-2"
                 >
                   <ArrowRight className="w-5 h-5" />
                   <span>{starting ? "Đang chuẩn bị phòng thi..." : "Tiếp tục"}</span>
