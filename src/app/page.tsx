@@ -29,80 +29,64 @@ export default function HomePage() {
     <div className="w-full bg-[#F8FAFC] pb-16">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
 
-        {/* 1. TOP METRICS BAR - Đồng bộ số liệu thực tế trong toàn hệ thống (Ảnh 3) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Card 1: Sắp diễn ra */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-xs text-slate-500 font-medium">Sắp diễn ra</span>
-              <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-                {stats.upcomingContests ?? 0}{" "}
-                <span className="text-sm font-normal text-slate-600">Cuộc thi</span>
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-
-          {/* Card 2: Đang diễn ra */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-xs text-slate-500 font-medium">Đang diễn ra</span>
-              <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-                {stats.activeContests ?? (contests.filter((c: any) => c.status === "PUBLISHED").length || 0)}{" "}
-                <span className="text-sm font-normal text-slate-600">Cuộc thi</span>
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs">
-              <Calendar className="w-5 h-5" />
-            </div>
-          </div>
-
-          {/* Card 3: 7 ngày qua */}
-          <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs flex items-center justify-between">
-            <div>
-              <span className="text-xs text-slate-500 font-medium">7 ngày qua</span>
-              <div className="text-xl sm:text-2xl font-bold text-slate-900 mt-1">
-                {new Intl.NumberFormat("vi-VN").format(stats.totalAttempts7Days ?? stats.totalAttempts ?? 0)}{" "}
-                <span className="text-sm font-normal text-slate-600">Lượt thi</span>
-              </div>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-red-600 text-white flex items-center justify-center shadow-xs">
-              <BarChart3 className="w-5 h-5" />
-            </div>
-          </div>
-        </div>
-
-        {/* 2. HERO GRID 2 CỘT (Trái = Cuộc Thi giúp bạn... | Phải = Quảng cáo cuocthi.easupso.com trao bằng tốt nghiệp) */}
+        {/* HERO GRID 2 CỘT */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Left Promo Card */}
-          <div className="lg:col-span-5 bg-gradient-to-br from-[#FFF1F2] via-white to-[#FEE2E2]/30 rounded-2xl border border-red-200/80 p-6 sm:p-7 flex flex-col justify-between shadow-xs">
-            <div>
-              <h2 className="text-base sm:text-lg font-bold text-slate-900 leading-snug mb-4">
-                THI TRỰC TUYẾN giúp bạn dễ dàng <span className="text-[#DC2626]">tổ chức, quản lý</span> cuộc thi hiệu quả
-              </h2>
-              <ul className="space-y-2.5 text-xs text-slate-700 mb-6">
-                <li className="flex items-start">
-                  <span className="text-[#DC2626] font-black mr-2">•</span>
-                  <span>Không thu phí</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-[#DC2626] font-black mr-2">•</span>
-                  <span>Không giới hạn tính năng</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-[#DC2626] font-black mr-2">•</span>
-                  <span>Lưu trữ 1000 cuộc thi</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="text-[#DC2626] font-black mr-2">•</span>
-                  <span>Hỗ trợ: <a href="tel:0888023023" className="font-bold text-slate-900 hover:text-[#DC2626] transition-colors">0888023023</a></span>
-                </li>
-                <li className="text-[11px] text-slate-500 italic pt-1">
-                  Quy trình phát triển phần mềm nghiêm ngặt đảm bảo an toàn dữ liệu thí sinh dự thi
-                </li>
-              </ul>
+          {/* Cột Trái: Vị trí Ảnh 3 được thay thế hoàn toàn bằng Ảnh 2, và Ảnh 1 (3 chỉ số thống kê) thu gọn tối thiểu nằm nổi đè lên phía dưới */}
+          <div className="lg:col-span-5 relative rounded-2xl overflow-hidden shadow-xs border border-slate-200 bg-white flex flex-col justify-between group">
+            {/* Ảnh 2: Banner đồ họa giới thiệu Thi Trực Tuyến */}
+            <div className="relative w-full h-full min-h-[300px] sm:min-h-[360px] lg:min-h-[390px] flex items-center justify-center bg-slate-100">
+              <img
+                src="/images/promo_thi_tructuyen.jpg"
+                alt="THI TRỰC TUYẾN giúp bạn dễ dàng tổ chức, quản lý cuộc thi hiệu quả"
+                className="w-full h-full object-cover object-top block transition-transform duration-500 group-hover:scale-[1.01]"
+              />
+
+              {/* Lớp phủ chuyển sắc nhẹ ở đáy */}
+              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/70 via-slate-950/30 to-transparent pointer-events-none"></div>
+
+              {/* Ảnh 1: Thu gọn tối thiểu nằm nổi đè lên phía dưới của Ảnh 2 */}
+              <div className="absolute bottom-2 sm:bottom-2.5 inset-x-2 sm:inset-x-2.5 z-10">
+                <div className="grid grid-cols-3 gap-1 sm:gap-1.5 p-1 sm:p-1.5 bg-white/95 backdrop-blur-md rounded-xl border border-white/60 shadow-lg text-slate-800">
+                  {/* Card 1: Sắp diễn ra */}
+                  <div className="bg-slate-50/90 hover:bg-white rounded-lg p-1.5 border border-slate-200/80 transition-colors flex items-center justify-between">
+                    <div className="min-w-0 pr-1">
+                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 block truncate">Sắp diễn ra</span>
+                      <div className="text-xs sm:text-sm font-black text-slate-900 leading-none mt-0.5">
+                        {stats.upcomingContests ?? 0}
+                      </div>
+                    </div>
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* Card 2: Đang diễn ra */}
+                  <div className="bg-slate-50/90 hover:bg-white rounded-lg p-1.5 border border-slate-200/80 transition-colors flex items-center justify-between">
+                    <div className="min-w-0 pr-1">
+                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 block truncate">Đang diễn ra</span>
+                      <div className="text-xs sm:text-sm font-black text-red-600 leading-none mt-0.5">
+                        {stats.activeContests ?? (contests.filter((c: any) => c.status === "PUBLISHED").length || 0)}
+                      </div>
+                    </div>
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    </div>
+                  </div>
+
+                  {/* Card 3: 7 ngày qua */}
+                  <div className="bg-slate-50/90 hover:bg-white rounded-lg p-1.5 border border-slate-200/80 transition-colors flex items-center justify-between">
+                    <div className="min-w-0 pr-1">
+                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 block truncate">7 ngày qua</span>
+                      <div className="text-xs sm:text-sm font-black text-emerald-700 leading-none mt-0.5">
+                        {new Intl.NumberFormat("vi-VN").format(stats.totalAttempts7Days ?? stats.totalAttempts ?? 0)}
+                      </div>
+                    </div>
+                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                      <BarChart3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
