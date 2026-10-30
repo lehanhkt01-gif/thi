@@ -108,6 +108,10 @@ export interface ContestModel {
   fullScreenExam?: boolean;
   unitGroupName?: string;
   unitGroupId?: string;
+  resultVisibility?: "SCORE_ONLY" | "SCORE_AND_ANSWERS" | "HIDDEN";
+  attemptCalculation?: "ENTIRE_CONTEST" | "DAILY" | "WEEKLY";
+  shuffleMode?: "NONE" | "ALL" | "QUESTIONS_ONLY" | "ANSWERS_ONLY";
+  examMixPackages?: any[];
   prize1?: string;
   prize2?: string;
   prize3?: string;

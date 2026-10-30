@@ -16,14 +16,18 @@ import {
 
 interface FloatingActionBarProps {
   contestSlug?: string;
+  currentStep?: number;
   onNavigateStep?: (step: number) => void;
   onToggleMobilePreview?: () => void;
+  onOpenExamSettings?: () => void;
 }
 
 export default function FloatingActionBar({
   contestSlug = "tim-hieu-phap-luat-ea-sup-2026",
+  currentStep,
   onNavigateStep,
   onToggleMobilePreview,
+  onOpenExamSettings,
 }: FloatingActionBarProps) {
   const [authUser, setAuthUser] = useState<any>(null);
   const [activeModal, setActiveModal] = useState<"security" | "share" | null>(null);
@@ -77,11 +81,21 @@ export default function FloatingActionBar({
     <>
       {/* Floating Vertical Bar on Right */}
       <aside aria-label="Thanh công cụ nổi nhanh" className="fixed right-3 sm:right-6 top-1/2 -translate-y-1/2 z-40 flex flex-col items-center bg-white border border-[#CBD5E1] rounded-2xl p-1.5 shadow-float space-y-2 backdrop-blur-sm bg-white/95">
-        {/* 1. Cài đặt đề thi */}
+        {/* 1. Cài đặt đề thi (Nhấp để mở Drawer Cài đặt nâng cao Ảnh 1) */}
         <button
           type="button"
-          onClick={() => onNavigateStep && onNavigateStep(2)}
-          className="group relative p-2.5 rounded-xl text-slate-700 hover:text-white hover:bg-[#DC2626] transition-all"
+          onClick={() => {
+            if (onOpenExamSettings) {
+              onOpenExamSettings();
+            } else if (onNavigateStep) {
+              onNavigateStep(2);
+            }
+          }}
+          className={`group relative p-2.5 rounded-xl transition-all cursor-pointer ${
+            currentStep === 2
+              ? "bg-[#DC2626] text-white shadow-md"
+              : "text-slate-700 hover:text-white hover:bg-[#DC2626]"
+          }`}
           title="Cài đặt đề thi"
         >
           <Settings className="w-5 h-5" />

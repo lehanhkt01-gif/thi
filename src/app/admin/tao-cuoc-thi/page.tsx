@@ -56,6 +56,7 @@ import FloatingActionBar from "@/components/FloatingActionBar";
 import SparklineChart from "@/components/SparklineChart";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
 import { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
+import ExamSettingsDrawer, { ExamMixPackageItem } from "@/components/ExamSettingsDrawer";
 
 export default function ContestWizardPage() {
   // Trạng thái xác thực & Quyền khởi tạo cuộc thi (Ảnh 2)
@@ -221,6 +222,20 @@ export default function ContestWizardPage() {
   const [showMobileModal, setShowMobileModal] = useState(false);
   const [showSecurityModal, setShowSecurityModal] = useState(false);
 
+  // Cài đặt nâng cao đề thi (Ảnh 1)
+  const [showExamSettingsDrawer, setShowExamSettingsDrawer] = useState(false);
+  const [showResultMode, setShowResultMode] = useState<"SCORE_ONLY" | "SCORE_AND_ANSWERS" | "HIDDEN">("SCORE_ONLY");
+  const [attemptCalculation, setAttemptCalculation] = useState<"ENTIRE_CONTEST" | "DAILY" | "WEEKLY">("ENTIRE_CONTEST");
+  const [shuffleMode, setShuffleMode] = useState<"NONE" | "ALL" | "QUESTIONS_ONLY" | "ANSWERS_ONLY">("NONE");
+  const [examMixPackages, setExamMixPackages] = useState<ExamMixPackageItem[]>([
+    {
+      id: "mix-1",
+      packageName: "Đề thi mới tạo",
+      mcqCount: 30,
+      essayCount: 0,
+    },
+  ]);
+
   // Chế độ Tạo mới hay Chỉnh sửa cuộc thi (Yêu cầu 4)
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingStep1, setIsSavingStep1] = useState(false);
@@ -297,6 +312,10 @@ export default function ContestWizardPage() {
         customLeaderboard,
         durationMinutes,
         maxAttempts,
+        resultVisibility: showResultMode,
+        attemptCalculation,
+        shuffleMode,
+        examMixPackages,
         prize1,
         prize2,
         prize3,
@@ -1054,6 +1073,10 @@ export default function ContestWizardPage() {
           durationMinutes,
           questionCount: questionsList.length || questionCount,
           maxAttempts,
+          resultVisibility: showResultMode,
+          attemptCalculation,
+          shuffleMode,
+          examMixPackages,
           hasTieBreaker,
           themeColor,
           shortDesc,
@@ -1167,9 +1190,15 @@ export default function ContestWizardPage() {
               if (c.announcement) setAnnouncement(c.announcement);
               if (c.startTime) setStartTime(c.startTime.slice(0, 16));
               if (c.endTime) setEndTime(c.endTime.slice(0, 16));
-              if (c.durationMinutes) setDurationMinutes(c.durationMinutes);
+              if (c.durationMinutes !== undefined) setDurationMinutes(c.durationMinutes);
               if (c.questionCount) setQuestionCount(c.questionCount);
-              if (c.maxAttempts) setMaxAttempts(c.maxAttempts);
+              if (c.maxAttempts !== undefined) setMaxAttempts(c.maxAttempts);
+              if (c.resultVisibility) setShowResultMode(c.resultVisibility);
+              if (c.attemptCalculation) setAttemptCalculation(c.attemptCalculation);
+              if (c.shuffleMode) setShuffleMode(c.shuffleMode);
+              if (c.examMixPackages && Array.isArray(c.examMixPackages) && c.examMixPackages.length > 0) {
+                setExamMixPackages(c.examMixPackages);
+              }
               if (c.hasTieBreaker !== undefined) setHasTieBreaker(c.hasTieBreaker);
               if (c.themeColor) setThemeColor(c.themeColor);
               if (c.examPassword) setExamPassword(c.examPassword);
@@ -2817,13 +2846,24 @@ export default function ContestWizardPage() {
                   <h4 className="text-xs font-bold uppercase tracking-wider text-slate-800">
                     Đề thi hiện tại ({questionsList.length} câu)
                   </h4>
-                  <button
-                    type="button"
-                    onClick={() => handleNavigateStep(1)}
-                    className="text-[11px] text-[#DC2626] font-semibold hover:underline"
-                  >
-                    Xem trước
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => setShowExamSettingsDrawer(true)}
+                      className="text-[11px] text-[#DC2626] font-semibold hover:underline flex items-center space-x-1 cursor-pointer"
+                      title="Mở bảng cài đặt đề thi nâng cao"
+                    >
+                      <Settings className="w-3.5 h-3.5" />
+                      <span>Cài đặt đề thi</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowMobileModal(true)}
+                      className="text-[11px] text-[#DC2626] font-semibold hover:underline cursor-pointer"
+                    >
+                      Xem trước
+                    </button>
+                  </div>
                 </div>
 
                 {questionsList.length === 0 ? (
@@ -3848,7 +3888,57 @@ export default function ContestWizardPage() {
       {/* Floating Action Bar */}
       <FloatingActionBar
         contestSlug={slug}
+        currentStep={currentStep}
         onNavigateStep={(step) => handleNavigateStep(step)}
+        onOpenExamSettings={() => setShowExamSettingsDrawer(true)}
+        onToggleMobilePreview={() => setShowMobileModal(true)}
+      />
+
+      {/* Drawer Cài Đặt Đề Thi Nâng Cao (Ảnh 1) */}
+      <ExamSettingsDrawer
+        isOpen={showExamSettingsDrawer}
+        onClose={() => setShowExamSettingsDrawer(false)}
+        durationMinutes={durationMinutes}
+        onChangeDurationMinutes={setDurationMinutes}
+        showResultMode={showResultMode}
+        onChangeShowResultMode={setShowResultMode}
+        maxAttempts={maxAttempts}
+        onChangeMaxAttempts={setMaxAttempts}
+        attemptCalculation={attemptCalculation}
+        onChangeAttemptCalculation={setAttemptCalculation}
+        shuffleMode={shuffleMode}
+        onChangeShuffleMode={setShuffleMode}
+        examMixPackages={examMixPackages}
+        onChangeExamMixPackages={setExamMixPackages}
+        availablePackages={bankPackages.map((p) => ({ id: p.id, name: p.name }))}
+        currentStep={currentStep}
+        onNavigateStep={handleNavigateStep}
+        onToggleMobilePreview={() => setShowMobileModal(true)}
+        onOpenSecurity={() => setShowSecurityModal(true)}
+        onOpenShare={() => setShowShareModal(true)}
+        onApplySettings={() => {
+          const draft = {
+            ...JSON.parse(localStorage.getItem(`easup_contest_draft_${slug}`) || "{}"),
+            durationMinutes,
+            maxAttempts,
+            resultVisibility: showResultMode,
+            attemptCalculation,
+            shuffleMode,
+            examMixPackages,
+            updatedAt: new Date().toISOString(),
+          };
+          localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draft));
+          if (slug) {
+            fetch(`/api/contests/${slug}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(draft),
+            }).catch(() => {});
+          }
+          setSaveToastMessage("Đã lưu các thiết lập đề thi tiên tiến thành công!");
+          setShowSaveToast(true);
+          setTimeout(() => setShowSaveToast(false), 3000);
+        }}
       />
     </div>
   );
