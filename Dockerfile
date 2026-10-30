@@ -31,7 +31,8 @@ RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
 # Create persistent storage directories
-RUN mkdir -p /app/storage/tts /app/storage/uploads /app/data /app/public/uploads \
+RUN mkdir -p /app/storage/tts /app/storage/uploads /app/data /app/data/backups /app/public/uploads \
+    && chmod -R 777 /app/storage /app/data /app/public/uploads \
     && chown -R nextjs:nodejs /app/storage /app/data /app/public/uploads
 
 COPY --from=builder /app/public ./public
@@ -42,7 +43,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder --chown=nextjs:nodejs /app/node_modules/@prisma ./node_modules/@prisma
 
-USER nextjs
+USER root
 
 EXPOSE 3000
 ENV PORT=3000

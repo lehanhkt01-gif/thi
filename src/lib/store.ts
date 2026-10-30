@@ -631,75 +631,154 @@ class DataStore {
     if (!fsModule || !pathModule) return;
     try {
       const dataDir = pathModule.join(process.cwd(), "data");
+      const backupsDir = pathModule.join(dataDir, "backups");
       if (!fsModule.existsSync(dataDir)) {
         fsModule.mkdirSync(dataDir, { recursive: true });
       }
+      if (!fsModule.existsSync(backupsDir)) {
+        fsModule.mkdirSync(backupsDir, { recursive: true });
+      }
+
+      const liveFile = pathModule.join(dataDir, "live_database.json");
+      const liveBackupFile = pathModule.join(dataDir, "live_database.bak");
       const dbFile = pathModule.join(dataDir, "database.json");
       const backupFile = pathModule.join(dataDir, "database.backup.json");
 
-      let targetFile = dbFile;
-      if (!fsModule.existsSync(dbFile) && fsModule.existsSync(backupFile)) {
-        targetFile = backupFile;
-      }
+      // Danh sách các nguồn dữ liệu dự phòng có thể khôi phục
+      const candidateFiles = [liveFile, liveBackupFile, dbFile, backupFile];
+      try {
+        if (fsModule.existsSync(backupsDir)) {
+          const files = fsModule.readdirSync(backupsDir).filter((f: string) => f.endsWith(".json"));
+          files.sort().reverse();
+          if (files.length > 0) {
+            candidateFiles.push(pathModule.join(backupsDir, files[0]));
+          }
+        }
+      } catch (e) {}
 
-      if (fsModule.existsSync(targetFile)) {
-        const stat = fsModule.statSync(targetFile);
+      const primaryFile = fsModule.existsSync(liveFile)
+        ? liveFile
+        : (fsModule.existsSync(dbFile) ? dbFile : backupFile);
+
+      if (fsModule.existsSync(primaryFile)) {
+        const stat = fsModule.statSync(primaryFile);
         if (!force && this.lastLoadedMtime && stat.mtimeMs <= this.lastLoadedMtime) {
           return;
         }
         this.lastLoadedMtime = stat.mtimeMs;
+      }
 
-        const raw = fsModule.readFileSync(targetFile, "utf-8");
-        if (raw && raw.trim()) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed.contests) && parsed.contests.length > 0) {
-            this.contests = parsed.contests.map((c: any) => {
-              if (!c.questions || c.questions.length === 0) {
-                return {
-                  ...c,
-                  questions: MASTER_QUESTION_BANK.slice(0, c.questionCount || 5),
-                };
-              }
-              return c;
-            });
+      const readJson = (filePath: string) => {
+        try {
+          if (fsModule.existsSync(filePath)) {
+            const raw = fsModule.readFileSync(filePath, "utf-8");
+            if (raw && raw.trim()) return JSON.parse(raw);
           }
-          if (Array.isArray(parsed.mediaContests) && parsed.mediaContests.length > 0) {
-            this.mediaContests = parsed.mediaContests;
-          }
-          if (Array.isArray(parsed.mediaSubmissions)) {
-            this.mediaSubmissions = parsed.mediaSubmissions;
-          }
-          if (Array.isArray(parsed.users) && parsed.users.length > 0) {
-            this.users = this.mergeUsersList(parsed.users, this.users);
-          }
-          if (Array.isArray(parsed.questionPackages) && parsed.questionPackages.length > 0) {
-            this.questionPackages = parsed.questionPackages;
-          }
-          if (Array.isArray(parsed.questionBank) && parsed.questionBank.length > 0) {
-            this.questionBank = parsed.questionBank;
-          }
-          if (Array.isArray(parsed.participants)) {
-            const pMap = new Map<string, ParticipantModel>();
-            for (const p of parsed.participants) pMap.set(p.id, p);
-            for (const p of this.participants) pMap.set(p.id, p);
-            this.participants = Array.from(pMap.values());
-          }
-          if (Array.isArray(parsed.attempts)) {
-            const aMap = new Map<string, ExamAttemptModel>();
-            for (const a of parsed.attempts) aMap.set(a.id, a);
-            for (const a of this.attempts) {
-              const diskA = aMap.get(a.id);
-              if (diskA && diskA.submittedAt && !a.submittedAt) {
-                aMap.set(a.id, { ...diskA, ...a, submittedAt: diskA.submittedAt });
-              } else {
-                aMap.set(a.id, a);
+        } catch (e) {}
+        return null;
+      };
+
+      // 1. Nạp từ file chính (ưu tiên liveFile -> dbFile -> backupFile)
+      const primaryData = readJson(liveFile) || readJson(dbFile) || readJson(backupFile);
+      if (primaryData) {
+        if (Array.isArray(primaryData.contests) && primaryData.contests.length > 0) {
+          this.contests = primaryData.contests.map((c: any) => {
+            if (!c.questions || c.questions.length === 0) {
+              return {
+                ...c,
+                questions: MASTER_QUESTION_BANK.slice(0, c.questionCount || 5),
+              };
+            }
+            return c;
+          });
+        }
+        if (Array.isArray(primaryData.mediaContests) && primaryData.mediaContests.length > 0) {
+          this.mediaContests = primaryData.mediaContests;
+        }
+        if (Array.isArray(primaryData.mediaSubmissions)) {
+          this.mediaSubmissions = primaryData.mediaSubmissions;
+        }
+        if (Array.isArray(primaryData.users) && primaryData.users.length > 0) {
+          this.users = this.mergeUsersList(primaryData.users, this.users);
+        }
+        if (Array.isArray(primaryData.questionPackages) && primaryData.questionPackages.length > 0) {
+          this.questionPackages = primaryData.questionPackages;
+        }
+        if (Array.isArray(primaryData.questionBank) && primaryData.questionBank.length > 0) {
+          this.questionBank = primaryData.questionBank;
+        }
+        if (Array.isArray(primaryData.participants)) {
+          this.participants = primaryData.participants;
+        }
+        if (Array.isArray(primaryData.attempts)) {
+          this.attempts = primaryData.attempts;
+        }
+      }
+
+      // 2. NGUYÊN TẮC BẢO VỆ DỮ LIỆU THI CỬ VĨNH CỬU:
+      // Tự động hợp nhất (UNION) toàn bộ kết quả thi (attempts) và thí sinh (participants)
+      // từ tất cả các file nguồn (liveFile, liveBackupFile, dbFile, backupFile, dailyBackup).
+      // Dù git pull có ghi đè hay pull code mới, các lượt thi đã nộp KHÔNG BAO GIỜ BỊ MẤT.
+      const attemptsMap = new Map<string, ExamAttemptModel>();
+      for (const a of this.attempts) attemptsMap.set(a.id, a);
+
+      const participantsMap = new Map<string, ParticipantModel>();
+      for (const p of this.participants) participantsMap.set(p.id, p);
+
+      const contestsMap = new Map<string, ContestModel>();
+      for (const c of this.contests) contestsMap.set(c.id, c);
+
+      for (const file of candidateFiles) {
+        const data = readJson(file);
+        if (!data) continue;
+
+        // Hợp nhất attempts
+        if (Array.isArray(data.attempts)) {
+          for (const a of data.attempts) {
+            const existing = attemptsMap.get(a.id);
+            if (!existing) {
+              attemptsMap.set(a.id, a);
+            } else {
+              if (a.submittedAt && !existing.submittedAt) {
+                attemptsMap.set(a.id, a);
+              } else if (a.submittedAt && existing.submittedAt && a.score > existing.score) {
+                attemptsMap.set(a.id, a);
               }
             }
-            this.attempts = Array.from(aMap.values());
           }
         }
-      } else {
-        this.saveToDisk();
+
+        // Hợp nhất participants
+        if (Array.isArray(data.participants)) {
+          for (const p of data.participants) {
+            if (!participantsMap.has(p.id)) {
+              participantsMap.set(p.id, p);
+            }
+          }
+        }
+
+        // Hợp nhất contests do người dùng tạo
+        if (Array.isArray(data.contests)) {
+          for (const c of data.contests) {
+            if (!contestsMap.has(c.id)) {
+              contestsMap.set(c.id, c);
+            }
+          }
+        }
+
+        // Hợp nhất users
+        if (Array.isArray(data.users)) {
+          this.users = this.mergeUsersList(data.users, this.users);
+        }
+      }
+
+      this.attempts = Array.from(attemptsMap.values());
+      this.participants = Array.from(participantsMap.values());
+      this.contests = Array.from(contestsMap.values());
+
+      // Nếu liveFile chưa tồn tại trên VPS, ghi ngay để khởi tạo kho lưu trữ bất biến
+      if (!fsModule.existsSync(liveFile)) {
+        this.saveToDisk(true);
       }
     } catch (err) {
       console.error("[DataStore] Lỗi đọc cơ sở dữ liệu bền vững:", err);
@@ -772,16 +851,27 @@ class DataStore {
     if (!fsModule || !pathModule) return;
     try {
       const dataDir = pathModule.join(process.cwd(), "data");
+      const backupsDir = pathModule.join(dataDir, "backups");
       if (!fsModule.existsSync(dataDir)) {
         fsModule.mkdirSync(dataDir, { recursive: true });
       }
+      if (!fsModule.existsSync(backupsDir)) {
+        fsModule.mkdirSync(backupsDir, { recursive: true });
+      }
+
+      const liveFile = pathModule.join(dataDir, "live_database.json");
+      const liveBackupFile = pathModule.join(dataDir, "live_database.bak");
       const dbFile = pathModule.join(dataDir, "database.json");
       const backupFile = pathModule.join(dataDir, "database.backup.json");
 
-      // Đọc và hợp nhất với dữ liệu đang có trên đĩa trước khi ghi để chống mất mát hoàn toàn
-      if (fsModule.existsSync(dbFile)) {
+      // Đọc và hợp nhất với dữ liệu đang có trên đĩa trước khi ghi để chống mất mát
+      const primaryRead = fsModule.existsSync(liveFile)
+        ? liveFile
+        : (fsModule.existsSync(dbFile) ? dbFile : null);
+
+      if (primaryRead) {
         try {
-          const raw = fsModule.readFileSync(dbFile, "utf-8");
+          const raw = fsModule.readFileSync(primaryRead, "utf-8");
           if (raw && raw.trim()) {
             const diskData = JSON.parse(raw);
             if (Array.isArray(diskData.users)) {
@@ -823,11 +913,27 @@ class DataStore {
       };
 
       const jsonStr = JSON.stringify(payload, null, 2);
-      fsModule.writeFileSync(dbFile, jsonStr, "utf-8");
-      fsModule.writeFileSync(backupFile, jsonStr, "utf-8");
+
+      // 1. Ghi vào live_database.json (Tập tin runtime chính - KHÔNG bị git pull ghi đè)
+      fsModule.writeFileSync(liveFile, jsonStr, "utf-8");
+      // 2. Ghi bản sao lưu dự phòng tức thì live_database.bak
+      fsModule.writeFileSync(liveBackupFile, jsonStr, "utf-8");
+
+      // 3. Ghi vào bản sao lưu theo ngày trong data/backups/
+      try {
+        const todayStr = new Date().toISOString().slice(0, 10);
+        const dailyBackup = pathModule.join(backupsDir, `backup_${todayStr}.json`);
+        fsModule.writeFileSync(dailyBackup, jsonStr, "utf-8");
+      } catch (e) {}
+
+      // 4. Đồng thời ghi vào database.json & backup.json (phương án tương thích phụ)
+      try {
+        fsModule.writeFileSync(dbFile, jsonStr, "utf-8");
+        fsModule.writeFileSync(backupFile, jsonStr, "utf-8");
+      } catch (e) {}
 
       try {
-        const stat = fsModule.statSync(dbFile);
+        const stat = fsModule.statSync(liveFile);
         this.lastLoadedMtime = stat.mtimeMs;
       } catch (e) {}
     } catch (err) {

@@ -14,12 +14,16 @@
 .env*.local
 !.env.example
 
-# Local databases
+# Local databases & Persistent Live Data (Không bị ghi đè khi git pull)
 *.sqlite
 *.sqlite3
 *.db
 /prisma/*.db
 /prisma/*.sqlite
+/data/live_database.json
+/data/live_database.bak
+/data/backups/
+/data/*.bak
 
 # Uploads and temporary storage
 /storage/tts/*

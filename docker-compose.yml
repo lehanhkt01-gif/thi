@@ -4,6 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: always
+    user: "0:0"
     ports:
       - "8077:3000"
     environment:
