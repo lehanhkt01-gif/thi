@@ -11,7 +11,12 @@ services:
       - PORT=3000
       - NODE_ENV=production
       - NEXTAUTH_URL=https://thi.easupso.com
-      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-easup_super_secret_production_2026}
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-EaSupSo2026_SecureKey_AuthSecret_32Chars}
+      - AUTH_SECRET=${AUTH_SECRET:-EaSupSo2026_SecureKey_AuthSecret_32Chars}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-https://thi.easupso.com}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-152633241243-1vvq0sflg5nrn3d5ndtchijeehha8sjn.apps.googleusercontent.com}
+      - NEXT_PUBLIC_GOOGLE_CLIENT_ID=${NEXT_PUBLIC_GOOGLE_CLIENT_ID:-152633241243-1vvq0sflg5nrn3d5ndtchijeehha8sjn.apps.googleusercontent.com}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-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}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - DATABASE_URL=postgresql://${DB_USER:-admin_easup}:${DB_PASSWORD:-change_me_32_chars_bitwarden}@db:5432/${DB_NAME:-cuocthi_easup_db}
     volumes:

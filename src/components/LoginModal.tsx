@@ -101,12 +101,28 @@ export default function LoginModal({
   const [confirmPasswordInput, setConfirmPasswordInput] = useState("");
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  // Google Identity Services (GSI) Client ID
+  // Google Identity Services (GSI) Client ID & Token Client
   const [googleClientId, setGoogleClientId] = useState("");
+  const tokenClientRef = React.useRef<any>(null);
 
   // Khởi tạo SDK Google Identity Services
   useEffect(() => {
     if (!isOpen) return;
+
+    const setupGsi = (clientId: string) => {
+      setGoogleClientId(clientId);
+      if ((window as any).google?.accounts) {
+        initGsi(clientId);
+      } else {
+        const checkInterval = setInterval(() => {
+          if ((window as any).google?.accounts) {
+            clearInterval(checkInterval);
+            initGsi(clientId);
+          }
+        }, 200);
+        setTimeout(() => clearInterval(checkInterval), 5000);
+      }
+    };
 
     if (!document.getElementById("google-gsi-client")) {
       const script = document.createElement("script");
@@ -114,31 +130,77 @@ export default function LoginModal({
       script.src = "https://accounts.google.com/gsi/client";
       script.async = true;
       script.defer = true;
+      script.onload = () => {
+        fetch("/api/auth/google/config")
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.clientId) setupGsi(data.clientId);
+          })
+          .catch(() => {});
+      };
       document.body.appendChild(script);
+    } else {
+      fetch("/api/auth/google/config")
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.clientId) setupGsi(data.clientId);
+        })
+        .catch(() => {});
     }
-
-    fetch("/api/auth/google/config")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.clientId) {
-          setGoogleClientId(data.clientId);
-          initGsi(data.clientId);
-        }
-      })
-      .catch(() => {});
   }, [isOpen]);
 
   const initGsi = (clientId: string) => {
     const google = typeof window !== "undefined" ? (window as any).google : null;
-    if (google?.accounts?.id) {
-      google.accounts.id.initialize({
-        client_id: clientId,
-        callback: (response: any) => {
-          if (response.credential) {
-            handleGoogleCredential(response.credential);
-          }
-        },
-      });
+    if (!google) return;
+
+    // 1. Hỗ trợ One-Tap / ID Token
+    if (google.accounts?.id) {
+      try {
+        google.accounts.id.initialize({
+          client_id: clientId,
+          callback: (response: any) => {
+            if (response.credential) {
+              handleGoogleCredential(response.credential);
+            }
+          },
+        });
+      } catch (err) {
+        console.warn("Lỗi init GSI id:", err);
+      }
+    }
+
+    // 2. Khởi tạo Official Google OAuth Popup (Mở cửa sổ chọn tài khoản Google chuẩn)
+    if (google.accounts?.oauth2) {
+      try {
+        tokenClientRef.current = google.accounts.oauth2.initTokenClient({
+          client_id: clientId,
+          scope: "email profile openid",
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse.error) {
+              console.warn("Lỗi Google OAuth popup:", tokenResponse.error);
+              setIsGoogleLoading(false);
+              return;
+            }
+            if (tokenResponse.access_token) {
+              setIsGoogleLoading(true);
+              try {
+                const userRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+                  headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
+                });
+                const profile = await userRes.json();
+                if (profile.email) {
+                  await executeGoogleLoginWithEmail(profile.email, profile.name, profile.picture);
+                }
+              } catch (err: any) {
+                console.error("Lỗi lấy thông tin Google UserInfo:", err);
+                setIsGoogleLoading(false);
+              }
+            }
+          },
+        });
+      } catch (err) {
+        console.warn("Lỗi init GSI oauth2 tokenClient:", err);
+      }
     }
   };
 
@@ -170,7 +232,7 @@ export default function LoginModal({
   };
 
   // Hàm cốt lõi thực hiện đăng nhập tài khoản Google và đồng bộ hệ thống
-  const executeGoogleLoginWithEmail = async (rawEmail: string) => {
+  const executeGoogleLoginWithEmail = async (rawEmail: string, name?: string, image?: string) => {
     const cleanEmail = rawEmail.trim().toLowerCase();
     if (!cleanEmail) return false;
     if (!cleanEmail.includes("@")) {
@@ -185,7 +247,8 @@ export default function LoginModal({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           email: cleanEmail,
-          name: cleanEmail.split("@")[0],
+          name: name || cleanEmail.split("@")[0],
+          image: image || undefined,
         }),
       });
 
@@ -216,13 +279,25 @@ export default function LoginModal({
 
   // 1. Hàm trigger đăng nhập bằng Google chuẩn (Click nút to)
   const handleGoogleLogin = async () => {
-    // 1.1 Nếu đã có sẵn email trong ô nhập trên máy -> Đăng nhập luôn
+    // 1.1 Ưu tiên mở cửa sổ Google OAuth chính hãng nếu đã khởi tạo
+    if (tokenClientRef.current) {
+      try {
+        setIsGoogleLoading(true);
+        tokenClientRef.current.requestAccessToken({ prompt: "select_account" });
+        return;
+      } catch (e) {
+        console.warn("Lỗi gọi requestAccessToken:", e);
+        setIsGoogleLoading(false);
+      }
+    }
+
+    // 1.2 Nếu đã có sẵn email trong ô nhập trên máy -> Đăng nhập luôn
     if (emailQuickLogin.trim()) {
       await executeGoogleLoginWithEmail(emailQuickLogin);
       return;
     }
 
-    // 1.2 Nếu có tài khoản Google đã từng lưu trên máy này
+    // 1.3 Nếu có tài khoản Google đã từng lưu trên máy này
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("easup_google_email");
       if (saved && saved.includes("@")) {
@@ -232,7 +307,7 @@ export default function LoginModal({
       }
     }
 
-    // 1.3 Nếu cấu hình NextAuth
+    // 1.4 Nếu cấu hình NextAuth
     const nextAuth = typeof window !== "undefined" ? (window as any).nextAuth : null;
     if (nextAuth && typeof nextAuth.signIn === "function") {
       setIsGoogleLoading(true);
@@ -246,7 +321,7 @@ export default function LoginModal({
       }
     }
 
-    // 1.4 Nếu có Google Identity Services client ID
+    // 1.5 Nếu có Google Identity Services client ID, thử gọi One Tap prompt
     const google = typeof window !== "undefined" ? (window as any).google : null;
     if (googleClientId && google?.accounts?.id) {
       setIsGoogleLoading(true);
@@ -260,7 +335,7 @@ export default function LoginModal({
       return;
     }
 
-    // 1.5 Mở khung nhập & yêu cầu người dùng xác nhận email trên máy
+    // 1.6 Mở khung nhập & yêu cầu người dùng xác nhận email trên máy
     promptForEmail();
   };
 
