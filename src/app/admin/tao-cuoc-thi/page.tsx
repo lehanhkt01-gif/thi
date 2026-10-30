@@ -206,7 +206,7 @@ export default function ContestWizardPage() {
   const [examPassword, setExamPassword] = useState("");
   const [requirePortrait, setRequirePortrait] = useState("none");
   const [fullScreenExam, setFullScreenExam] = useState(true);
-  const [shortDesc, setShortDesc] = useState("Mỗi thí sinh được tham gia tối đa 1 lần để tìm hiểu, bằng cách trắc nghiệm.");
+  const [shortDesc, setShortDesc] = useState("");
   // 4 hạng mục giải thưởng đồng bộ với trang thi (Ảnh 2 & Ảnh 3)
   const [prize1, setPrize1] = useState("5.000.000 đồng/giải");
   const [prize2, setPrize2] = useState("3.000.000 đồng/giải");

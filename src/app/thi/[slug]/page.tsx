@@ -756,16 +756,26 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
               <button
                 type="button"
                 onClick={() => setInfoModal("rules")}
-                className="text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer"
+                className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer group"
+                title="Xem Thể lệ cuộc thi (Khớp nối 2 chiều với ô Thể lệ bên dưới)"
               >
-                THỂ LỆ
+                <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#DC2626]" />
+                <span>THỂ LỆ</span>
+                {contest?.rulesFileUrl && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Đã có văn bản đính kèm"></span>
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => setInfoModal("plan")}
-                className="text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer"
+                className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer group"
+                title="Xem Kế hoạch cuộc thi (Khớp nối 2 chiều với ô Kế hoạch bên dưới)"
               >
-                KẾ HOẠCH
+                <Calendar className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#DC2626]" />
+                <span>KẾ HOẠCH</span>
+                {contest?.planFileUrl && (
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Đã có văn bản đính kèm"></span>
+                )}
               </button>
             </nav>
 
@@ -822,9 +832,9 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </div>
         </header>
 
-        {/* 2. HERO BANNER CHUẨN ẢNH 3 - TĂNG CHIỀU CAO THÊM 1/3 (ẢNH 4) */}
+        {/* 2. HERO BANNER CHUẨN ẢNH 3 - KÉO DÀI CHIỀU CAO SÁT MÉP ĐỎ TRÊN VÀ DƯỚI, HẠN CHẾ CHE KHUẤT HÌNH ẢNH */}
         <section
-          className="relative w-full overflow-hidden py-6 sm:py-8 md:py-10 px-2 sm:px-4 shadow-md transition-colors duration-300"
+          className="relative w-full overflow-hidden py-1 sm:py-1.5 md:py-2 px-1 sm:px-2 md:px-3 shadow-md transition-colors duration-300"
           style={{
             backgroundColor: contest?.themeColor || "#990000",
             backgroundImage: `radial-gradient(ellipse at 50% 30%, ${contest?.themeColor || "#DC2626"} 0%, #991B1B 65%, #7F1D1D 100%)`,
@@ -834,12 +844,12 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-300 via-transparent to-transparent"></div>
 
           {contest?.bannerUrl || true ? (
-            <div className="max-w-4xl lg:max-w-5xl mx-auto relative z-10 flex justify-center">
-              <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/30 bg-black/10 backdrop-blur-xs w-full max-h-[300px] sm:max-h-[420px] md:max-h-[500px] flex items-center justify-center">
+            <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto relative z-10 flex justify-center">
+              <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/40 bg-black/15 backdrop-blur-xs w-full flex items-center justify-center">
                 <img
                   src={contest?.bannerUrl || "/banner-easup.png"}
                   alt={contest?.title || "Cuộc thi trực tuyến"}
-                  className="w-full h-auto max-h-[300px] sm:max-h-[420px] md:max-h-[500px] block object-contain sm:object-cover object-center transform hover:scale-[1.005] transition-transform duration-300"
+                  className="w-full h-auto block object-contain object-center transform hover:scale-[1.002] transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
                     if (!target.src.includes("banner-easup.png")) {
@@ -1321,40 +1331,106 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </h2>
 
           <div className={`grid grid-cols-1 ${canViewResults ? "md:grid-cols-3" : "md:grid-cols-2 max-w-4xl mx-auto"} gap-6`}>
-            {/* Card 1: KẾ HOẠCH CUỘC THI */}
+            {/* Card 1: KẾ HOẠCH CUỘC THI - Khớp nối 2 chiều với nút KẾ HOẠCH trên đầu trang (Ảnh 4) */}
             <div
               onClick={() => setInfoModal("plan")}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer group"
+              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between"
             >
-              <div className="aspect-[16/9] w-full bg-gradient-to-r from-sky-600 via-sky-500 to-blue-700 p-4 text-white flex flex-col justify-between">
-                <span className="text-[10px] font-bold text-sky-200 uppercase">Kế hoạch tổ chức</span>
-                <h4 className="text-sm font-black uppercase text-white drop-shadow-sm line-clamp-2">
-                  Kế hoạch tổ chức {contest.title}
-                </h4>
-                <span className="text-[10px] text-sky-100">Chi tiết lộ trình các đợt thi</span>
+              <div className="aspect-[16/9] w-full bg-gradient-to-r from-sky-600 via-sky-500 to-blue-700 p-4 sm:p-5 text-white flex flex-col justify-between relative overflow-hidden">
+                <div className="flex items-center justify-between z-10">
+                  <span className="text-[11px] font-black text-sky-100 uppercase tracking-wider flex items-center space-x-1.5">
+                    <Calendar className="w-3.5 h-3.5" />
+                    <span>Kế hoạch tổ chức</span>
+                  </span>
+                  {contest.planFileUrl ? (
+                    <span className="bg-emerald-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1 shadow-2xs">
+                      <FileCheck className="w-3 h-3" />
+                      <span>{contest.planFileUrl.toLowerCase().endsWith(".pdf") ? "VĂN BẢN PDF" : "HÌNH ẢNH"}</span>
+                    </span>
+                  ) : (
+                    <span className="bg-white/20 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      LỘ TRÌNH
+                    </span>
+                  )}
+                </div>
+
+                <div className="my-auto py-2 z-10">
+                  <h4 className="text-sm sm:text-base font-black uppercase text-white drop-shadow-sm line-clamp-2 leading-snug group-hover:text-amber-200 transition-colors">
+                    Kế hoạch tổ chức {contest.title}
+                  </h4>
+                  <p className="text-[11px] text-sky-100 mt-1 line-clamp-1 flex items-center space-x-1">
+                    <span>Thời gian:</span>
+                    <span className="font-semibold text-white">
+                      {contest.startTime && contest.endTime
+                        ? `${new Date(contest.startTime).toLocaleDateString("vi-VN")} - ${new Date(contest.endTime).toLocaleDateString("vi-VN")}`
+                        : "Tháng 10 – Tháng 12/2026"}
+                    </span>
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-sky-100 z-10 pt-1 border-t border-white/15">
+                  <span className="truncate">
+                    {contest.planFileUrl ? "Đã đính kèm văn bản chính thức ban hành" : "Chi tiết lộ trình các đợt thi"}
+                  </span>
+                  <Eye className="w-3.5 h-3.5 text-sky-200 group-hover:scale-125 transition-transform shrink-0 ml-1" />
+                </div>
               </div>
-              <div className="p-4 text-center">
-                <span className="text-xs font-black text-[#0052CC] group-hover:underline uppercase tracking-wide">
-                  KẾ HOẠCH CUỘC THI
+
+              <div className="p-4 text-center bg-white flex items-center justify-center space-x-2 border-t border-slate-100">
+                <span className="text-xs sm:text-sm font-black text-[#0052CC] group-hover:text-blue-700 uppercase tracking-wide flex items-center space-x-1.5">
+                  <span>KẾ HOẠCH CUỘC THI</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </span>
               </div>
             </div>
 
-            {/* Card 2: THỂ LỆ CUỘC THI */}
+            {/* Card 2: THỂ LỆ CUỘC THI - Khớp nối 2 chiều với nút THỂ LỆ trên đầu trang (Ảnh 4) */}
             <div
               onClick={() => setInfoModal("rules")}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer group"
+              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-xl hover:-translate-y-0.5 transition-all cursor-pointer group flex flex-col justify-between"
             >
-              <div className="aspect-[16/9] w-full bg-gradient-to-r from-blue-700 via-indigo-600 to-sky-600 p-4 text-white flex flex-col justify-between">
-                <span className="text-[10px] font-bold text-indigo-200 uppercase">Quy chế &amp; Thể lệ</span>
-                <h4 className="text-sm font-black uppercase text-white drop-shadow-sm line-clamp-2">
-                  Thể lệ dự thi, cách thức tính điểm và xét giải
-                </h4>
-                <span className="text-[10px] text-indigo-100">Quy định chi tiết cho thí sinh</span>
+              <div className="aspect-[16/9] w-full bg-gradient-to-r from-blue-700 via-indigo-600 to-sky-600 p-4 sm:p-5 text-white flex flex-col justify-between relative overflow-hidden">
+                <div className="flex items-center justify-between z-10">
+                  <span className="text-[11px] font-black text-indigo-100 uppercase tracking-wider flex items-center space-x-1.5">
+                    <FileText className="w-3.5 h-3.5" />
+                    <span>Quy chế &amp; Thể lệ</span>
+                  </span>
+                  {contest.rulesFileUrl ? (
+                    <span className="bg-emerald-500/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center space-x-1 shadow-2xs">
+                      <FileCheck className="w-3 h-3" />
+                      <span>{contest.rulesFileUrl.toLowerCase().endsWith(".pdf") ? "VĂN BẢN PDF" : "HÌNH ẢNH"}</span>
+                    </span>
+                  ) : (
+                    <span className="bg-white/20 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      QUY CHẾ
+                    </span>
+                  )}
+                </div>
+
+                <div className="my-auto py-2 z-10">
+                  <h4 className="text-sm sm:text-base font-black uppercase text-white drop-shadow-sm line-clamp-2 leading-snug group-hover:text-amber-200 transition-colors">
+                    Thể lệ dự thi, cách thức tính điểm và xét giải
+                  </h4>
+                  <p className="text-[11px] text-indigo-100 mt-1 line-clamp-1 flex items-center space-x-1">
+                    <span>Định dạng:</span>
+                    <span className="font-semibold text-white">
+                      {contest.questionCount || 20} câu trắc nghiệm • {contest.durationMinutes || 15} phút/lượt
+                    </span>
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-indigo-100 z-10 pt-1 border-t border-white/15">
+                  <span className="truncate">
+                    {contest.rulesFileUrl ? "Đã đính kèm văn bản thể lệ chính thức" : "Quy định chi tiết cho thí sinh"}
+                  </span>
+                  <Eye className="w-3.5 h-3.5 text-indigo-200 group-hover:scale-125 transition-transform shrink-0 ml-1" />
+                </div>
               </div>
-              <div className="p-4 text-center">
-                <span className="text-xs font-black text-[#0052CC] group-hover:underline uppercase tracking-wide">
-                  THỂ LỆ CUỘC THI
+
+              <div className="p-4 text-center bg-white flex items-center justify-center space-x-2 border-t border-slate-100">
+                <span className="text-xs sm:text-sm font-black text-[#0052CC] group-hover:text-blue-700 uppercase tracking-wide flex items-center space-x-1.5">
+                  <span>THỂ LỆ CUỘC THI</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
                 </span>
               </div>
             </div>
@@ -1623,15 +1699,34 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </div>
         )}
 
-        {/* Modal Thông tin Thể lệ / Kế hoạch (Ảnh 3: Hỗ trợ hiển thị và cập nhật file PDF hoặc Hình ảnh) */}
+        {/* Modal Thông tin Thể lệ / Kế hoạch (Ảnh 1 & 2: Đã loại bỏ hoàn toàn các dòng chữ thừa; hỗ trợ xem và đính kèm file) */}
         {infoModal && (() => {
           const isRules = infoModal === "rules";
           const currentFileUrl = isRules ? contest.rulesFileUrl : contest.planFileUrl;
           const isPdf = currentFileUrl && (currentFileUrl.toLowerCase().endsWith(".pdf") || currentFileUrl.includes(".pdf"));
           const isImg = currentFileUrl && (!isPdf || currentFileUrl.match(/\.(jpeg|jpg|png|webp|gif)($|\?)/i) || currentFileUrl.startsWith("data:image/"));
-          const htmlContent = isRules
-            ? (contest.rulesHtml || (contest.shortDesc ? `<p>${contest.shortDesc}</p>` : "<p>Thông tin thể lệ đang được cập nhật...</p>"))
-            : (contest.planHtml || contest.announcement || "<p>Kế hoạch chi tiết của cuộc thi do Ban tổ chức ban hành...</p>");
+          
+          // Lọc sạch nội dung theo yêu cầu Ảnh 1 và Ảnh 2
+          let cleanContent = "";
+          if (isRules) {
+            let rawRules = contest.rulesHtml || "";
+            // Bỏ dòng chữ "Mỗi thí sinh được tham gia tối đa 3 lần để tìm hiểu, bằng cách trắc nghiệm." (Ảnh 1)
+            rawRules = rawRules
+              .replace(/<p[^>]*>.*?Mỗi thí sinh được tham gia tối đa.*?<\/p>/gi, "")
+              .replace(/Mỗi thí sinh được tham gia tối đa.*?trắc nghiệm\./gi, "")
+              .replace(/Mỗi thí sinh được tham gia tối đa.*?[!\.]/gi, "")
+              .trim();
+            cleanContent = rawRules;
+          } else {
+            let rawPlan = contest.planHtml || "";
+            // Bỏ dòng chữ "Đề nghị các đồng chí tham gia đúng tiến độ" (Ảnh 2)
+            rawPlan = rawPlan
+              .replace(/<p[^>]*>.*?Đề nghị các đồng chí.*?<\/p>/gi, "")
+              .replace(/Đề nghị các đồng chí tham gia đúng tiến độ/gi, "")
+              .replace(/Đề nghị các đồng chí.*?[!\.]/gi, "")
+              .trim();
+            cleanContent = rawPlan;
+          }
 
           return (
             <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
@@ -1700,11 +1795,19 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                   </div>
                 )}
 
-                {/* Nội dung văn bản */}
-                <div
-                  className="text-xs sm:text-sm text-slate-700 space-y-3 leading-relaxed mb-4 prose max-w-none"
-                  dangerouslySetInnerHTML={{ __html: htmlContent }}
-                />
+                {/* Nội dung văn bản (Đã loại bỏ sạch text thừa theo Ảnh 1 và Ảnh 2) */}
+                {cleanContent ? (
+                  <div
+                    className="text-xs sm:text-sm text-slate-700 space-y-3 leading-relaxed mb-4 prose max-w-none"
+                    dangerouslySetInnerHTML={{ __html: cleanContent }}
+                  />
+                ) : !currentFileUrl ? (
+                  <div className="text-xs sm:text-sm text-slate-500 italic py-2">
+                    {isRules
+                      ? "Thông tin thể lệ chính thức đang được Ban tổ chức cập nhật..."
+                      : "Kế hoạch tổ chức chi tiết đang được Ban tổ chức cập nhật..."}
+                  </div>
+                ) : null}
 
                 {/* Khu vực hiển thị file đính kèm nổi lên trên (Ảnh 3: PDF / Hình ảnh) */}
                 {currentFileUrl && (

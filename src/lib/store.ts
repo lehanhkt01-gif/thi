@@ -500,7 +500,7 @@ class DataStore {
       hasTieBreaker: true,
       status: "PUBLISHED",
       themeColor: "#DC2626",
-      shortDesc: "Mỗi thí sinh được tham gia tối đa 3 lượt để tìm hiểu, bằng cách trắc nghiệm.",
+      shortDesc: "",
       requiredFields: "Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh, Thôn/Buôn/Đơn vị",
       createdAt: "2026-03-01T08:00:00Z",
       units: defaultUnits,
