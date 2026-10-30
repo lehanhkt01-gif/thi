@@ -12,7 +12,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") || undefined;
     const search = searchParams.get("search") || undefined;
 
-    const users = store.getUsers({ role, status, search });
+    const users = store.getUsers({ role, status, search }).map((u) => ({
+      ...u,
+      password: u.password ? "••••••••" : undefined,
+    }));
     return NextResponse.json(
       { success: true, users, total: users.length },
       {
@@ -47,7 +50,7 @@ export async function POST(request: NextRequest) {
       role: role || "USER",
       status: status || "PENDING",
       organizationName: organizationName || "Xã Ea Súp",
-      password: password || "123456",
+      password: password || "12345678@",
     });
 
     return NextResponse.json({

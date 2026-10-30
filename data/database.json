@@ -1144,7 +1144,7 @@
       "name": "Lê Hạnh - Quản trị viên Ea Súp",
       "email": "lehanhkt01@gmail.com",
       "phone": "0888023023",
-      "password": "Hh@$123456",
+      "password": "12345678@",
       "role": "ADMIN",
       "status": "APPROVED",
       "organizationName": "Ủy ban Nhân dân xã Ea Súp",
@@ -1189,10 +1189,10 @@
     },
     {
       "id": "user-regular-2",
-      "name": "Lê Hồng Zen",
-      "email": "zipzenhanh@gmail.com",
+      "name": "Người dùng Thử nghiệm Ea Súp",
+      "email": "user@easupso.com",
       "phone": "0934567890",
-      "password": "Hh@$123456",
+      "password": "12345678@",
       "role": "USER",
       "status": "APPROVED",
       "organizationName": "Cán bộ Đơn vị Xã Ea Súp",
@@ -2004,5 +2004,5 @@
       "submittedAt": "2026-10-30T01:51:57.628Z"
     }
   ],
-  "lastSavedAt": "2026-10-30T02:21:43.070Z"
+  "lastSavedAt": "2026-10-30T02:47:13.732Z"
 }

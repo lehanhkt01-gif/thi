@@ -46,12 +46,14 @@ import {
   UserX,
   ShieldAlert,
   Key,
+  KeyRound,
   Upload,
   FolderPlus,
   Folder,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
+import ChangePasswordModal from "@/components/ChangePasswordModal";
 
 export default function AdminDashboardPage() {
   // Navigation State
@@ -608,6 +610,7 @@ export default function AdminDashboardPage() {
   const [adminLoginRole, setAdminLoginRole] = useState<"ADMIN" | "USER">("ADMIN");
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [showUserFormPassword, setShowUserFormPassword] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [userFormData, setUserFormData] = useState({
     name: "",
     email: "",
@@ -678,6 +681,29 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Đặt lại mật khẩu người dùng về mặc định 12345678@
+  const handleResetUserPassword = async (u: any) => {
+    if (!confirm(`Bạn có chắc chắn muốn đặt lại mật khẩu của "${u.name}" về mật khẩu mặc định (12345678@)?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/users/${u.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "RESET_PASSWORD" }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        alert(data.message || `Đã đặt lại mật khẩu cho ${u.name} về 12345678@`);
+        loadUsers();
+      } else {
+        alert(data.error || "Có lỗi xảy ra khi đặt lại mật khẩu");
+      }
+    } catch (e: any) {
+      alert("Lỗi: " + e.message);
+    }
+  };
+
   const handleDeleteUser = async (id: string, name: string) => {
     if (!confirm(`Bạn có chắc chắn muốn xóa tài khoản "${name}" khỏi hệ thống? Hành động này không thể hoàn tác.`)) {
       return;
@@ -702,7 +728,7 @@ export default function AdminDashboardPage() {
       name: "",
       email: "",
       phone: "",
-      password: "123",
+      password: "12345678@",
       role: "USER",
       status: "APPROVED",
       organizationName: "Xã Ea Súp",
@@ -944,6 +970,15 @@ export default function AdminDashboardPage() {
                 >
                   {authUser.role === "ADMIN" ? "Admin (Toàn quyền)" : "Người dùng"}
                 </span>
+                {/* Nút Đổi mật khẩu tài khoản */}
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordModal(true)}
+                  className="p-1 rounded-full text-slate-500 hover:text-amber-600 hover:bg-amber-100/60 transition-colors cursor-pointer"
+                  title="Đổi mật khẩu tài khoản"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                </button>
                 <button
                   type="button"
                   onClick={handleLogout}
@@ -2379,6 +2414,16 @@ export default function AdminDashboardPage() {
                                       </>
                                     )}
 
+                                    {/* Nút Đặt lại mật khẩu về mặc định 12345678@ */}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleResetUserPassword(u)}
+                                      className="p-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
+                                      title="Đặt lại mật khẩu về mặc định (12345678@)"
+                                    >
+                                      <KeyRound className="w-3.5 h-3.5" />
+                                    </button>
+
                                     {/* Nút Chỉnh sửa */}
                                     <button
                                       type="button"
@@ -3359,6 +3404,13 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
+
+      {/* MODAL ĐỔI MẬT KHẨU TÀI KHOẢN (NGƯỜI DÙNG & ADMIN) */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        user={authUser}
+      />
     </div>
   );
 }

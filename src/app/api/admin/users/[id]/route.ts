@@ -39,6 +39,17 @@ export async function PUT(
       });
     }
 
+    // Hành động đặt lại mật khẩu về mật khẩu mặc định 12345678@
+    if (body.action === "RESET_PASSWORD") {
+      const DEFAULT_RESET_PASSWORD = process.env.DEFAULT_RESET_PASSWORD || "12345678@";
+      const updated = store.updateUserPassword(id, DEFAULT_RESET_PASSWORD);
+      return NextResponse.json({
+        success: true,
+        message: `Đã đặt lại mật khẩu cho tài khoản "${existing.name}" về mật khẩu mặc định: 12345678@`,
+        user: updated,
+      });
+    }
+
     // Cập nhật thông tin thông thường
     const updated = store.updateUser(id, body);
     return NextResponse.json({

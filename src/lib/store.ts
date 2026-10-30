@@ -869,7 +869,7 @@ class DataStore {
           name: adm.name,
           email: adm.email,
           phone: adm.phone,
-          password: "admin123",
+          password: process.env.ADMIN_DEFAULT_PASSWORD || process.env.ADMIN_PASSWORD || "12345678@",
           role: "ADMIN",
           status: "APPROVED",
           organizationName: "Ủy ban Nhân dân xã Ea Súp",
@@ -992,6 +992,31 @@ class DataStore {
     if (!user) return null;
     user.role = role;
     this.saveToDisk();
+    return user;
+  }
+
+  public updateUserPassword(id: string, newPassword: string): UserModel | null {
+    this.loadFromDisk(true);
+    const user = this.users.find((u) => u.id === id);
+    if (!user) return null;
+    user.password = newPassword;
+    this.saveToDisk();
+
+    // Nếu tài khoản là Admin toàn quyền, ghi tự động vào file .env
+    const SYSTEM_ADMIN_EMAILS = [
+      "lehanhkt01@gmail.com",
+      "admin@easupso.com",
+      "easupsohoa@gmail.com",
+    ];
+    if (typeof window === "undefined" && (user.role === "ADMIN" || SYSTEM_ADMIN_EMAILS.includes(user.email.toLowerCase()))) {
+      try {
+        const { updateEnvAdminPassword } = require("./env");
+        updateEnvAdminPassword(newPassword);
+      } catch (err) {
+        console.error("[DataStore] Lỗi cập nhật mật khẩu Admin vào .env:", err);
+      }
+    }
+
     return user;
   }
 

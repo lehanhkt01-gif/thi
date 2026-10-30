@@ -18,7 +18,9 @@ import {
   Sparkles,
   Eye,
   EyeOff,
+  KeyRound,
 } from "lucide-react";
+import ChangePasswordModal from "./ChangePasswordModal";
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -29,6 +31,7 @@ export default function Navbar() {
   // Authentication State (Admin & Người dùng)
   const [authUser, setAuthUser] = useState<any>(null);
   const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [selectedRole, setSelectedRole] = useState<"ADMIN" | "USER">("ADMIN");
   const [emailInput, setEmailInput] = useState("");
@@ -337,6 +340,16 @@ export default function Navbar() {
                   <span className={`w-2 h-2 rounded-full shrink-0 ${authUser.role === "ADMIN" ? "bg-red-600" : "bg-blue-600"}`}></span>
                   <span className="truncate">{authUser.name}</span>
                 </div>
+
+                {/* Nút Đổi mật khẩu */}
+                <button
+                  type="button"
+                  onClick={() => setShowChangePasswordModal(true)}
+                  className="p-1.5 rounded-full text-slate-500 hover:text-amber-600 hover:bg-amber-50 transition-colors cursor-pointer"
+                  title="Đổi mật khẩu tài khoản"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                </button>
 
                 {/* Nút Đăng xuất */}
                 <button
@@ -652,6 +665,13 @@ export default function Navbar() {
           </div>
         </div>
       )}
+
+      {/* MODAL ĐỔI MẬT KHẨU TÀI KHOẢN (NGƯỜI DÙNG & ADMIN) */}
+      <ChangePasswordModal
+        isOpen={showChangePasswordModal}
+        onClose={() => setShowChangePasswordModal(false)}
+        user={authUser}
+      />
     </header>
   );
 }

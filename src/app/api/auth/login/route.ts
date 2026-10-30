@@ -51,17 +51,15 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 1. Kiểm tra mật khẩu (nếu user có mật khẩu)
-    if (user.password && user.password !== password) {
-      // Nếu là tài khoản Quản trị viên hệ thống, cập nhật mật khẩu mới và cho phép đăng nhập
-      if (isSystemAdmin) {
-        user = store.updateUser(user.id, { password }) || user;
-      } else {
-        return NextResponse.json(
-          { success: false, error: "Mật khẩu đăng nhập không chính xác! Vui lòng thử lại." },
-          { status: 401 }
-        );
-      }
+    // 1. Kiểm tra mật khẩu (so khớp với mật khẩu đã lưu hoặc mật khẩu trong biến môi trường .env)
+    const envAdminPassword = process.env.ADMIN_PASSWORD || process.env.ADMIN_DEFAULT_PASSWORD;
+    const isValidAdminEnvPass = isSystemAdmin && envAdminPassword && password === envAdminPassword;
+
+    if (user.password && user.password !== password && !isValidAdminEnvPass) {
+      return NextResponse.json(
+        { success: false, error: "Mật khẩu đăng nhập không chính xác! Vui lòng thử lại." },
+        { status: 401 }
+      );
     }
 
     // Đảm bảo tài khoản Quản trị viên hệ thống luôn ở trạng thái APPROVED và role ADMIN
