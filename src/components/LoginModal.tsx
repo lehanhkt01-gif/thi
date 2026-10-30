@@ -75,6 +75,19 @@ export default function LoginModal({
   // Khung hỗ trợ nhập tài khoản Google trực tiếp trên máy
   const [showQuickBox, setShowQuickBox] = useState(true);
   const [emailQuickLogin, setEmailQuickLogin] = useState("");
+  const quickEmailInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Tự động khôi phục tài khoản Google đã lưu trên máy này
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const saved = localStorage.getItem("easup_google_email");
+        if (saved && !emailQuickLogin) {
+          setEmailQuickLogin(saved);
+        }
+      } catch (e) {}
+    }
+  }, [isOpen]);
 
   // Thông tin đăng nhập mật khẩu
   const [emailInput, setEmailInput] = useState("");
@@ -143,6 +156,9 @@ export default function LoginModal({
         setIsGoogleLoading(false);
         return;
       }
+      if (data.user?.email && typeof window !== "undefined") {
+        localStorage.setItem("easup_google_email", data.user.email);
+      }
       syncAuthSession(data.user);
       if (onSuccess) onSuccess(data.user);
       onClose();
@@ -153,53 +169,13 @@ export default function LoginModal({
     }
   };
 
-  // 1. Hàm trigger đăng nhập bằng Google chuẩn
-  const handleGoogleLogin = async () => {
-    setIsGoogleLoading(true);
-
-    try {
-      // 1.1 Hỗ trợ trigger NextAuth nếu có cấu hình signIn
-      const nextAuth = typeof window !== "undefined" ? (window as any).nextAuth : null;
-      if (nextAuth && typeof nextAuth.signIn === "function") {
-        await nextAuth.signIn("google", { callbackUrl: window.location.href });
-        return;
-      }
-
-      // 1.2 Kích hoạt Google Identity Services (GIS) native prompt
-      const google = typeof window !== "undefined" ? (window as any).google : null;
-      if (googleClientId && google?.accounts?.id) {
-        google.accounts.id.prompt((notification: any) => {
-          if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
-            setShowQuickBox(true);
-          }
-          setIsGoogleLoading(false);
-        });
-        return;
-      }
-
-      // 1.3 Mở khung nhập tài khoản Google trên máy
-      setShowQuickBox(true);
-    } catch (err: any) {
-      console.warn("Lỗi khởi tạo Google Auth:", err);
-      setShowQuickBox(true);
-    } finally {
-      setIsGoogleLoading(false);
-    }
-  };
-
-  // 2. Hàm xử lý đăng nhập Google nhanh theo tài khoản trên máy
-  const handleQuickEmailLogin = async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-
-    const cleanEmail = emailQuickLogin.trim().toLowerCase();
-    if (!cleanEmail) {
-      alert("Vui lòng nhập địa chỉ tài khoản Google (@gmail.com) trên máy bạn!");
-      return;
-    }
-
+  // Hàm cốt lõi thực hiện đăng nhập tài khoản Google và đồng bộ hệ thống
+  const executeGoogleLoginWithEmail = async (rawEmail: string) => {
+    const cleanEmail = rawEmail.trim().toLowerCase();
+    if (!cleanEmail) return false;
     if (!cleanEmail.includes("@")) {
-      alert("Địa chỉ email không đúng định dạng!");
-      return;
+      alert("Địa chỉ email không đúng định dạng (@gmail.com)!");
+      return false;
     }
 
     setIsGoogleLoading(true);
@@ -216,18 +192,105 @@ export default function LoginModal({
       const data = await res.json();
       if (!res.ok || !data.success) {
         alert(data.error || "Không thể đăng nhập tài khoản Google lúc này!");
-        setIsGoogleLoading(false);
-        return;
+        return false;
+      }
+
+      // Lưu lại email của máy này vào localStorage để các lần sau đăng nhập tức thì
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("easup_google_email", cleanEmail);
+        } catch (e) {}
       }
 
       syncAuthSession(data.user);
       if (onSuccess) onSuccess(data.user);
       onClose();
+      return true;
     } catch (err: any) {
       alert("Lỗi kết nối khi xác thực Google: " + err.message);
+      return false;
     } finally {
       setIsGoogleLoading(false);
     }
+  };
+
+  // 1. Hàm trigger đăng nhập bằng Google chuẩn (Click nút to)
+  const handleGoogleLogin = async () => {
+    // 1.1 Nếu đã có sẵn email trong ô nhập trên máy -> Đăng nhập luôn
+    if (emailQuickLogin.trim()) {
+      await executeGoogleLoginWithEmail(emailQuickLogin);
+      return;
+    }
+
+    // 1.2 Nếu có tài khoản Google đã từng lưu trên máy này
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("easup_google_email");
+      if (saved && saved.includes("@")) {
+        setEmailQuickLogin(saved);
+        await executeGoogleLoginWithEmail(saved);
+        return;
+      }
+    }
+
+    // 1.3 Nếu cấu hình NextAuth
+    const nextAuth = typeof window !== "undefined" ? (window as any).nextAuth : null;
+    if (nextAuth && typeof nextAuth.signIn === "function") {
+      setIsGoogleLoading(true);
+      try {
+        await nextAuth.signIn("google", { callbackUrl: window.location.href });
+        return;
+      } catch (err) {
+        console.warn("Lỗi NextAuth signIn:", err);
+      } finally {
+        setIsGoogleLoading(false);
+      }
+    }
+
+    // 1.4 Nếu có Google Identity Services client ID
+    const google = typeof window !== "undefined" ? (window as any).google : null;
+    if (googleClientId && google?.accounts?.id) {
+      setIsGoogleLoading(true);
+      google.accounts.id.prompt((notification: any) => {
+        if (notification.isNotDisplayed() || notification.isSkippedMoment()) {
+          setShowQuickBox(true);
+          promptForEmail();
+        }
+        setIsGoogleLoading(false);
+      });
+      return;
+    }
+
+    // 1.5 Mở khung nhập & yêu cầu người dùng xác nhận email trên máy
+    promptForEmail();
+  };
+
+  // Mở popup hoặc focus vào ô nhập để người dùng gõ email Google
+  const promptForEmail = () => {
+    setShowQuickBox(true);
+    setTimeout(() => {
+      quickEmailInputRef.current?.focus();
+      quickEmailInputRef.current?.select();
+    }, 100);
+
+    const entered = window.prompt(
+      "Nhập địa chỉ tài khoản Google (@gmail.com) trên thiết bị của bạn để đăng nhập:",
+      emailQuickLogin || ""
+    );
+    if (entered && entered.trim()) {
+      setEmailQuickLogin(entered.trim());
+      executeGoogleLoginWithEmail(entered.trim());
+    }
+  };
+
+  // 2. Hàm xử lý đăng nhập Google nhanh theo nút "Xác nhận"
+  const handleQuickEmailLogin = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!emailQuickLogin.trim()) {
+      alert("Vui lòng nhập địa chỉ tài khoản Google (@gmail.com) trên máy bạn!");
+      quickEmailInputRef.current?.focus();
+      return;
+    }
+    await executeGoogleLoginWithEmail(emailQuickLogin);
   };
 
   // 3. Xử lý đăng nhập / đăng ký qua mật khẩu
@@ -414,12 +477,13 @@ export default function LoginModal({
 
                 <div className="flex items-center gap-2">
                   <input
+                    ref={quickEmailInputRef}
                     type="email"
                     required
                     value={emailQuickLogin}
                     onChange={(e) => setEmailQuickLogin(e.target.value)}
                     placeholder="tai-khoan-cua-ban@gmail.com"
-                    className="border border-slate-200 flex-1 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 rounded-xl bg-white"
+                    className="border border-slate-200 flex-1 px-3 py-2 text-sm text-slate-800 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 rounded-xl bg-white transition-all"
                   />
                   <button
                     type="submit"
