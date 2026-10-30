@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   CheckCircle2,
   Users,
+  Lock,
 } from "lucide-react";
 import SparklineChart from "@/components/SparklineChart";
 import FloatingActionBar from "@/components/FloatingActionBar";
@@ -58,6 +59,19 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
   }, []);
 
   const isAdmin = authUser?.role === "ADMIN";
+  const isCreator =
+    !!authUser &&
+    Boolean(
+      (data?.creatorEmail && authUser.email && data.creatorEmail.toLowerCase() === authUser.email.toLowerCase()) ||
+      (data?.creatorId && authUser.id && data.creatorId === authUser.id) ||
+      (data?.organizerEmail && authUser.email && data.organizerEmail.toLowerCase() === authUser.email.toLowerCase())
+    );
+  const isContestEnded =
+    data?.status === "CLOSED" ||
+    data?.status === "ARCHIVED" ||
+    (data?.endTime && !isNaN(new Date(data.endTime).getTime()) && new Date(data.endTime).getTime() <= Date.now());
+
+  const canViewResults = isAdmin || isCreator || isContestEnded;
 
   const fetchResults = () => {
     setLoading(true);
@@ -137,11 +151,45 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
             href={`/thi/${slug}`}
             className="btn-admin-primary text-xs px-4 py-2.5 font-bold"
           >
-            Vào thi ngay
+            Vào phòng thi
           </Link>
         </div>
       </div>
 
+      {/* Khi cuộc thi đang diễn ra và người xem KHÔNG PHẢI là Admin hay Người tạo cuộc thi: BẢO MẬT KẾT QUẢ (Ảnh 2) */}
+      {!loading && data && !canViewResults ? (
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center my-8 shadow-xs max-w-2xl mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center mx-auto mb-4 shadow-xs">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-black text-slate-900 mb-2">
+            Kết Quả Cuộc Thi Đang Được Bảo Mật
+          </h2>
+          <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+            Cuộc thi hiện đang trong thời gian diễn ra. Bảng xếp hạng và kết quả thi sẽ được tự động công bố công khai sau khi cuộc thi chính thức kết thúc{data.endTime ? ` (dự kiến ${new Date(data.endTime).toLocaleDateString("vi-VN")})` : ""}.
+          </p>
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-600 mb-6 flex items-center justify-center space-x-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>Hiện tại chỉ Quản trị viên (Admin) và Người tạo cuộc thi / Ban Tổ chức mới có quyền theo dõi số liệu.</span>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+            <Link
+              href={`/thi/${slug}`}
+              className="btn-admin-primary px-6 py-3 font-bold text-sm rounded-full shadow-md w-full sm:w-auto flex items-center justify-center space-x-2"
+            >
+              <span>Vào phòng thi</span>
+              <ChevronRight className="w-4 h-4" />
+            </Link>
+            <Link
+              href="/"
+              className="px-6 py-3 font-bold text-sm rounded-full border border-slate-300 text-slate-700 hover:bg-slate-50 w-full sm:w-auto"
+            >
+              Về trang chủ
+            </Link>
+          </div>
+        </div>
+      ) : (
+        <>
       {/* 2 Sparkline Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 my-8">
         <SparklineChart
@@ -320,6 +368,8 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
           </div>
         )}
       </div>
+        </>
+      )}
 
       {/* Floating Action Bar - Chỉ hiển thị cho Quản trị viên (ADMIN) */}
       {isAdmin && <FloatingActionBar contestSlug={slug} />}

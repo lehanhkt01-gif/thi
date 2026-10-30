@@ -155,6 +155,22 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     };
   }, []);
 
+  // Phân quyền xem ô công bố kết quả (Ảnh 3): chỉ admin, người tạo cuộc thi hoặc khi cuộc thi kết thúc
+  const isAdmin = authUser?.role === "ADMIN";
+  const isCreator =
+    !!authUser &&
+    Boolean(
+      (contest?.creatorEmail && authUser.email && contest.creatorEmail.toLowerCase() === authUser.email.toLowerCase()) ||
+      (contest?.creatorId && authUser.id && contest.creatorId === authUser.id) ||
+      (contest?.organizerEmail && authUser.email && contest.organizerEmail.toLowerCase() === authUser.email.toLowerCase())
+    );
+  const isContestEnded =
+    contest?.status === "CLOSED" ||
+    contest?.status === "ARCHIVED" ||
+    (contest?.endTime && !isNaN(new Date(contest.endTime).getTime()) && new Date(contest.endTime).getTime() <= Date.now());
+
+  const canViewResults = isAdmin || isCreator || isContestEnded;
+
   // Leaderboard filters & state (Ảnh 4)
   const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [rankTab, setRankTab] = useState<"personal" | "group">("personal");
@@ -1019,7 +1035,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
                 className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-bold text-white shadow-xs hover:opacity-90 transition-opacity cursor-pointer"
               >
-                Vào thi ngay ➔
+                Vào phòng thi ➔
               </button>
             </div>
           ) : (
@@ -1190,7 +1206,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             Tin từ ban tổ chức
           </h2>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className={`grid grid-cols-1 ${canViewResults ? "md:grid-cols-3" : "md:grid-cols-2 max-w-4xl mx-auto"} gap-6`}>
             {/* Card 1: KẾ HOẠCH CUỘC THI */}
             <div
               onClick={() => setInfoModal("plan")}
@@ -1229,24 +1245,26 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
               </div>
             </div>
 
-            {/* Card 3: KẾT QUẢ CUỘC THI */}
-            <Link
-              href={`/ket-qua/${slug}`}
-              className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer group block"
-            >
-              <div className="aspect-[16/9] w-full bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 p-4 text-white flex flex-col justify-between">
-                <span className="text-[10px] font-bold text-amber-200 uppercase">Công bố kết quả</span>
-                <h4 className="text-sm font-black uppercase text-white drop-shadow-sm line-clamp-2">
-                  Bảng vàng vinh danh &amp; Thống kê số liệu
-                </h4>
-                <span className="text-[10px] text-amber-100">Cập nhật liên tục từ máy chủ</span>
-              </div>
-              <div className="p-4 text-center">
-                <span className="text-xs font-black text-[#0052CC] group-hover:underline uppercase tracking-wide">
-                  KẾT QUẢ CUỘC THI
-                </span>
-              </div>
-            </Link>
+            {/* Card 3: KẾT QUẢ CUỘC THI - Chỉ hiển thị cho Admin, Người tạo cuộc thi hoặc khi cuộc thi kết thúc (Ảnh 3) */}
+            {canViewResults && (
+              <Link
+                href={`/ket-qua/${slug}`}
+                className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all cursor-pointer group block"
+              >
+                <div className="aspect-[16/9] w-full bg-gradient-to-r from-amber-600 via-orange-600 to-red-600 p-4 text-white flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-amber-200 uppercase">Công bố kết quả</span>
+                  <h4 className="text-sm font-black uppercase text-white drop-shadow-sm line-clamp-2">
+                    Bảng vàng vinh danh &amp; Thống kê số liệu
+                  </h4>
+                  <span className="text-[10px] text-amber-100">Cập nhật liên tục từ máy chủ</span>
+                </div>
+                <div className="p-4 text-center">
+                  <span className="text-xs font-black text-[#0052CC] group-hover:underline uppercase tracking-wide">
+                    KẾT QUẢ CUỘC THI
+                  </span>
+                </div>
+              </Link>
+            )}
           </div>
         </section>
 
