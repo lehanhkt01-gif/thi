@@ -31,59 +31,56 @@ export default function HomePage() {
 
         {/* HERO GRID 2 CỘT */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
-          {/* Cột Trái: Vị trí Ảnh 3 được thay thế hoàn toàn bằng Ảnh 2, và Ảnh 1 (3 chỉ số thống kê) thu gọn tối thiểu nằm nổi đè lên phía dưới */}
-          <div className="lg:col-span-5 relative rounded-2xl overflow-hidden shadow-xs border border-slate-200 bg-white flex flex-col justify-between group">
-            {/* Ảnh 2: Banner đồ họa giới thiệu Thi Trực Tuyến */}
-            <div className="relative w-full h-full min-h-[300px] sm:min-h-[360px] lg:min-h-[390px] flex items-center justify-center bg-slate-100">
+          {/* Cột Trái: Banner đồ họa giới thiệu Thi Trực Tuyến nằm trọn vẹn trong khung, kèm 3 chỉ số thống kê gọn gàng bên dưới không che khuất hình ảnh */}
+          <div className="lg:col-span-5 rounded-2xl overflow-hidden shadow-xs border border-slate-200 bg-white flex flex-col justify-between group">
+            {/* Vùng hiển thị hình ảnh: Căn chỉnh để hình ảnh nằm lọt hoàn toàn trong khung, tỷ lệ chuẩn không cắt xén */}
+            <div className="relative w-full flex-1 flex items-center justify-center p-2.5 sm:p-3 bg-gradient-to-b from-sky-50/60 via-white to-slate-50/60">
               <img
                 src="/images/promo_thi_tructuyen.jpg"
                 alt="THI TRỰC TUYẾN giúp bạn dễ dàng tổ chức, quản lý cuộc thi hiệu quả"
-                className="w-full h-full object-cover object-top block transition-transform duration-500 group-hover:scale-[1.01]"
+                className="w-full h-auto max-h-[380px] object-contain block rounded-xl shadow-xs transition-transform duration-300 group-hover:scale-[1.01]"
               />
+            </div>
 
-              {/* Lớp phủ chuyển sắc nhẹ ở đáy */}
-              <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-slate-950/70 via-slate-950/30 to-transparent pointer-events-none"></div>
-
-              {/* Ảnh 1: Thu gọn tối thiểu nằm nổi đè lên phía dưới của Ảnh 2 */}
-              <div className="absolute bottom-2 sm:bottom-2.5 inset-x-2 sm:inset-x-2.5 z-10">
-                <div className="grid grid-cols-3 gap-1 sm:gap-1.5 p-1 sm:p-1.5 bg-white/95 backdrop-blur-md rounded-xl border border-white/60 shadow-lg text-slate-800">
-                  {/* Card 1: Sắp diễn ra */}
-                  <div className="bg-slate-50/90 hover:bg-white rounded-lg p-1.5 border border-slate-200/80 transition-colors flex items-center justify-between">
-                    <div className="min-w-0 pr-1">
-                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 block truncate">Sắp diễn ra</span>
-                      <div className="text-xs sm:text-sm font-black text-slate-900 leading-none mt-0.5">
-                        {stats.upcomingContests ?? 0}
-                      </div>
-                    </div>
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            {/* 3 chỉ số thống kê thu gọn: Nằm gọn gàng bên dưới, tuyệt đối không che khuất hình ảnh */}
+            <div className="p-2 sm:p-2.5 bg-slate-50/90 border-t border-slate-200/70">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+                {/* Card 1: Sắp diễn ra */}
+                <div className="bg-white hover:bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-2xs transition-colors flex items-center justify-between">
+                  <div className="min-w-0 pr-1">
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block truncate">Sắp diễn ra</span>
+                    <div className="text-sm sm:text-base font-black text-slate-900 leading-none mt-0.5">
+                      {stats.upcomingContests ?? 0}
                     </div>
                   </div>
+                  <div className="w-6 h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <Calendar className="w-3.5 h-3.5" />
+                  </div>
+                </div>
 
-                  {/* Card 2: Đang diễn ra */}
-                  <div className="bg-slate-50/90 hover:bg-white rounded-lg p-1.5 border border-slate-200/80 transition-colors flex items-center justify-between">
-                    <div className="min-w-0 pr-1">
-                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 block truncate">Đang diễn ra</span>
-                      <div className="text-xs sm:text-sm font-black text-red-600 leading-none mt-0.5">
-                        {stats.activeContests ?? (contests.filter((c: any) => c.status === "PUBLISHED").length || 0)}
-                      </div>
-                    </div>
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <Calendar className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+                {/* Card 2: Đang diễn ra */}
+                <div className="bg-white hover:bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-2xs transition-colors flex items-center justify-between">
+                  <div className="min-w-0 pr-1">
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block truncate">Đang diễn ra</span>
+                    <div className="text-sm sm:text-base font-black text-red-600 leading-none mt-0.5">
+                      {stats.activeContests ?? (contests.filter((c: any) => c.status === "PUBLISHED").length || 0)}
                     </div>
                   </div>
+                  <div className="w-6 h-6 rounded-md bg-red-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <Calendar className="w-3.5 h-3.5" />
+                  </div>
+                </div>
 
-                  {/* Card 3: 7 ngày qua */}
-                  <div className="bg-slate-50/90 hover:bg-white rounded-lg p-1.5 border border-slate-200/80 transition-colors flex items-center justify-between">
-                    <div className="min-w-0 pr-1">
-                      <span className="text-[9px] sm:text-[10px] font-semibold text-slate-500 block truncate">7 ngày qua</span>
-                      <div className="text-xs sm:text-sm font-black text-emerald-700 leading-none mt-0.5">
-                        {new Intl.NumberFormat("vi-VN").format(stats.totalAttempts7Days ?? stats.totalAttempts ?? 0)}
-                      </div>
+                {/* Card 3: 7 ngày qua */}
+                <div className="bg-white hover:bg-slate-50 rounded-lg p-2 border border-slate-200 shadow-2xs transition-colors flex items-center justify-between">
+                  <div className="min-w-0 pr-1">
+                    <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 block truncate">7 ngày qua</span>
+                    <div className="text-sm sm:text-base font-black text-emerald-700 leading-none mt-0.5">
+                      {new Intl.NumberFormat("vi-VN").format(stats.totalAttempts7Days ?? stats.totalAttempts ?? 0)}
                     </div>
-                    <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
-                      <BarChart3 className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                    </div>
+                  </div>
+                  <div className="w-6 h-6 rounded-md bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-2xs">
+                    <BarChart3 className="w-3.5 h-3.5" />
                   </div>
                 </div>
               </div>

@@ -251,10 +251,8 @@ export default function Navbar() {
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <span className="font-semibold uppercase tracking-wider">
-              Hệ Thống Tổ Chức Cuộc Thi Trực Tuyến Đa Tổ Chức
+              HỆ THỐNG THI ĐA TỔ CHỨC
             </span>
-            <span className="hidden sm:inline text-red-200">•</span>
-            <span className="hidden sm:inline text-red-100">Bảo mật Zero-Trust &amp; Đồng hồ máy chủ</span>
           </div>
           <div className="flex items-center space-x-4 text-slate-100">
             <a
@@ -277,15 +275,12 @@ export default function Navbar() {
             <Link href="/" className="flex items-center space-x-2.5 group">
               <img
                 src="/logo.png"
-                alt="Logo Cuộc thi trực tuyến Xã Ea Súp"
+                alt="Logo Cuộc thi trực tuyến"
                 className="w-9 h-9 sm:w-10 sm:h-10 object-contain rounded-full shadow-xs group-hover:scale-105 transition-transform"
               />
               <div className="flex flex-col">
                 <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 group-hover:text-[#DC2626] transition-colors uppercase leading-none">
                   THI TRỰC TUYẾN
-                </span>
-                <span className="text-[10px] font-semibold text-slate-500 tracking-wider uppercase mt-0.5">
-                  XÃ EA SÚP
                 </span>
               </div>
             </Link>
