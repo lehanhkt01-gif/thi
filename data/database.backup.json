@@ -1156,7 +1156,7 @@
       "name": "Quản trị viên Hệ thống Ea Súp",
       "email": "admin@easupso.com",
       "phone": "0888023023",
-      "password": "admin123",
+      "password": "12345678@",
       "role": "ADMIN",
       "status": "APPROVED",
       "organizationName": "Trung tâm Điều hành & Chuyển đổi số Xã Ea Súp",
@@ -1168,7 +1168,7 @@
       "name": "Thường trực UB MTTQ Việt Nam xã Ea Súp",
       "email": "Easupsohoa@gmail.com",
       "phone": "0888023023",
-      "password": "admin123",
+      "password": "12345678@",
       "role": "ADMIN",
       "status": "APPROVED",
       "organizationName": "Ủy ban MTTQ Việt Nam xã Ea Súp",
@@ -1180,7 +1180,7 @@
       "name": "Cán bộ Hội Nông dân Xã Ea Súp",
       "email": "nongdan@easupso.com",
       "phone": "0912345678",
-      "password": "user123",
+      "password": "12345678@",
       "role": "USER",
       "status": "APPROVED",
       "organizationName": "Hội Nông dân xã Ea Súp",
@@ -2117,5 +2117,5 @@
       "submittedAt": "2026-10-30T03:28:27.111Z"
     }
   ],
-  "lastSavedAt": "2026-10-30T03:48:45.064Z"
+  "lastSavedAt": "2026-10-30T03:56:09.727Z"
 }

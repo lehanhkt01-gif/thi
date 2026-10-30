@@ -51,3 +51,35 @@ export function updateEnvAdminPassword(newPassword: string): boolean {
   const ok2 = updateEnvVariable("ADMIN_PASSWORD", newPassword);
   return ok1 || ok2;
 }
+
+/**
+ * Đọc giá trị biến môi trường trực tiếp từ file .env (thời gian thực, không bị cache bởi process cũ)
+ */
+export function getEnvVariable(key: string): string | null {
+  if (!fsModule || !pathModule) return process.env[key] || null;
+  try {
+    const envPath = pathModule.join(process.cwd(), ".env");
+    if (fsModule.existsSync(envPath)) {
+      const content = fsModule.readFileSync(envPath, "utf-8");
+      const regex = new RegExp(`^${key}=(.*)$`, "m");
+      const match = content.match(regex);
+      if (match && match[1]) {
+        return match[1].trim().replace(/^["']|["']$/g, "");
+      }
+    }
+  } catch (e) {}
+  return process.env[key] || null;
+}
+
+/**
+ * Lấy mật khẩu Quản trị viên hệ thống từ tệp .env hoặc biến môi trường
+ */
+export function getAdminPasswordFromEnv(): string | null {
+  return (
+    getEnvVariable("ADMIN_PASSWORD") ||
+    getEnvVariable("ADMIN_DEFAULT_PASSWORD") ||
+    process.env.ADMIN_PASSWORD ||
+    process.env.ADMIN_DEFAULT_PASSWORD ||
+    null
+  );
+}
