@@ -898,18 +898,22 @@ export default function AdminDashboardPage() {
             <Link href="/" className="flex items-center space-x-2.5">
               <img
                 src="/logo.png"
-                alt="Logo Cuộc thi trực tuyến Xã Ea Súp"
+                alt="Logo Cuộc thi trực tuyến"
                 className="w-9 h-9 object-contain rounded-full shadow-xs"
               />
               <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase">
                 THI TRỰC TUYẾN
               </span>
             </Link>
-            <span className="text-slate-300">|</span>
-            <span className="text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center">
-              <Landmark className="w-4 h-4 mr-1 text-[#DC2626]" />
-              Bảng Điều Khiển Ban Tổ Chức
-            </span>
+            {authUser && (
+              <>
+                <span className="text-slate-300">|</span>
+                <span className="text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center">
+                  <Landmark className="w-4 h-4 mr-1 text-[#DC2626]" />
+                  Bảng Điều Khiển Ban Tổ Chức
+                </span>
+              </>
+            )}
           </div>
 
           <div className="flex items-center space-x-3">
@@ -969,159 +973,161 @@ export default function AdminDashboardPage() {
         </div>
       </header>
 
-      {/* Main Container: 2 Columns Layout (Sidebar + Content) */}
+      {/* Main Container: 2 Columns Layout when logged in, or Full-width Contest List when not logged in */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         <div className="flex flex-col md:flex-row gap-6 items-start">
           {/* ========================================================= */}
-          {/* CỘT TRÁI: SIDEBAR ĐIỀU HƯỚNG (Ảnh 1 & Ảnh 2) */}
+          {/* CỘT TRÁI: SIDEBAR ĐIỀU HƯỚNG (Chỉ hiển thị khi đã đăng nhập) */}
           {/* ========================================================= */}
-          <aside className="w-full md:w-64 shrink-0 bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-sm space-y-4">
-            {/* 1. Trang chủ */}
-            <Link
-              href="/"
-              className="flex items-center space-x-3 px-3 py-2.5 rounded-2xl text-slate-700 hover:bg-slate-50 transition-colors text-sm font-semibold group"
-            >
-              <div className="w-8 h-8 rounded-xl bg-[#DC2626] text-white flex items-center justify-center shrink-0 shadow-xs">
-                <Home className="w-4 h-4" />
-              </div>
-              <span className="group-hover:text-slate-900">Trang chủ</span>
-            </Link>
+          {authUser && (
+            <aside className="w-full md:w-64 shrink-0 bg-white rounded-2xl border border-slate-200 p-3 sm:p-4 shadow-sm space-y-4">
+              {/* 1. Trang chủ */}
+              <Link
+                href="/"
+                className="flex items-center space-x-3 px-3 py-2.5 rounded-2xl text-slate-700 hover:bg-slate-50 transition-colors text-sm font-semibold group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-[#DC2626] text-white flex items-center justify-center shrink-0 shadow-xs">
+                  <Home className="w-4 h-4" />
+                </div>
+                <span className="group-hover:text-slate-900">Trang chủ</span>
+              </Link>
 
-            {/* 2. Cuộc thi Trắc nghiệm (Active State như Ảnh 2) */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("trac-nghiem")}
-              className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all text-left cursor-pointer ${
-                activeTab === "trac-nghiem"
-                  ? "bg-slate-100/90 text-slate-900 shadow-xs"
-                  : "text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <div
-                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+              {/* 2. Cuộc thi Trắc nghiệm (Active State như Ảnh 2) */}
+              <button
+                type="button"
+                onClick={() => setActiveTab("trac-nghiem")}
+                className={`w-full flex items-center space-x-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all text-left cursor-pointer ${
                   activeTab === "trac-nghiem"
-                    ? "bg-[#DC2626] text-white shadow-xs"
-                    : "bg-red-50 text-[#DC2626]"
+                    ? "bg-slate-100/90 text-slate-900 shadow-xs"
+                    : "text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                <BarChart2 className="w-4 h-4" />
-              </div>
-              <span>Cuộc thi Trắc nghiệm</span>
-            </button>
-
-            {/* 3. Cuộc thi Ảnh/Video */}
-            <button
-              type="button"
-              onClick={() => setActiveTab("anh-video")}
-              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-sm font-bold transition-all text-left cursor-pointer ${
-                activeTab === "anh-video"
-                  ? "bg-slate-100 text-slate-900 shadow-xs"
-                  : "text-slate-700 hover:bg-slate-50"
-              }`}
-            >
-              <div className="flex items-center space-x-3">
                 <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors shadow-xs ${
-                    activeTab === "anh-video"
-                      ? "bg-[#DC2626] text-white"
+                  className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 transition-colors ${
+                    activeTab === "trac-nghiem"
+                      ? "bg-[#DC2626] text-white shadow-xs"
                       : "bg-red-50 text-[#DC2626]"
                   }`}
                 >
-                  <Navigation className="w-4 h-4 fill-current rotate-45" />
+                  <BarChart2 className="w-4 h-4" />
                 </div>
-                <span className="font-bold text-slate-800">Cuộc thi Ảnh/Video</span>
-              </div>
-            </button>
-
-            {/* 5. PHÂN MỤC: KHO NỘI DUNG */}
-            <div className="pt-3 border-t border-slate-100">
-              <div className="text-[11px] font-black uppercase text-slate-900 tracking-wider mb-2 px-3">
-                KHO NỘI DUNG
-              </div>
-
-              {/* Đề thi */}
-              <button
-                type="button"
-                onClick={() => setActiveTab("de-thi")}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left cursor-pointer ${
-                  activeTab === "de-thi"
-                    ? "bg-red-50 text-[#DC2626] font-bold"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <FileText className="w-4 h-4 text-[#DC2626] shrink-0" />
-                <span>Đề thi</span>
+                <span>Cuộc thi Trắc nghiệm</span>
               </button>
 
-              {/* Thông báo BTC */}
+              {/* 3. Cuộc thi Ảnh/Video */}
               <button
                 type="button"
-                onClick={() => setActiveTab("thong-bao")}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left cursor-pointer ${
-                  activeTab === "thong-bao"
-                    ? "bg-red-50 text-[#DC2626] font-bold"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                onClick={() => setActiveTab("anh-video")}
+                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-sm font-bold transition-all text-left cursor-pointer ${
+                  activeTab === "anh-video"
+                    ? "bg-slate-100 text-slate-900 shadow-xs"
+                    : "text-slate-700 hover:bg-slate-50"
                 }`}
               >
-                <BookOpen className="w-4 h-4 text-[#DC2626] shrink-0" />
-                <span>Thông báo BTC</span>
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 transition-colors shadow-xs ${
+                      activeTab === "anh-video"
+                        ? "bg-[#DC2626] text-white"
+                        : "bg-red-50 text-[#DC2626]"
+                    }`}
+                  >
+                    <Navigation className="w-4 h-4 fill-current rotate-45" />
+                  </div>
+                  <span className="font-bold text-slate-800">Cuộc thi Ảnh/Video</span>
+                </div>
               </button>
 
-              {/* Đơn vị */}
-              <button
-                type="button"
-                onClick={() => setActiveTab("don-vi")}
-                className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left cursor-pointer ${
-                  activeTab === "don-vi"
-                    ? "bg-red-50 text-[#DC2626] font-bold"
-                    : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
-                }`}
-              >
-                <Building className="w-4 h-4 text-[#DC2626] shrink-0" />
-                <span>Đơn vị</span>
-              </button>
-            </div>
-
-            {/* 6. PHÂN QUYỀN & QUẢN TRỊ NGƯỜI DÙNG (CHỈ ADMIN MỚI THẤY) */}
-            {isAdmin && (
+              {/* 5. PHÂN MỤC: KHO NỘI DUNG */}
               <div className="pt-3 border-t border-slate-100">
-                <div className="text-[11px] font-black uppercase text-red-600 tracking-wider mb-2 px-3 flex items-center justify-between">
-                  <span>QUẢN TRỊ HỆ THỐNG</span>
-                  <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.2 rounded font-bold">Admin</span>
+                <div className="text-[11px] font-black uppercase text-slate-900 tracking-wider mb-2 px-3">
+                  KHO NỘI DUNG
                 </div>
 
+                {/* Đề thi */}
                 <button
                   type="button"
-                  onClick={() => setActiveTab("quan-ly-nguoi-dung")}
-                  className={`w-full flex items-center justify-between px-2.5 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
-                    activeTab === "quan-ly-nguoi-dung"
-                      ? "bg-red-50 text-[#DC2626] shadow-2xs"
-                      : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                  onClick={() => setActiveTab("de-thi")}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left cursor-pointer ${
+                    activeTab === "de-thi"
+                      ? "bg-red-50 text-[#DC2626] font-bold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                 >
-                  <div className="flex items-center space-x-2 min-w-0">
-                    <ShieldCheck className="w-4 h-4 text-[#DC2626] shrink-0" />
-                    <span className="whitespace-nowrap">Người dùng &amp; Xét duyệt</span>
-                  </div>
-                  {pendingUsersCount > 0 && (
-                    <span
-                      className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shrink-0 ml-1 animate-pulse"
-                      title={`${pendingUsersCount} tài khoản chờ xét duyệt`}
-                    >
-                      {pendingUsersCount}
-                    </span>
-                  )}
+                  <FileText className="w-4 h-4 text-[#DC2626] shrink-0" />
+                  <span>Đề thi</span>
+                </button>
+
+                {/* Thông báo BTC */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("thong-bao")}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left cursor-pointer ${
+                    activeTab === "thong-bao"
+                      ? "bg-red-50 text-[#DC2626] font-bold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <BookOpen className="w-4 h-4 text-[#DC2626] shrink-0" />
+                  <span>Thông báo BTC</span>
+                </button>
+
+                {/* Đơn vị */}
+                <button
+                  type="button"
+                  onClick={() => setActiveTab("don-vi")}
+                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all text-left cursor-pointer ${
+                    activeTab === "don-vi"
+                      ? "bg-red-50 text-[#DC2626] font-bold"
+                      : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                  }`}
+                >
+                  <Building className="w-4 h-4 text-[#DC2626] shrink-0" />
+                  <span>Đơn vị</span>
                 </button>
               </div>
-            )}
-          </aside>
+
+              {/* 6. PHÂN QUYỀN & QUẢN TRỊ NGƯỜI DÙNG (CHỈ ADMIN MỚI THẤY) */}
+              {isAdmin && (
+                <div className="pt-3 border-t border-slate-100">
+                  <div className="text-[11px] font-black uppercase text-red-600 tracking-wider mb-2 px-3 flex items-center justify-between">
+                    <span>QUẢN TRỊ HỆ THỐNG</span>
+                    <span className="text-[9px] bg-red-100 text-red-700 px-1.5 py-0.2 rounded font-bold">Admin</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("quan-ly-nguoi-dung")}
+                    className={`w-full flex items-center justify-between px-2.5 py-2.5 rounded-xl text-xs font-bold transition-all text-left cursor-pointer ${
+                      activeTab === "quan-ly-nguoi-dung"
+                        ? "bg-red-50 text-[#DC2626] shadow-2xs"
+                        : "text-slate-700 hover:bg-slate-50 hover:text-slate-900"
+                    }`}
+                  >
+                    <div className="flex items-center space-x-2 min-w-0">
+                      <ShieldCheck className="w-4 h-4 text-[#DC2626] shrink-0" />
+                      <span className="whitespace-nowrap">Người dùng &amp; Xét duyệt</span>
+                    </div>
+                    {pendingUsersCount > 0 && (
+                      <span
+                        className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.2 rounded-full shrink-0 ml-1 animate-pulse"
+                        title={`${pendingUsersCount} tài khoản chờ xét duyệt`}
+                      >
+                        {pendingUsersCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+              )}
+            </aside>
+          )}
 
           {/* ========================================================= */}
           {/* CỘT PHẢI: NỘI DUNG CHÍNH (Ảnh 2) */}
           {/* ========================================================= */}
-          <main className="flex-1 min-w-0 space-y-6">
-            {/* PHẦN ĐẦU TRANG & 3 THẺ TỔ CHỨC CUỘC THI: CHỈ HIỂN THỊ Ở TAB TRẮC NGHIỆM */}
-            {activeTab === "trac-nghiem" && (
+          <main className="flex-1 min-w-0 space-y-6 w-full">
+            {/* PHẦN ĐẦU TRANG & 3 THẺ TỔ CHỨC CUỘC THI: CHỈ HIỂN THỊ KHI ĐÃ ĐĂNG NHẬP Ở TAB TRẮC NGHIỆM */}
+            {authUser && activeTab === "trac-nghiem" && (
               <>
                 {/* TIÊU ĐỀ CHÍNH: TỔ CHỨC CUỘC THI TRỰC TUYẾN */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -1202,7 +1208,7 @@ export default function AdminDashboardPage() {
             {/* ========================================================= */}
             {/* TAB NỘI DUNG 1: DANH SÁCH CUỘC THI TRẮC NGHIỆM */}
             {/* ========================================================= */}
-            {activeTab === "trac-nghiem" && (
+            {(!authUser || activeTab === "trac-nghiem") && (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-200 gap-2">
                   <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
@@ -1382,7 +1388,7 @@ export default function AdminDashboardPage() {
             {/* ========================================================= */}
             {/* TAB NỘI DUNG 2: CUỘC THI ẢNH / VIDEO (Ảnh 2) */}
             {/* ========================================================= */}
-            {activeTab === "anh-video" && (
+            {authUser && activeTab === "anh-video" && (
               <div className="space-y-4">
                 {/* TOP ACTION BAR: Mẫu kế hoạch ↓ + Tìm kiếm... + Hướng dẫn [avatar] (Ảnh 2) */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 sm:px-5 sm:py-3 rounded-2xl border border-slate-200 shadow-2xs">
@@ -1759,7 +1765,7 @@ export default function AdminDashboardPage() {
             {/* ========================================================= */}
             {/* TAB NỘI DUNG 3: KHO NỘI DUNG -> ĐỀ THI */}
             {/* ========================================================= */}
-            {activeTab === "de-thi" && (
+            {authUser && activeTab === "de-thi" && (
               <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
                 {/* TIÊU ĐỀ & CÁC NÚT THAO TÁC HÀNG ĐẦU */}
                 <div className="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-200 gap-3">
@@ -1980,7 +1986,7 @@ export default function AdminDashboardPage() {
             {/* ========================================================= */}
             {/* TAB NỘI DUNG 4: KHO NỘI DUNG -> THÔNG BÁO BTC */}
             {/* ========================================================= */}
-            {activeTab === "thong-bao" && (
+            {authUser && activeTab === "thong-bao" && (
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
                 <div className="pb-3 border-b border-slate-100">
                   <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight flex items-center">
@@ -2046,7 +2052,7 @@ export default function AdminDashboardPage() {
             {/* ========================================================= */}
             {/* TAB NỘI DUNG 5: KHO NỘI DUNG -> ĐƠN VỊ */}
             {/* ========================================================= */}
-            {activeTab === "don-vi" && (
+            {authUser && activeTab === "don-vi" && (
               <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-6">
                 <div className="pb-3 border-b border-slate-100">
                   <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight flex items-center">
