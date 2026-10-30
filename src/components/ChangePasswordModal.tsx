@@ -1,8 +1,8 @@
 "use client";
 
 // src/components/ChangePasswordModal.tsx - Modal đổi mật khẩu bảo mật chuẩn cho Người dùng & Admin
-import React, { useState } from "react";
-import { KeyRound, Lock, Eye, EyeOff, ShieldCheck, X, CheckCircle2, AlertCircle } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { KeyRound, Lock, Eye, EyeOff, X, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface ChangePasswordModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ export default function ChangePasswordModal({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
 
+  // Mặc định luôn là CHE MẬT KHẨU (false)
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
@@ -33,6 +34,20 @@ export default function ChangePasswordModal({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  // Mỗi khi mở modal, luôn đảm bảo đặt lại chế độ mặc định là CHE MẬT KHẨU
+  useEffect(() => {
+    if (isOpen) {
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setShowCurrent(false);
+      setShowNew(false);
+      setShowConfirm(false);
+      setError(null);
+      setSuccessMsg(null);
+    }
+  }, [isOpen]);
 
   if (!isOpen || !user) return null;
 
@@ -42,6 +57,9 @@ export default function ChangePasswordModal({
     setCurrentPassword("");
     setNewPassword("");
     setConfirmPassword("");
+    setShowCurrent(false);
+    setShowNew(false);
+    setShowConfirm(false);
     setError(null);
     setSuccessMsg(null);
   };
@@ -81,7 +99,7 @@ export default function ChangePasswordModal({
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        setError(data.error || "Đổi mật khẩu thất bại. Vui lòng thử lại!");
+        setError(data.error || "Đổi mật khẩu thất bại. Vui lòng kiểm tra lại!");
         setLoading(false);
         return;
       }
@@ -91,7 +109,7 @@ export default function ChangePasswordModal({
 
       setTimeout(() => {
         handleClose();
-      }, 1600);
+      }, 1500);
     } catch (err: any) {
       setError("Lỗi kết nối máy chủ: " + err.message);
     } finally {
@@ -143,16 +161,6 @@ export default function ChangePasswordModal({
           </span>
         </div>
 
-        {/* Thông báo đặc quyền lưu file .env cho Admin */}
-        {isAdmin && (
-          <div className="p-3 mb-4 rounded-xl bg-amber-50/80 border border-amber-200 text-[11px] text-amber-900 leading-relaxed flex items-start space-x-2">
-            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-            <div>
-              <strong>Bảo mật Quản trị viên:</strong> Mật khẩu mới của Admin sẽ được tự động bảo mật và đồng bộ vào file cấu hình môi trường <code>.env</code> trên VPS/máy chủ.
-            </div>
-          </div>
-        )}
-
         {/* Thông báo lỗi */}
         {error && (
           <div className="mb-4 p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 flex items-center space-x-2">
@@ -171,7 +179,7 @@ export default function ChangePasswordModal({
 
         {/* Form Đổi mật khẩu */}
         <form onSubmit={handleSubmit} className="space-y-3.5">
-          {/* Mật khẩu hiện tại */}
+          {/* Mật khẩu hiện tại (Mặc định CHE MẬT KHẨU type="password") */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Mật khẩu hiện tại
@@ -189,13 +197,14 @@ export default function ChangePasswordModal({
                 type="button"
                 onClick={() => setShowCurrent(!showCurrent)}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                title={showCurrent ? "Che mật khẩu" : "Hiện mật khẩu"}
               >
-                {showCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showCurrent ? <EyeOff className="w-4 h-4 text-slate-600" /> : <Eye className="w-4 h-4 text-slate-400" />}
               </button>
             </div>
           </div>
 
-          {/* Mật khẩu mới */}
+          {/* Mật khẩu mới (Mặc định CHE MẬT KHẨU type="password") */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Mật khẩu mới <span className="text-slate-400 font-normal">(Tối thiểu 6 ký tự)</span>
@@ -214,13 +223,14 @@ export default function ChangePasswordModal({
                 type="button"
                 onClick={() => setShowNew(!showNew)}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                title={showNew ? "Che mật khẩu" : "Hiện mật khẩu"}
               >
-                {showNew ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showNew ? <EyeOff className="w-4 h-4 text-slate-600" /> : <Eye className="w-4 h-4 text-slate-400" />}
               </button>
             </div>
           </div>
 
-          {/* Xác nhận mật khẩu mới */}
+          {/* Xác nhận mật khẩu mới (Mặc định CHE MẬT KHẨU type="password") */}
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">
               Nhập lại mật khẩu mới
@@ -239,8 +249,9 @@ export default function ChangePasswordModal({
                 type="button"
                 onClick={() => setShowConfirm(!showConfirm)}
                 className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+                title={showConfirm ? "Che mật khẩu" : "Hiện mật khẩu"}
               >
-                {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                {showConfirm ? <EyeOff className="w-4 h-4 text-slate-600" /> : <Eye className="w-4 h-4 text-slate-400" />}
               </button>
             </div>
           </div>
