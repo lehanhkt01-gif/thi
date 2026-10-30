@@ -1206,9 +1206,10 @@
       "phone": "0987654321",
       "password": "user123",
       "role": "USER",
-      "status": "PENDING",
+      "status": "APPROVED",
       "organizationName": "Chi hội Phụ nữ Thôn 3, Xã Ea Súp",
-      "createdAt": "2026-10-28T09:30:00Z"
+      "createdAt": "2026-10-28T09:30:00Z",
+      "approvedAt": "2026-10-30T02:20:13.291Z"
     },
     {
       "id": "user-pending-2",
@@ -2003,5 +2004,5 @@
       "submittedAt": "2026-10-30T01:51:57.628Z"
     }
   ],
-  "lastSavedAt": "2026-10-30T01:51:57.629Z"
+  "lastSavedAt": "2026-10-30T02:21:43.070Z"
 }

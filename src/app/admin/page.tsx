@@ -622,10 +622,10 @@ export default function AdminDashboardPage() {
   const isUser = authUser?.role === "USER";
   const pendingUsersCount = usersList.filter((u) => u.status === "PENDING").length;
 
-  // Load Users
+  // Load Users (luôn lấy dữ liệu mới nhất không cache)
   const loadUsers = async () => {
     try {
-      const res = await fetch("/api/admin/users");
+      const res = await fetch(`/api/admin/users?t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       if (data.users) {
         setUsersList(data.users);
@@ -644,8 +644,10 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
-        alert(data.message || "Xét duyệt thành công!");
-        loadUsers();
+        alert(data.message || (status === "APPROVED" ? "Phê duyệt tài khoản thành công!" : "Đã từ chối tài khoản!"));
+        // Tự động đặt lại bộ lọc trạng thái về "ALL" để người dùng vừa duyệt xuất hiện ngay lập tức trong bảng với huy hiệu "Đã duyệt"
+        setUserStatusFilter("ALL");
+        await loadUsers();
       } else {
         alert(data.error || "Có lỗi xảy ra");
       }

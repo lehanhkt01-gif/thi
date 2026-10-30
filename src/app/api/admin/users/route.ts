@@ -13,7 +13,16 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get("search") || undefined;
 
     const users = store.getUsers({ role, status, search });
-    return NextResponse.json({ success: true, users, total: users.length });
+    return NextResponse.json(
+      { success: true, users, total: users.length },
+      {
+        headers: {
+          "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
+      }
+    );
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

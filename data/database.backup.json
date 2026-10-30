@@ -1,0 +1,2008 @@
+{
+  "contests": [
+    {
+      "id": "contest-1793254695419",
+      "organizationId": "org-ubnd",
+      "organizationName": "Ủy ban Nhân dân xã Ea Súp",
+      "title": "Cuộc thi tìm hiểu luật cựu chiến binh",
+      "slug": "cuoc-thi-tim-hieu-luat-cuu-chien-binh",
+      "bannerUrl": "/uploads/banner-1793254665465-569868603-1207376667894456-945.jpg",
+      "rulesHtml": "<h3>I. MỤC ĐÍCH & Ý NGHĨA</h3>\n<p>Nâng cao hiểu biết cho cán bộ, đoàn viên và nhân dân 20 thôn buôn xã Ea Súp về công tác chuyển đổi số và nghị quyết phát triển kinh tế - xã hội địa phương.</p>\n<h3>II. HÌNH THỨC & THỜI GIAN</h3>\n<p>Thi trực tuyến trên cổng cuocthi.easupso.com. Mỗi thí sinh có 3 lượt thi, thời gian 15 phút/lượt.</p>",
+      "organizerName": "HỘI CCB XÃ EA SÚP",
+      "organizerAddress": "72 HÙNG VƯƠNG",
+      "organizerEmail": "ccb@gmail.com",
+      "organizerPhone": "0262.3688.114",
+      "announcement": "Đề nghị các đồng chí Trưởng thôn, Buôn trưởng và Chi bộ tích cực đôn đốc nhân dân tham gia dự thi đạt 100% chỉ tiêu!",
+      "creatorEmail": "zipzenhanh@gmail.com",
+      "creatorId": "user-regular-2",
+      "creatorName": "Lê Hồng Zen",
+      "startTime": "2026-10-29T00:00",
+      "endTime": "2026-12-31T23:59",
+      "durationMinutes": 15,
+      "questionCount": 5,
+      "maxAttempts": 3,
+      "hasTieBreaker": true,
+      "status": "PUBLISHED",
+      "audioUrl": "",
+      "themeColor": "#DC2626",
+      "shortDesc": "Mỗi thí sinh được tham gia tối đa 1 lần để tìm hiểu, bằng cách trắc nghiệm.",
+      "requiredFields": "Họ tên thí sinh, Số điện thoại",
+      "customLeaderboard": "Lượt thi, lượt đăng ký, Xếp hạng...",
+      "examPassword": "",
+      "requirePortrait": "none",
+      "fullScreenExam": true,
+      "prize1": "5.000.000 đồng/giải",
+      "prize2": "3.000.000 đồng/giải",
+      "prize3": "1.000.000 đồng/giải",
+      "prize4": "750.000 đồng/giải",
+      "prize1Count": "01",
+      "prize2Count": "02",
+      "prize3Count": "03",
+      "prize4Count": "05",
+      "createdAt": "2026-10-29T06:18:15.419Z",
+      "units": [
+        {
+          "id": "unit-1",
+          "name": "Chi hội thôn 1",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-2",
+          "name": "Chi hội thôn 2",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-3",
+          "name": "Chi hội thôn 3",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-4",
+          "name": "Chi hội thôn 4",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-5",
+          "name": "Chi hội thôn 5",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-6",
+          "name": "Chi hội thôn 6",
+          "groupType": "AGENCY"
+        }
+      ],
+      "questions": [
+        {
+          "id": "q-land-1",
+          "category": "Luật Đất đai 2024",
+          "content": "Theo Luật Đất đai năm 2024, bảng giá đất do Ủy ban nhân dân cấp tỉnh ban hành được áp dụng lần đầu từ ngày nào?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Từ ngày 01 tháng 01 năm 2025"
+            },
+            {
+              "id": "B",
+              "text": "Từ ngày 01 tháng 01 năm 2026"
+            },
+            {
+              "id": "C",
+              "text": "Từ ngày 01 tháng 08 năm 2024"
+            },
+            {
+              "id": "D",
+              "text": "Từ ngày 01 tháng 07 năm 2025"
+            }
+          ],
+          "correctOptionIds": [
+            "B"
+          ],
+          "explanation": "Căn cứ khoản 3 Điều 159 Luật Đất đai 2024: Bảng giá đất do UBND cấp tỉnh xây dựng, trình HĐND cùng cấp quyết định áp dụng lần đầu từ ngày 01/01/2026 và được điều chỉnh, bổ sung hàng năm.",
+          "points": 10
+        },
+        {
+          "id": "q-id-2",
+          "category": "Luật Căn cước 2023",
+          "content": "Luật Căn cước 2023 có hiệu lực thi hành từ ngày 01/7/2024 quy định đối tượng nào được cấp thẻ căn cước theo nhu cầu?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Người từ đủ 14 tuổi trở lên bắt buộc, và công dân dưới 14 tuổi thực hiện cấp theo nhu cầu"
+            },
+            {
+              "id": "B",
+              "text": "Chỉ công dân Việt Nam từ đủ 18 tuổi trở lên"
+            },
+            {
+              "id": "C",
+              "text": "Mọi công dân từ đủ 16 tuổi trở lên"
+            },
+            {
+              "id": "D",
+              "text": "Không cấp cho trẻ em dưới 6 tuổi dưới mọi hình thức"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ Điều 19 Luật Căn cước 2023: Người từ đủ 14 tuổi trở lên bắt buộc làm thủ tục cấp thẻ căn cước. Người dưới 14 tuổi được cấp thẻ căn cước theo nhu cầu tự nguyện.",
+          "points": 10
+        },
+        {
+          "id": "q-grassroots-3",
+          "category": "Luật Thực hiện Dân chủ ở cơ sở",
+          "content": "Theo Luật Thực hiện Dân chủ ở cơ sở năm 2022, phương châm cốt lõi của công tác dân chủ ở cơ sở là gì?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng"
+            },
+            {
+              "id": "B",
+              "text": "Dân bàn bạc và cơ quan nhà nước tự quyết định mọi việc"
+            },
+            {
+              "id": "C",
+              "text": "Chính quyền làm việc, nhân dân theo dõi và phản ánh qua mạng xã hội"
+            },
+            {
+              "id": "D",
+              "text": "Dân phản ánh, Mặt trận lắng nghe, Cán bộ tiếp thu"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ Điều 4 Luật Thực hiện Dân chủ ở cơ sở 2022 khẳng định phương châm: 'Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng'.",
+          "points": 10
+        },
+        {
+          "id": "q-digital-4",
+          "category": "Chuyển đổi số & Dịch vụ công xã Ea Súp",
+          "content": "Cổng dịch vụ công Quốc gia và Hệ sinh thái số easupso.com cho phép người dân xã Ea Súp nộp hồ sơ thủ tục hành chính trực tuyến 24/7 mang lại lợi ích gì?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Tiết kiệm thời gian, chi phí đi lại, minh bạch quy trình và theo dõi tiến độ giải quyết trực tiếp"
+            },
+            {
+              "id": "B",
+              "text": "Phải nộp thêm phí trung gian cho bưu điện"
+            },
+            {
+              "id": "C",
+              "text": "Chỉ phục vụ cán bộ công chức, người dân không được dùng"
+            },
+            {
+              "id": "D",
+              "text": "Không có giá trị pháp lý bằng việc nộp hồ sơ giấy truyền thống"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Nghị quyết Chuyển đổi số tỉnh Đắk Lắk và Đề án 06 khẳng định việc giải quyết TTHC trực tuyến giúp người dân tiết kiệm chi phí, minh bạch quy trình, giảm tiêu cực phiền hà.",
+          "points": 10
+        },
+        {
+          "id": "q-cyber-5",
+          "category": "Luật An ninh mạng",
+          "content": "Hành vi nào sau đây bị nghiêm cấm trên không gian mạng theo Luật An ninh mạng năm 2018?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Sử dụng mạng xã hội để đăng tải tin tức tuyên truyền chính thống của cơ quan nhà nước"
+            },
+            {
+              "id": "B",
+              "text": "Tham gia các cuộc thi trực tuyến tìm hiểu pháp luật có bảo mật dữ liệu"
+            },
+            {
+              "id": "C",
+              "text": "Phát tán thông tin sai sự thật, vu khống, xúc phạm danh dự nhân phẩm người khác hoặc chống phá Nhà nước"
+            },
+            {
+              "id": "D",
+              "text": "Tạo tài khoản học tập và nghiên cứu kiến thức khoa học kỹ thuật"
+            }
+          ],
+          "correctOptionIds": [
+            "C"
+          ],
+          "explanation": "Căn cứ Điều 8 Luật An ninh mạng 2018: Nghiêm cấm sử dụng không gian mạng để phát tán thông tin sai sự thật gây hoang mang, xúc phạm danh dự nhân phẩm hoặc xâm phạm an ninh quốc gia.",
+          "points": 10
+        }
+      ],
+      "updatedAt": "2026-10-29T06:35:38.017Z"
+    },
+    {
+      "id": "contest-hoi-nong-dan-ea-sup",
+      "organizationId": "org-nongdan",
+      "organizationName": "Ủy ban Nhân dân xã Ea Súp",
+      "title": "Cuộc thi TÌM HIỂU NGHỊ QUYẾT HỘI NÔNG DÂN XÃ EA SÚP",
+      "slug": "cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup",
+      "bannerUrl": "/banners/banner-nong-dan-ea-sup.jpg",
+      "rulesHtml": "\n        <h3 class=\"text-lg font-bold text-slate-900 mb-2\">I. MỤC ĐÍCH & Ý NGHĨA</h3>\n        <p class=\"mb-3\">Nâng cao hiểu biết cho cán bộ, hội viên nông dân và nhân dân 20 thôn buôn xã Ea Súp về các chủ trương, nghị quyết của Hội Nông dân các cấp và chuyển đổi số nông nghiệp.</p>\n        <h3 class=\"text-lg font-bold text-slate-900 mb-2\">II. HÌNH THỨC & THỜI GIAN</h3>\n        <p>Thi trực tuyến trên cổng cuocthi.easupso.com. Mỗi thí sinh có tối đa 3 lượt thi, thời gian 15 phút/lượt.</p>\n      ",
+      "organizerName": "Ủy ban Nhân dân xã Ea Súp",
+      "organizerAddress": "Trung tâm hành chính xã Ea Súp, Huyện Ea Súp, Tỉnh Đắk Lắk",
+      "organizerEmail": "ubnd.easup@daklak.gov.vn",
+      "organizerPhone": "0262.3688.114",
+      "announcement": "Đề nghị các đồng chí Trưởng thôn, Buôn trưởng và Chi hội Nông dân tích cực đôn đốc nhân dân tham gia dự thi đạt 100% chỉ tiêu!",
+      "creatorEmail": "nongdan@easupso.com",
+      "creatorId": "user-regular-1",
+      "creatorName": "Cán bộ Hội Nông dân Xã Ea Súp",
+      "startTime": "2026-03-01T00:00:00Z",
+      "endTime": "2026-12-31T23:59:59Z",
+      "durationMinutes": 15,
+      "questionCount": 10,
+      "maxAttempts": 3,
+      "hasTieBreaker": true,
+      "status": "PUBLISHED",
+      "themeColor": "#DC2626",
+      "shortDesc": "Mỗi thí sinh được tham gia tối đa 3 lượt để tìm hiểu, bằng cách trắc nghiệm.",
+      "requiredFields": "Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh, Thôn/Buôn/Đơn vị",
+      "prize1": "5.000.000 đồng/giải",
+      "prize2": "3.000.000 đồng/giải",
+      "prize3": "1.000.000 đồng/giải",
+      "prize4": "750.000 đồng/giải",
+      "prize1Count": "01",
+      "prize2Count": "02",
+      "prize3Count": "03",
+      "prize4Count": "05",
+      "createdAt": "2026-03-01T08:00:00Z",
+      "units": [
+        {
+          "id": "unit-1",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 1",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-2",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 2",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-3",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 3",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-4",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 4",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-5",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 5",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-6",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 6",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-7",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 7",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-8",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 8",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-9",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 9",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-10",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 10",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-11",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Đoàn Kết",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-12",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Quyết Thắng",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-13",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Thanh Niên",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-14",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Hợp Thành",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-15",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Tân Lập",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-16",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn Ea Súp",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-17",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn A1",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-18",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn A2",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-19",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn B",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-20",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn C",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-agency-1",
+          "contestId": "contest-easup-2026",
+          "name": "Khối Cơ quan Đảng - Đoàn thể",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-agency-2",
+          "contestId": "contest-easup-2026",
+          "name": "Khối UBND & Công an - Quân sự",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-school-1",
+          "contestId": "contest-easup-2026",
+          "name": "Trường THCS Lê Hồng Phong",
+          "groupType": "SCHOOL"
+        }
+      ],
+      "questions": [
+        {
+          "id": "q-land-1",
+          "category": "Luật Đất đai 2024",
+          "content": "Theo Luật Đất đai năm 2024, bảng giá đất do Ủy ban nhân dân cấp tỉnh ban hành được áp dụng lần đầu từ ngày nào?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Từ ngày 01 tháng 01 năm 2025"
+            },
+            {
+              "id": "B",
+              "text": "Từ ngày 01 tháng 01 năm 2026"
+            },
+            {
+              "id": "C",
+              "text": "Từ ngày 01 tháng 08 năm 2024"
+            },
+            {
+              "id": "D",
+              "text": "Từ ngày 01 tháng 07 năm 2025"
+            }
+          ],
+          "correctOptionIds": [
+            "B"
+          ],
+          "explanation": "Căn cứ khoản 3 Điều 159 Luật Đất đai 2024: Bảng giá đất do UBND cấp tỉnh xây dựng, trình HĐND cùng cấp quyết định áp dụng lần đầu từ ngày 01/01/2026 và được điều chỉnh, bổ sung hàng năm.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        },
+        {
+          "id": "q-id-2",
+          "category": "Luật Căn cước 2023",
+          "content": "Luật Căn cước 2023 có hiệu lực thi hành từ ngày 01/7/2024 quy định đối tượng nào được cấp thẻ căn cước theo nhu cầu?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Người từ đủ 14 tuổi trở lên bắt buộc, và công dân dưới 14 tuổi thực hiện cấp theo nhu cầu"
+            },
+            {
+              "id": "B",
+              "text": "Chỉ công dân Việt Nam từ đủ 18 tuổi trở lên"
+            },
+            {
+              "id": "C",
+              "text": "Mọi công dân từ đủ 16 tuổi trở lên"
+            },
+            {
+              "id": "D",
+              "text": "Không cấp cho trẻ em dưới 6 tuổi dưới mọi hình thức"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ Điều 19 Luật Căn cước 2023: Người từ đủ 14 tuổi trở lên bắt buộc làm thủ tục cấp thẻ căn cước. Người dưới 14 tuổi được cấp thẻ căn cước theo nhu cầu tự nguyện.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        },
+        {
+          "id": "q-grassroots-3",
+          "category": "Luật Thực hiện Dân chủ ở cơ sở",
+          "content": "Theo Luật Thực hiện Dân chủ ở cơ sở năm 2022, phương châm cốt lõi của công tác dân chủ ở cơ sở là gì?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng"
+            },
+            {
+              "id": "B",
+              "text": "Dân bàn bạc và cơ quan nhà nước tự quyết định mọi việc"
+            },
+            {
+              "id": "C",
+              "text": "Chính quyền làm việc, nhân dân theo dõi và phản ánh qua mạng xã hội"
+            },
+            {
+              "id": "D",
+              "text": "Dân phản ánh, Mặt trận lắng nghe, Cán bộ tiếp thu"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ Điều 4 Luật Thực hiện Dân chủ ở cơ sở 2022 khẳng định phương châm: 'Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng'.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        },
+        {
+          "id": "q-digital-4",
+          "category": "Chuyển đổi số & Dịch vụ công xã Ea Súp",
+          "content": "Cổng dịch vụ công Quốc gia và Hệ sinh thái số easupso.com cho phép người dân xã Ea Súp nộp hồ sơ thủ tục hành chính trực tuyến 24/7 mang lại lợi ích gì?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Tiết kiệm thời gian, chi phí đi lại, minh bạch quy trình và theo dõi tiến độ giải quyết trực tiếp"
+            },
+            {
+              "id": "B",
+              "text": "Phải nộp thêm phí trung gian cho bưu điện"
+            },
+            {
+              "id": "C",
+              "text": "Chỉ phục vụ cán bộ công chức, người dân không được dùng"
+            },
+            {
+              "id": "D",
+              "text": "Không có giá trị pháp lý bằng việc nộp hồ sơ giấy truyền thống"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Nghị quyết Chuyển đổi số tỉnh Đắk Lắk và Đề án 06 khẳng định việc giải quyết TTHC trực tuyến giúp người dân tiết kiệm chi phí, minh bạch quy trình, giảm tiêu cực phiền hà.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        },
+        {
+          "id": "q-cyber-5",
+          "category": "Luật An ninh mạng",
+          "content": "Hành vi nào sau đây bị nghiêm cấm trên không gian mạng theo Luật An ninh mạng năm 2018?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Sử dụng mạng xã hội để đăng tải tin tức tuyên truyền chính thống của cơ quan nhà nước"
+            },
+            {
+              "id": "B",
+              "text": "Tham gia các cuộc thi trực tuyến tìm hiểu pháp luật có bảo mật dữ liệu"
+            },
+            {
+              "id": "C",
+              "text": "Phát tán thông tin sai sự thật, vu khống, xúc phạm danh dự nhân phẩm người khác hoặc chống phá Nhà nước"
+            },
+            {
+              "id": "D",
+              "text": "Tạo tài khoản học tập và nghiên cứu kiến thức khoa học kỹ thuật"
+            }
+          ],
+          "correctOptionIds": [
+            "C"
+          ],
+          "explanation": "Căn cứ Điều 8 Luật An ninh mạng 2018: Nghiêm cấm sử dụng không gian mạng để phát tán thông tin sai sự thật gây hoang mang, xúc phạm danh dự nhân phẩm hoặc xâm phạm an ninh quốc gia.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        },
+        {
+          "id": "q-traffic-6",
+          "category": "Luật Trật tự an toàn giao thông đường bộ 2024",
+          "content": "Theo quy định hiện hành, người điều khiển xe mô tô, xe gắn máy tham gia giao thông trên địa bàn xã Ea Súp có nồng độ cồn trong máu hoặc hơi thở thì bị xử lý như thế nào?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Nghiêm cấm tuyệt đối điều khiển phương tiện mà trong máu hoặc hơi thở có nồng độ cồn"
+            },
+            {
+              "id": "B",
+              "text": "Được phép nếu uống dưới 1 lon bia và chạy dưới 30km/h"
+            },
+            {
+              "id": "C",
+              "text": "Chỉ cấm khi chạy đường quốc lộ, đường liên thôn không cấm"
+            },
+            {
+              "id": "D",
+              "text": "Chỉ nhắc nhở nếu là người địa phương đi nương rẫy về"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Quy định pháp luật về trật tự ATGT đường bộ nghiêm cấm tuyệt đối hành vi điều khiển phương tiện tham gia giao thông mà trong máu hoặc hơi thở có nồng độ cồn.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        },
+        {
+          "id": "q-marriage-7",
+          "category": "Luật Hôn nhân và Gia đình",
+          "content": "Theo Luật Hôn nhân và Gia đình, độ tuổi kết hôn hợp pháp đối với nam và nữ là bao nhiêu?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Nam từ đủ 20 tuổi trở lên, nữ từ đủ 18 tuổi trở lên"
+            },
+            {
+              "id": "B",
+              "text": "Nam đủ 18 tuổi, nữ đủ 16 tuổi"
+            },
+            {
+              "id": "C",
+              "text": "Nam từ đủ 22 tuổi trở lên, nữ từ đủ 20 tuổi trở lên"
+            },
+            {
+              "id": "D",
+              "text": "Cả nam và nữ cùng từ đủ 18 tuổi trở lên"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ điểm a khoản 1 Điều 8 Luật Hôn nhân và Gia đình 2014: Điều kiện kết hôn là Nam từ đủ 20 tuổi trở lên, nữ từ đủ 18 tuổi trở lên.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        },
+        {
+          "id": "q-forest-8",
+          "category": "Luật Lâm nghiệp & Bảo vệ rừng Ea Súp",
+          "content": "Hành vi lấn chiếm đất rừng, phá rừng tự nhiên hoặc khai thác lâm sản trái phép trên địa bàn huyện Ea Súp bị xử lý như thế nào?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Tùy theo tính chất, mức độ vi phạm sẽ bị xử phạt vi phạm hành chính hoặc truy cứu trách nhiệm hình sự"
+            },
+            {
+              "id": "B",
+              "text": "Chỉ tịch thu tang vật không phạt tiền"
+            },
+            {
+              "id": "C",
+              "text": "Chỉ xử phạt người vận chuyển, không xử lý người chặt phá"
+            },
+            {
+              "id": "D",
+              "text": "Được miễn trách nhiệm nếu tự ý trồng lại cây hoa màu"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Theo Luật Lâm nghiệp và Bộ luật Hình sự: Mọi hành vi phá rừng, lấn chiếm rừng trái phép đều bị xử lý nghiêm minh theo quy định pháp luật hành chính hoặc hình sự.",
+          "points": 10,
+          "contestId": "contest-hoi-nong-dan-ea-sup"
+        }
+      ]
+    },
+    {
+      "id": "contest-easup-2026",
+      "organizationId": "org-mttq",
+      "organizationName": "Ủy ban MTTQ Việt Nam xã Ea Súp",
+      "title": "Cuộc thi trực tuyến tìm hiểu pháp luật năm 2026 trên địa bàn xã Ea Súp",
+      "slug": "tim-hieu-phap-luat-ea-sup-2026",
+      "bannerUrl": "/banners/cuocthi-phapluat-2026.png",
+      "rulesHtml": "\n        <h3 class=\"text-lg font-bold text-slate-900 mb-2\">I. MỤC ĐÍCH & Ý NGHĨA</h3>\n        <p class=\"mb-3\">Cuộc thi do Ủy ban MTTQ Việt Nam xã Ea Súp tổ chức nhằm phổ biến sâu rộng các chủ trương của Đảng, chính sách, pháp luật của Nhà nước và khối đại đoàn kết toàn dân đến toàn thể cán bộ và nhân dân.</p>\n      ",
+      "organizerName": "Thường trực UB MTTQ Việt Nam xã Ea Súp",
+      "organizerAddress": "72 Hùng Vương, xã Ea Súp, Huyện Ea Súp, Tỉnh Đắk Lắk",
+      "organizerEmail": "Easupsohoa@gmail.com",
+      "organizerPhone": "0888023023",
+      "announcement": "Đề nghị các đồng chí Trưởng thôn, Buôn trưởng và Chi bộ tích cực đôn đốc nhân dân tham gia dự thi đạt chỉ tiêu!",
+      "creatorEmail": "Easupsohoa@gmail.com",
+      "creatorId": "user-admin-2",
+      "creatorName": "Thường trực UB MTTQ Việt Nam xã Ea Súp",
+      "startTime": "2026-03-01T00:00:00Z",
+      "endTime": "2026-12-31T23:59:59Z",
+      "durationMinutes": 15,
+      "questionCount": 5,
+      "maxAttempts": 3,
+      "hasTieBreaker": true,
+      "status": "PUBLISHED",
+      "audioUrl": "/audio/the-le-an-nhien.mp3",
+      "createdAt": "2026-03-01T08:00:00Z",
+      "units": [
+        {
+          "id": "unit-1",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 1",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-2",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 2",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-3",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 3",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-4",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 4",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-5",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 5",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-6",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 6",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-7",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 7",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-8",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 8",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-9",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 9",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-10",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn 10",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-11",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Đoàn Kết",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-12",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Quyết Thắng",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-13",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Thanh Niên",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-14",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Hợp Thành",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-15",
+          "contestId": "contest-easup-2026",
+          "name": "Thôn Tân Lập",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-16",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn Ea Súp",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-17",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn A1",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-18",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn A2",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-19",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn B",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-20",
+          "contestId": "contest-easup-2026",
+          "name": "Buôn C",
+          "groupType": "VILLAGE"
+        },
+        {
+          "id": "unit-agency-1",
+          "contestId": "contest-easup-2026",
+          "name": "Khối Cơ quan Đảng - Đoàn thể",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-agency-2",
+          "contestId": "contest-easup-2026",
+          "name": "Khối UBND & Công an - Quân sự",
+          "groupType": "AGENCY"
+        },
+        {
+          "id": "unit-school-1",
+          "contestId": "contest-easup-2026",
+          "name": "Trường THCS Lê Hồng Phong",
+          "groupType": "SCHOOL"
+        }
+      ],
+      "questions": [
+        {
+          "id": "q-land-1",
+          "category": "Luật Đất đai 2024",
+          "content": "Theo Luật Đất đai năm 2024, bảng giá đất do Ủy ban nhân dân cấp tỉnh ban hành được áp dụng lần đầu từ ngày nào?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Từ ngày 01 tháng 01 năm 2025"
+            },
+            {
+              "id": "B",
+              "text": "Từ ngày 01 tháng 01 năm 2026"
+            },
+            {
+              "id": "C",
+              "text": "Từ ngày 01 tháng 08 năm 2024"
+            },
+            {
+              "id": "D",
+              "text": "Từ ngày 01 tháng 07 năm 2025"
+            }
+          ],
+          "correctOptionIds": [
+            "B"
+          ],
+          "explanation": "Căn cứ khoản 3 Điều 159 Luật Đất đai 2024: Bảng giá đất do UBND cấp tỉnh xây dựng, trình HĐND cùng cấp quyết định áp dụng lần đầu từ ngày 01/01/2026 và được điều chỉnh, bổ sung hàng năm.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        },
+        {
+          "id": "q-id-2",
+          "category": "Luật Căn cước 2023",
+          "content": "Luật Căn cước 2023 có hiệu lực thi hành từ ngày 01/7/2024 quy định đối tượng nào được cấp thẻ căn cước theo nhu cầu?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Người từ đủ 14 tuổi trở lên bắt buộc, và công dân dưới 14 tuổi thực hiện cấp theo nhu cầu"
+            },
+            {
+              "id": "B",
+              "text": "Chỉ công dân Việt Nam từ đủ 18 tuổi trở lên"
+            },
+            {
+              "id": "C",
+              "text": "Mọi công dân từ đủ 16 tuổi trở lên"
+            },
+            {
+              "id": "D",
+              "text": "Không cấp cho trẻ em dưới 6 tuổi dưới mọi hình thức"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ Điều 19 Luật Căn cước 2023: Người từ đủ 14 tuổi trở lên bắt buộc làm thủ tục cấp thẻ căn cước. Người dưới 14 tuổi được cấp thẻ căn cước theo nhu cầu tự nguyện.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        },
+        {
+          "id": "q-grassroots-3",
+          "category": "Luật Thực hiện Dân chủ ở cơ sở",
+          "content": "Theo Luật Thực hiện Dân chủ ở cơ sở năm 2022, phương châm cốt lõi của công tác dân chủ ở cơ sở là gì?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng"
+            },
+            {
+              "id": "B",
+              "text": "Dân bàn bạc và cơ quan nhà nước tự quyết định mọi việc"
+            },
+            {
+              "id": "C",
+              "text": "Chính quyền làm việc, nhân dân theo dõi và phản ánh qua mạng xã hội"
+            },
+            {
+              "id": "D",
+              "text": "Dân phản ánh, Mặt trận lắng nghe, Cán bộ tiếp thu"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ Điều 4 Luật Thực hiện Dân chủ ở cơ sở 2022 khẳng định phương châm: 'Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng'.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        },
+        {
+          "id": "q-digital-4",
+          "category": "Chuyển đổi số & Dịch vụ công xã Ea Súp",
+          "content": "Cổng dịch vụ công Quốc gia và Hệ sinh thái số easupso.com cho phép người dân xã Ea Súp nộp hồ sơ thủ tục hành chính trực tuyến 24/7 mang lại lợi ích gì?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Tiết kiệm thời gian, chi phí đi lại, minh bạch quy trình và theo dõi tiến độ giải quyết trực tiếp"
+            },
+            {
+              "id": "B",
+              "text": "Phải nộp thêm phí trung gian cho bưu điện"
+            },
+            {
+              "id": "C",
+              "text": "Chỉ phục vụ cán bộ công chức, người dân không được dùng"
+            },
+            {
+              "id": "D",
+              "text": "Không có giá trị pháp lý bằng việc nộp hồ sơ giấy truyền thống"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Nghị quyết Chuyển đổi số tỉnh Đắk Lắk và Đề án 06 khẳng định việc giải quyết TTHC trực tuyến giúp người dân tiết kiệm chi phí, minh bạch quy trình, giảm tiêu cực phiền hà.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        },
+        {
+          "id": "q-cyber-5",
+          "category": "Luật An ninh mạng",
+          "content": "Hành vi nào sau đây bị nghiêm cấm trên không gian mạng theo Luật An ninh mạng năm 2018?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Sử dụng mạng xã hội để đăng tải tin tức tuyên truyền chính thống của cơ quan nhà nước"
+            },
+            {
+              "id": "B",
+              "text": "Tham gia các cuộc thi trực tuyến tìm hiểu pháp luật có bảo mật dữ liệu"
+            },
+            {
+              "id": "C",
+              "text": "Phát tán thông tin sai sự thật, vu khống, xúc phạm danh dự nhân phẩm người khác hoặc chống phá Nhà nước"
+            },
+            {
+              "id": "D",
+              "text": "Tạo tài khoản học tập và nghiên cứu kiến thức khoa học kỹ thuật"
+            }
+          ],
+          "correctOptionIds": [
+            "C"
+          ],
+          "explanation": "Căn cứ Điều 8 Luật An ninh mạng 2018: Nghiêm cấm sử dụng không gian mạng để phát tán thông tin sai sự thật gây hoang mang, xúc phạm danh dự nhân phẩm hoặc xâm phạm an ninh quốc gia.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        },
+        {
+          "id": "q-traffic-6",
+          "category": "Luật Trật tự an toàn giao thông đường bộ 2024",
+          "content": "Theo quy định hiện hành, người điều khiển xe mô tô, xe gắn máy tham gia giao thông trên địa bàn xã Ea Súp có nồng độ cồn trong máu hoặc hơi thở thì bị xử lý như thế nào?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Nghiêm cấm tuyệt đối điều khiển phương tiện mà trong máu hoặc hơi thở có nồng độ cồn"
+            },
+            {
+              "id": "B",
+              "text": "Được phép nếu uống dưới 1 lon bia và chạy dưới 30km/h"
+            },
+            {
+              "id": "C",
+              "text": "Chỉ cấm khi chạy đường quốc lộ, đường liên thôn không cấm"
+            },
+            {
+              "id": "D",
+              "text": "Chỉ nhắc nhở nếu là người địa phương đi nương rẫy về"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Quy định pháp luật về trật tự ATGT đường bộ nghiêm cấm tuyệt đối hành vi điều khiển phương tiện tham gia giao thông mà trong máu hoặc hơi thở có nồng độ cồn.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        },
+        {
+          "id": "q-marriage-7",
+          "category": "Luật Hôn nhân và Gia đình",
+          "content": "Theo Luật Hôn nhân và Gia đình, độ tuổi kết hôn hợp pháp đối với nam và nữ là bao nhiêu?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Nam từ đủ 20 tuổi trở lên, nữ từ đủ 18 tuổi trở lên"
+            },
+            {
+              "id": "B",
+              "text": "Nam đủ 18 tuổi, nữ đủ 16 tuổi"
+            },
+            {
+              "id": "C",
+              "text": "Nam từ đủ 22 tuổi trở lên, nữ từ đủ 20 tuổi trở lên"
+            },
+            {
+              "id": "D",
+              "text": "Cả nam và nữ cùng từ đủ 18 tuổi trở lên"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Căn cứ điểm a khoản 1 Điều 8 Luật Hôn nhân và Gia đình 2014: Điều kiện kết hôn là Nam từ đủ 20 tuổi trở lên, nữ từ đủ 18 tuổi trở lên.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        },
+        {
+          "id": "q-forest-8",
+          "category": "Luật Lâm nghiệp & Bảo vệ rừng Ea Súp",
+          "content": "Hành vi lấn chiếm đất rừng, phá rừng tự nhiên hoặc khai thác lâm sản trái phép trên địa bàn huyện Ea Súp bị xử lý như thế nào?",
+          "questionType": "SINGLE_CHOICE",
+          "options": [
+            {
+              "id": "A",
+              "text": "Tùy theo tính chất, mức độ vi phạm sẽ bị xử phạt vi phạm hành chính hoặc truy cứu trách nhiệm hình sự"
+            },
+            {
+              "id": "B",
+              "text": "Chỉ tịch thu tang vật không phạt tiền"
+            },
+            {
+              "id": "C",
+              "text": "Chỉ xử phạt người vận chuyển, không xử lý người chặt phá"
+            },
+            {
+              "id": "D",
+              "text": "Được miễn trách nhiệm nếu tự ý trồng lại cây hoa màu"
+            }
+          ],
+          "correctOptionIds": [
+            "A"
+          ],
+          "explanation": "Theo Luật Lâm nghiệp và Bộ luật Hình sự: Mọi hành vi phá rừng, lấn chiếm rừng trái phép đều bị xử lý nghiêm minh theo quy định pháp luật hành chính hoặc hình sự.",
+          "points": 10,
+          "contestId": "contest-easup-2026"
+        }
+      ]
+    }
+  ],
+  "mediaContests": [
+    {
+      "id": "media-contest-1",
+      "title": "CUỘC THI BÌNH CHỌN MỚI",
+      "slug": "cuoc-thi-binh-chon-moi",
+      "bannerUrl": "/images/contest_stage_banner.jpg",
+      "type": "IMAGE",
+      "startDate": "2026-11-02T00:00:00Z",
+      "endDate": "2026-11-05T23:59:59Z",
+      "displayStartDate": "2 thg 11, 2026",
+      "displayEndDate": "5 thg 11, 2026",
+      "submissionsCount": 0,
+      "status": "DRAFT",
+      "description": "Cuộc thi bình chọn tác phẩm hình ảnh chào mừng các ngày lễ lớn, nét đẹp văn hóa và đời sống xã Ea Súp.",
+      "organizerName": "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
+      "creatorEmail": "Easupsohoa@gmail.com",
+      "creatorId": "user-admin-2",
+      "creatorName": "Thường trực UB MTTQ Việt Nam xã Ea Súp",
+      "createdAt": "2026-10-28T00:00:00Z"
+    },
+    {
+      "id": "media-contest-2",
+      "title": "CUỘC THI ẢNH ĐẸP: NÉT ĐẸP VĂN HÓA & ĐỜI SỐNG EA SÚP 2026",
+      "slug": "net-dep-van-hoa-ea-sup-2026",
+      "bannerUrl": "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=1200&q=80",
+      "type": "IMAGE",
+      "startDate": "2026-10-20T00:00:00Z",
+      "endDate": "2026-11-20T23:59:59Z",
+      "displayStartDate": "20 thg 10, 2026",
+      "displayEndDate": "20 thg 11, 2026",
+      "submissionsCount": 3,
+      "status": "PUBLISHED",
+      "description": "Tôn vinh vẻ đẹp thiên nhiên, con người lao động và khối đại đoàn kết các dân tộc thiểu số tại xã Ea Súp.",
+      "organizerName": "Hội Phụ nữ & Đoàn Thanh niên xã Ea Súp",
+      "creatorEmail": "phunu.easup@gmail.com",
+      "creatorId": "user-phunu",
+      "creatorName": "Hội Phụ nữ & Đoàn Thanh niên xã Ea Súp",
+      "createdAt": "2026-10-20T08:00:00Z"
+    }
+  ],
+  "mediaSubmissions": [
+    {
+      "id": "sub-1",
+      "contestId": "media-contest-2",
+      "contestSlug": "net-dep-van-hoa-ea-sup-2026",
+      "title": "Bình minh trên Hồ Ea Súp Hạ",
+      "authorName": "Nguyễn Văn Hùng",
+      "authorPhone": "0912345678",
+      "authorCccd": "066092001234",
+      "unitName": "Thôn 2",
+      "mediaType": "IMAGE",
+      "mediaUrl": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+      "description": "Mặt hồ trong veo đón ánh bình minh, thể hiện sức sống vươn lên của mảnh đất biên giới Ea Súp.",
+      "votesCount": 148,
+      "status": "APPROVED",
+      "createdAt": "2026-10-21T09:00:00Z"
+    },
+    {
+      "id": "sub-2",
+      "contestId": "media-contest-2",
+      "contestSlug": "net-dep-van-hoa-ea-sup-2026",
+      "title": "Điệu múa xoang ngày hội Buôn A1",
+      "authorName": "H'Nhi Ksor",
+      "authorPhone": "0987654321",
+      "authorCccd": "066095005678",
+      "unitName": "Buôn A1",
+      "mediaType": "IMAGE",
+      "mediaUrl": "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=800&q=80",
+      "description": "Bảo tồn bản sắc văn hóa cồng chiêng và trang phục truyền thống của đồng bào các dân tộc xã Ea Súp.",
+      "votesCount": 215,
+      "status": "APPROVED",
+      "createdAt": "2026-10-22T14:30:00Z"
+    },
+    {
+      "id": "sub-3",
+      "contestId": "media-contest-2",
+      "contestSlug": "net-dep-van-hoa-ea-sup-2026",
+      "title": "Mùa lúa chín vàng cánh đồng Ea Súp",
+      "authorName": "Lê Minh Tuấn",
+      "authorPhone": "0903112233",
+      "authorCccd": "066090009988",
+      "unitName": "Thôn Đoàn Kết",
+      "mediaType": "IMAGE",
+      "mediaUrl": "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80",
+      "description": "Thành quả sau những ngày tháng cần cù lao động của bà con nhân dân các thôn buôn.",
+      "votesCount": 96,
+      "status": "APPROVED",
+      "createdAt": "2026-10-23T11:15:00Z"
+    }
+  ],
+  "users": [
+    {
+      "id": "user-admin-lehanh",
+      "name": "Lê Hạnh - Quản trị viên Ea Súp",
+      "email": "lehanhkt01@gmail.com",
+      "phone": "0888023023",
+      "password": "Hh@$123456",
+      "role": "ADMIN",
+      "status": "APPROVED",
+      "organizationName": "Ủy ban Nhân dân xã Ea Súp",
+      "createdAt": "2026-01-01T08:00:00Z",
+      "approvedAt": "2026-01-01T08:00:00Z"
+    },
+    {
+      "id": "user-admin-1",
+      "name": "Quản trị viên Hệ thống Ea Súp",
+      "email": "admin@easupso.com",
+      "phone": "0888023023",
+      "password": "admin123",
+      "role": "ADMIN",
+      "status": "APPROVED",
+      "organizationName": "Trung tâm Điều hành & Chuyển đổi số Xã Ea Súp",
+      "createdAt": "2026-01-01T08:00:00Z",
+      "approvedAt": "2026-01-01T08:00:00Z"
+    },
+    {
+      "id": "user-admin-2",
+      "name": "Thường trực UB MTTQ Việt Nam xã Ea Súp",
+      "email": "Easupsohoa@gmail.com",
+      "phone": "0888023023",
+      "password": "admin123",
+      "role": "ADMIN",
+      "status": "APPROVED",
+      "organizationName": "Ủy ban MTTQ Việt Nam xã Ea Súp",
+      "createdAt": "2026-01-10T08:00:00Z",
+      "approvedAt": "2026-01-10T08:00:00Z"
+    },
+    {
+      "id": "user-regular-1",
+      "name": "Cán bộ Hội Nông dân Xã Ea Súp",
+      "email": "nongdan@easupso.com",
+      "phone": "0912345678",
+      "password": "user123",
+      "role": "USER",
+      "status": "APPROVED",
+      "organizationName": "Hội Nông dân xã Ea Súp",
+      "createdAt": "2026-02-15T08:00:00Z",
+      "approvedAt": "2026-02-16T08:00:00Z"
+    },
+    {
+      "id": "user-regular-2",
+      "name": "Lê Hồng Zen",
+      "email": "zipzenhanh@gmail.com",
+      "phone": "0934567890",
+      "password": "Hh@$123456",
+      "role": "USER",
+      "status": "APPROVED",
+      "organizationName": "Cán bộ Đơn vị Xã Ea Súp",
+      "createdAt": "2026-03-01T08:00:00Z",
+      "approvedAt": "2026-03-01T08:00:00Z"
+    },
+    {
+      "id": "user-pending-1",
+      "name": "Chi hội Phụ nữ Thôn 3",
+      "email": "phunu.thon3@easupso.com",
+      "phone": "0987654321",
+      "password": "user123",
+      "role": "USER",
+      "status": "APPROVED",
+      "organizationName": "Chi hội Phụ nữ Thôn 3, Xã Ea Súp",
+      "createdAt": "2026-10-28T09:30:00Z",
+      "approvedAt": "2026-10-30T02:20:13.291Z"
+    },
+    {
+      "id": "user-pending-2",
+      "name": "Ban Tự quản Buôn A1",
+      "email": "buona1@easupso.com",
+      "phone": "0977889900",
+      "password": "user123",
+      "role": "USER",
+      "status": "PENDING",
+      "organizationName": "Ban Tự quản Buôn A1",
+      "createdAt": "2026-10-29T08:15:00Z"
+    }
+  ],
+  "questionPackages": [
+    {
+      "id": "pkg-1793257248330-3qlk",
+      "name": "Cựu chiến binh",
+      "description": "Bộ đề do Lê Hồng Zen tạo",
+      "questionCount": 3,
+      "creatorEmail": "zipzenhanh@gmail.com",
+      "creatorId": "user-regular-2",
+      "creatorName": "Lê Hồng Zen",
+      "isSystem": false,
+      "createdAt": "2026-10-29T07:00:48.330Z"
+    },
+    {
+      "id": "pkg-1793256140111-aqh8",
+      "name": "Đề CCB",
+      "description": "Bộ đề do Lê Hạnh tạo",
+      "questionCount": 3,
+      "creatorEmail": "lehanhkt01@gmail.com",
+      "creatorId": "user-admin-lehanh",
+      "creatorName": "Lê Hạnh",
+      "isSystem": false,
+      "createdAt": "2026-10-29T06:42:20.111Z"
+    },
+    {
+      "id": "pkg-system-common",
+      "name": "Bộ đề Chung Xã Ea Súp",
+      "description": "Ngân hàng câu hỏi trắc nghiệm pháp luật dùng chung toàn xã",
+      "questionCount": 8,
+      "isSystem": true,
+      "createdAt": "2026-03-01T08:00:00Z"
+    }
+  ],
+  "questionBank": [
+    {
+      "category": "Luật Đất đai 2024",
+      "content": "Theo Luật Đất đai năm 2024, bảng giá đất do Ủy ban nhân dân cấp tỉnh ban hành được áp dụng lần đầu từ ngày nào?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Từ ngày 01 tháng 01 năm 2025"
+        },
+        {
+          "id": "B",
+          "text": "Từ ngày 01 tháng 01 năm 2026"
+        },
+        {
+          "id": "C",
+          "text": "Từ ngày 01 tháng 08 năm 2024"
+        },
+        {
+          "id": "D",
+          "text": "Từ ngày 01 tháng 07 năm 2025"
+        }
+      ],
+      "correctOptionIds": [
+        "B"
+      ],
+      "explanation": "Căn cứ khoản 3 Điều 159 Luật Đất đai 2024: Bảng giá đất do UBND cấp tỉnh xây dựng, trình HĐND cùng cấp quyết định áp dụng lần đầu từ ngày 01/01/2026.",
+      "points": 10,
+      "id": "q-imp-1793257248330-1",
+      "packageId": "pkg-1793257248330-3qlk",
+      "packageName": "Cựu chiến binh",
+      "creatorEmail": "zipzenhanh@gmail.com",
+      "creatorId": "user-regular-2",
+      "creatorName": "Lê Hồng Zen",
+      "isPrivate": true,
+      "createdAt": "2026-10-29T07:00:48.330Z"
+    },
+    {
+      "category": "Luật Căn cước 2023",
+      "content": "Luật Căn cước 2023 có hiệu lực thi hành từ ngày 01/7/2024 quy định đối tượng nào được cấp thẻ căn cước theo nhu cầu?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Người từ đủ 14 tuổi trở lên bắt buộc, và công dân dưới 14 tuổi thực hiện cấp theo nhu cầu"
+        },
+        {
+          "id": "B",
+          "text": "Chỉ công dân Việt Nam từ đủ 18 tuổi trở lên"
+        },
+        {
+          "id": "C",
+          "text": "Mọi công dân từ đủ 16 tuổi trở lên"
+        },
+        {
+          "id": "D",
+          "text": "Không cấp cho trẻ em dưới 6 tuổi dưới mọi hình thức"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Căn cứ Điều 19 Luật Căn cước 2023: Người từ đủ 14 tuổi trở lên bắt buộc làm thủ tục cấp thẻ căn cước. Người dưới 14 tuổi được cấp thẻ căn cước theo nhu cầu tự nguyện.",
+      "points": 10,
+      "id": "q-imp-1793257248330-2",
+      "packageId": "pkg-1793257248330-3qlk",
+      "packageName": "Cựu chiến binh",
+      "creatorEmail": "zipzenhanh@gmail.com",
+      "creatorId": "user-regular-2",
+      "creatorName": "Lê Hồng Zen",
+      "isPrivate": true,
+      "createdAt": "2026-10-29T07:00:48.330Z"
+    },
+    {
+      "category": "An toàn giao thông đường bộ",
+      "content": "Hành vi điều khiển phương tiện tham gia giao thông mà trong máu hoặc hơi thở có nồng độ cồn bị pháp luật xử lý như thế nào?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Nghiêm cấm tuyệt đối đối với mọi loại phương tiện giao thông đường bộ"
+        },
+        {
+          "id": "B",
+          "text": "Được phép nếu uống dưới 1 lon bia và chạy xe chậm"
+        },
+        {
+          "id": "C",
+          "text": "Chỉ cấm khi chạy trên đường quốc lộ"
+        },
+        {
+          "id": "D",
+          "text": "Chỉ áp dụng với người điều khiển xe ô tô"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Luật Trật tự an toàn giao thông đường bộ nghiêm cấm tuyệt đối hành vi điều khiển phương tiện tham gia giao thông mà trong máu hoặc hơi thở có nồng độ cồn.",
+      "points": 10,
+      "id": "q-imp-1793257248330-3",
+      "packageId": "pkg-1793257248330-3qlk",
+      "packageName": "Cựu chiến binh",
+      "creatorEmail": "zipzenhanh@gmail.com",
+      "creatorId": "user-regular-2",
+      "creatorName": "Lê Hồng Zen",
+      "isPrivate": true,
+      "createdAt": "2026-10-29T07:00:48.330Z"
+    },
+    {
+      "category": "Luật Đất đai 2024",
+      "content": "Theo Luật Đất đai năm 2024, bảng giá đất do Ủy ban nhân dân cấp tỉnh ban hành được áp dụng lần đầu từ ngày nào?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Từ ngày 01 tháng 01 năm 2025"
+        },
+        {
+          "id": "B",
+          "text": "Từ ngày 01 tháng 01 năm 2026"
+        },
+        {
+          "id": "C",
+          "text": "Từ ngày 01 tháng 08 năm 2024"
+        },
+        {
+          "id": "D",
+          "text": "Từ ngày 01 tháng 07 năm 2025"
+        }
+      ],
+      "correctOptionIds": [
+        "B"
+      ],
+      "explanation": "Căn cứ khoản 3 Điều 159 Luật Đất đai 2024: Bảng giá đất do UBND cấp tỉnh xây dựng, trình HĐND cùng cấp quyết định áp dụng lần đầu từ ngày 01/01/2026.",
+      "points": 10,
+      "id": "q-imp-1793256140111-1",
+      "packageId": "pkg-1793256140111-aqh8",
+      "packageName": "Đề CCB",
+      "creatorEmail": "lehanhkt01@gmail.com",
+      "creatorId": "user-admin-lehanh",
+      "creatorName": "Lê Hạnh",
+      "isPrivate": true,
+      "createdAt": "2026-10-29T06:42:20.111Z"
+    },
+    {
+      "category": "Luật Căn cước 2023",
+      "content": "Luật Căn cước 2023 có hiệu lực thi hành từ ngày 01/7/2024 quy định đối tượng nào được cấp thẻ căn cước theo nhu cầu?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Người từ đủ 14 tuổi trở lên bắt buộc, và công dân dưới 14 tuổi thực hiện cấp theo nhu cầu"
+        },
+        {
+          "id": "B",
+          "text": "Chỉ công dân Việt Nam từ đủ 18 tuổi trở lên"
+        },
+        {
+          "id": "C",
+          "text": "Mọi công dân từ đủ 16 tuổi trở lên"
+        },
+        {
+          "id": "D",
+          "text": "Không cấp cho trẻ em dưới 6 tuổi dưới mọi hình thức"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Căn cứ Điều 19 Luật Căn cước 2023: Người từ đủ 14 tuổi trở lên bắt buộc làm thủ tục cấp thẻ căn cước. Người dưới 14 tuổi được cấp thẻ căn cước theo nhu cầu tự nguyện.",
+      "points": 10,
+      "id": "q-imp-1793256140111-2",
+      "packageId": "pkg-1793256140111-aqh8",
+      "packageName": "Đề CCB",
+      "creatorEmail": "lehanhkt01@gmail.com",
+      "creatorId": "user-admin-lehanh",
+      "creatorName": "Lê Hạnh",
+      "isPrivate": true,
+      "createdAt": "2026-10-29T06:42:20.111Z"
+    },
+    {
+      "category": "An toàn giao thông đường bộ",
+      "content": "Hành vi điều khiển phương tiện tham gia giao thông mà trong máu hoặc hơi thở có nồng độ cồn bị pháp luật xử lý như thế nào?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Nghiêm cấm tuyệt đối đối với mọi loại phương tiện giao thông đường bộ"
+        },
+        {
+          "id": "B",
+          "text": "Được phép nếu uống dưới 1 lon bia và chạy xe chậm"
+        },
+        {
+          "id": "C",
+          "text": "Chỉ cấm khi chạy trên đường quốc lộ"
+        },
+        {
+          "id": "D",
+          "text": "Chỉ áp dụng với người điều khiển xe ô tô"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Luật Trật tự an toàn giao thông đường bộ nghiêm cấm tuyệt đối hành vi điều khiển phương tiện tham gia giao thông mà trong máu hoặc hơi thở có nồng độ cồn.",
+      "points": 10,
+      "id": "q-imp-1793256140111-3",
+      "packageId": "pkg-1793256140111-aqh8",
+      "packageName": "Đề CCB",
+      "creatorEmail": "lehanhkt01@gmail.com",
+      "creatorId": "user-admin-lehanh",
+      "creatorName": "Lê Hạnh",
+      "isPrivate": true,
+      "createdAt": "2026-10-29T06:42:20.111Z"
+    },
+    {
+      "id": "q-land-1",
+      "category": "Luật Đất đai 2024",
+      "content": "Theo Luật Đất đai năm 2024, bảng giá đất do Ủy ban nhân dân cấp tỉnh ban hành được áp dụng lần đầu từ ngày nào?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Từ ngày 01 tháng 01 năm 2025"
+        },
+        {
+          "id": "B",
+          "text": "Từ ngày 01 tháng 01 năm 2026"
+        },
+        {
+          "id": "C",
+          "text": "Từ ngày 01 tháng 08 năm 2024"
+        },
+        {
+          "id": "D",
+          "text": "Từ ngày 01 tháng 07 năm 2025"
+        }
+      ],
+      "correctOptionIds": [
+        "B"
+      ],
+      "explanation": "Căn cứ khoản 3 Điều 159 Luật Đất đai 2024: Bảng giá đất do UBND cấp tỉnh xây dựng, trình HĐND cùng cấp quyết định áp dụng lần đầu từ ngày 01/01/2026 và được điều chỉnh, bổ sung hàng năm.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    },
+    {
+      "id": "q-id-2",
+      "category": "Luật Căn cước 2023",
+      "content": "Luật Căn cước 2023 có hiệu lực thi hành từ ngày 01/7/2024 quy định đối tượng nào được cấp thẻ căn cước theo nhu cầu?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Người từ đủ 14 tuổi trở lên bắt buộc, và công dân dưới 14 tuổi thực hiện cấp theo nhu cầu"
+        },
+        {
+          "id": "B",
+          "text": "Chỉ công dân Việt Nam từ đủ 18 tuổi trở lên"
+        },
+        {
+          "id": "C",
+          "text": "Mọi công dân từ đủ 16 tuổi trở lên"
+        },
+        {
+          "id": "D",
+          "text": "Không cấp cho trẻ em dưới 6 tuổi dưới mọi hình thức"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Căn cứ Điều 19 Luật Căn cước 2023: Người từ đủ 14 tuổi trở lên bắt buộc làm thủ tục cấp thẻ căn cước. Người dưới 14 tuổi được cấp thẻ căn cước theo nhu cầu tự nguyện.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    },
+    {
+      "id": "q-grassroots-3",
+      "category": "Luật Thực hiện Dân chủ ở cơ sở",
+      "content": "Theo Luật Thực hiện Dân chủ ở cơ sở năm 2022, phương châm cốt lõi của công tác dân chủ ở cơ sở là gì?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng"
+        },
+        {
+          "id": "B",
+          "text": "Dân bàn bạc và cơ quan nhà nước tự quyết định mọi việc"
+        },
+        {
+          "id": "C",
+          "text": "Chính quyền làm việc, nhân dân theo dõi và phản ánh qua mạng xã hội"
+        },
+        {
+          "id": "D",
+          "text": "Dân phản ánh, Mặt trận lắng nghe, Cán bộ tiếp thu"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Căn cứ Điều 4 Luật Thực hiện Dân chủ ở cơ sở 2022 khẳng định phương châm: 'Dân biết, dân bàn, dân làm, dân kiểm tra, dân giám sát, dân thụ hưởng'.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    },
+    {
+      "id": "q-digital-4",
+      "category": "Chuyển đổi số & Dịch vụ công xã Ea Súp",
+      "content": "Cổng dịch vụ công Quốc gia và Hệ sinh thái số easupso.com cho phép người dân xã Ea Súp nộp hồ sơ thủ tục hành chính trực tuyến 24/7 mang lại lợi ích gì?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Tiết kiệm thời gian, chi phí đi lại, minh bạch quy trình và theo dõi tiến độ giải quyết trực tiếp"
+        },
+        {
+          "id": "B",
+          "text": "Phải nộp thêm phí trung gian cho bưu điện"
+        },
+        {
+          "id": "C",
+          "text": "Chỉ phục vụ cán bộ công chức, người dân không được dùng"
+        },
+        {
+          "id": "D",
+          "text": "Không có giá trị pháp lý bằng việc nộp hồ sơ giấy truyền thống"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Nghị quyết Chuyển đổi số tỉnh Đắk Lắk và Đề án 06 khẳng định việc giải quyết TTHC trực tuyến giúp người dân tiết kiệm chi phí, minh bạch quy trình, giảm tiêu cực phiền hà.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    },
+    {
+      "id": "q-cyber-5",
+      "category": "Luật An ninh mạng",
+      "content": "Hành vi nào sau đây bị nghiêm cấm trên không gian mạng theo Luật An ninh mạng năm 2018?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Sử dụng mạng xã hội để đăng tải tin tức tuyên truyền chính thống của cơ quan nhà nước"
+        },
+        {
+          "id": "B",
+          "text": "Tham gia các cuộc thi trực tuyến tìm hiểu pháp luật có bảo mật dữ liệu"
+        },
+        {
+          "id": "C",
+          "text": "Phát tán thông tin sai sự thật, vu khống, xúc phạm danh dự nhân phẩm người khác hoặc chống phá Nhà nước"
+        },
+        {
+          "id": "D",
+          "text": "Tạo tài khoản học tập và nghiên cứu kiến thức khoa học kỹ thuật"
+        }
+      ],
+      "correctOptionIds": [
+        "C"
+      ],
+      "explanation": "Căn cứ Điều 8 Luật An ninh mạng 2018: Nghiêm cấm sử dụng không gian mạng để phát tán thông tin sai sự thật gây hoang mang, xúc phạm danh dự nhân phẩm hoặc xâm phạm an ninh quốc gia.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    },
+    {
+      "id": "q-traffic-6",
+      "category": "Luật Trật tự an toàn giao thông đường bộ 2024",
+      "content": "Theo quy định hiện hành, người điều khiển xe mô tô, xe gắn máy tham gia giao thông trên địa bàn xã Ea Súp có nồng độ cồn trong máu hoặc hơi thở thì bị xử lý như thế nào?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Nghiêm cấm tuyệt đối điều khiển phương tiện mà trong máu hoặc hơi thở có nồng độ cồn"
+        },
+        {
+          "id": "B",
+          "text": "Được phép nếu uống dưới 1 lon bia và chạy dưới 30km/h"
+        },
+        {
+          "id": "C",
+          "text": "Chỉ cấm khi chạy đường quốc lộ, đường liên thôn không cấm"
+        },
+        {
+          "id": "D",
+          "text": "Chỉ nhắc nhở nếu là người địa phương đi nương rẫy về"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Quy định pháp luật về trật tự ATGT đường bộ nghiêm cấm tuyệt đối hành vi điều khiển phương tiện tham gia giao thông mà trong máu hoặc hơi thở có nồng độ cồn.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    },
+    {
+      "id": "q-marriage-7",
+      "category": "Luật Hôn nhân và Gia đình",
+      "content": "Theo Luật Hôn nhân và Gia đình, độ tuổi kết hôn hợp pháp đối với nam và nữ là bao nhiêu?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Nam từ đủ 20 tuổi trở lên, nữ từ đủ 18 tuổi trở lên"
+        },
+        {
+          "id": "B",
+          "text": "Nam đủ 18 tuổi, nữ đủ 16 tuổi"
+        },
+        {
+          "id": "C",
+          "text": "Nam từ đủ 22 tuổi trở lên, nữ từ đủ 20 tuổi trở lên"
+        },
+        {
+          "id": "D",
+          "text": "Cả nam và nữ cùng từ đủ 18 tuổi trở lên"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Căn cứ điểm a khoản 1 Điều 8 Luật Hôn nhân và Gia đình 2014: Điều kiện kết hôn là Nam từ đủ 20 tuổi trở lên, nữ từ đủ 18 tuổi trở lên.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    },
+    {
+      "id": "q-forest-8",
+      "category": "Luật Lâm nghiệp & Bảo vệ rừng Ea Súp",
+      "content": "Hành vi lấn chiếm đất rừng, phá rừng tự nhiên hoặc khai thác lâm sản trái phép trên địa bàn huyện Ea Súp bị xử lý như thế nào?",
+      "questionType": "SINGLE_CHOICE",
+      "options": [
+        {
+          "id": "A",
+          "text": "Tùy theo tính chất, mức độ vi phạm sẽ bị xử phạt vi phạm hành chính hoặc truy cứu trách nhiệm hình sự"
+        },
+        {
+          "id": "B",
+          "text": "Chỉ tịch thu tang vật không phạt tiền"
+        },
+        {
+          "id": "C",
+          "text": "Chỉ xử phạt người vận chuyển, không xử lý người chặt phá"
+        },
+        {
+          "id": "D",
+          "text": "Được miễn trách nhiệm nếu tự ý trồng lại cây hoa màu"
+        }
+      ],
+      "correctOptionIds": [
+        "A"
+      ],
+      "explanation": "Theo Luật Lâm nghiệp và Bộ luật Hình sự: Mọi hành vi phá rừng, lấn chiếm rừng trái phép đều bị xử lý nghiêm minh theo quy định pháp luật hành chính hoặc hình sự.",
+      "points": 10,
+      "packageId": "pkg-system-common",
+      "packageName": "Bộ đề Chung Xã Ea Súp",
+      "isSystem": true,
+      "isPrivate": false
+    }
+  ],
+  "participants": [
+    {
+      "id": "p-1793254811763-0u9y",
+      "contestId": "contest-1793254695419",
+      "unitId": "unit-1",
+      "unitName": "Chi hội thôn 1",
+      "fullName": "Nguyễn Văn An",
+      "cccd": "034082015266",
+      "phone": "0984123456",
+      "birthYear": 1995,
+      "createdAt": "2026-10-29T06:20:11.763Z"
+    },
+    {
+      "id": "p-1793255556319-3mhk",
+      "contestId": "contest-1793254695419",
+      "unitId": "unit-1",
+      "unitName": "Chi hội thôn 1",
+      "fullName": "Thí sinh Thử nghiệm",
+      "cccd": "066099998888",
+      "phone": "0988776655",
+      "birthYear": 2000,
+      "createdAt": "2026-10-29T06:32:36.319Z"
+    },
+    {
+      "id": "p-1793255660656-ugb8",
+      "contestId": "contest-hoi-nong-dan-ea-sup",
+      "unitId": "unit-1",
+      "unitName": "Thôn 1",
+      "fullName": "Nguyễn Văn An",
+      "cccd": "034082015266",
+      "phone": "0984123456",
+      "birthYear": 1995,
+      "createdAt": "2026-10-29T06:34:20.656Z"
+    },
+    {
+      "id": "p-1793255786882-9k5j",
+      "contestId": "contest-1793254695419",
+      "unitId": "unit-1",
+      "unitName": "Chi hội thôn 1",
+      "fullName": "Nguyễn Văn T",
+      "cccd": "034082015264",
+      "phone": "0984123457",
+      "birthYear": 1995,
+      "createdAt": "2026-10-29T06:36:26.882Z"
+    },
+    {
+      "id": "p-1793325116966-tcxz",
+      "contestId": "contest-easup-2026",
+      "unitId": "Thôn 1",
+      "unitName": "Thôn 1",
+      "fullName": "Thí sinh Kiểm thử",
+      "cccd": "066099990001",
+      "phone": "0988776655",
+      "birthYear": 1995,
+      "createdAt": "2026-10-30T01:51:56.966Z"
+    }
+  ],
+  "attempts": [
+    {
+      "id": "att-1793254811764-linl0",
+      "contestId": "contest-1793254695419",
+      "participantId": "p-1793254811763-0u9y",
+      "participantName": "Nguyễn Văn An",
+      "participantCccd": "034082015266",
+      "unitName": "Chi hội thôn 1",
+      "assignedQuestionIds": [],
+      "answers": {},
+      "score": 0,
+      "correctCount": 0,
+      "totalQuestions": 0,
+      "accuracyPercent": 0,
+      "durationSeconds": 0,
+      "tabSwitchCount": 0,
+      "ipAddress": "::1",
+      "startedAt": "2026-10-29T06:20:11.764Z",
+      "createdAt": "2026-10-29T06:20:11.764Z"
+    },
+    {
+      "id": "att-1793254850895-dbykt",
+      "contestId": "contest-1793254695419",
+      "participantId": "p-1793254811763-0u9y",
+      "participantName": "Nguyễn Văn An",
+      "participantCccd": "034082015266",
+      "unitName": "Chi hội thôn 1",
+      "assignedQuestionIds": [],
+      "answers": {},
+      "score": 0,
+      "correctCount": 0,
+      "totalQuestions": 0,
+      "accuracyPercent": 0,
+      "durationSeconds": 0,
+      "tabSwitchCount": 0,
+      "ipAddress": "::1",
+      "startedAt": "2026-10-29T06:20:50.895Z",
+      "createdAt": "2026-10-29T06:20:50.895Z"
+    },
+    {
+      "id": "att-1793254875507-sqo00",
+      "contestId": "contest-1793254695419",
+      "participantId": "p-1793254811763-0u9y",
+      "participantName": "Nguyễn Văn An",
+      "participantCccd": "034082015266",
+      "unitName": "Chi hội thôn 1",
+      "assignedQuestionIds": [],
+      "answers": {},
+      "score": 0,
+      "correctCount": 0,
+      "totalQuestions": 0,
+      "accuracyPercent": 0,
+      "durationSeconds": 0,
+      "tabSwitchCount": 0,
+      "ipAddress": "::1",
+      "startedAt": "2026-10-29T06:21:15.507Z",
+      "createdAt": "2026-10-29T06:21:15.507Z"
+    },
+    {
+      "id": "att-1793255556321-zrcdo",
+      "contestId": "contest-1793254695419",
+      "participantId": "p-1793255556319-3mhk",
+      "participantName": "Thí sinh Thử nghiệm",
+      "participantCccd": "066099998888",
+      "unitName": "Chi hội thôn 1",
+      "assignedQuestionIds": [
+        "q-digital-4",
+        "q-grassroots-3",
+        "q-id-2",
+        "q-land-1",
+        "q-cyber-5"
+      ],
+      "answers": {},
+      "score": 0,
+      "correctCount": 0,
+      "totalQuestions": 5,
+      "accuracyPercent": 0,
+      "durationSeconds": 0,
+      "tabSwitchCount": 0,
+      "ipAddress": "::1",
+      "startedAt": "2026-10-29T06:32:36.321Z",
+      "createdAt": "2026-10-29T06:32:36.321Z"
+    },
+    {
+      "id": "att-1793255660658-hekop",
+      "contestId": "contest-hoi-nong-dan-ea-sup",
+      "participantId": "p-1793255660656-ugb8",
+      "participantName": "Nguyễn Văn An",
+      "participantCccd": "034082015266",
+      "unitName": "Thôn 1",
+      "assignedQuestionIds": [
+        "q-land-1",
+        "q-id-2",
+        "q-grassroots-3",
+        "q-marriage-7",
+        "q-digital-4",
+        "q-cyber-5",
+        "q-traffic-6",
+        "q-forest-8"
+      ],
+      "answers": {
+        "q-land-1": [
+          "B"
+        ],
+        "q-id-2": [
+          "B"
+        ],
+        "q-grassroots-3": [
+          "B"
+        ],
+        "q-marriage-7": [
+          "C"
+        ],
+        "q-digital-4": [
+          "B"
+        ],
+        "q-cyber-5": [
+          "B"
+        ],
+        "q-traffic-6": [
+          "A"
+        ],
+        "q-forest-8": [
+          "A"
+        ]
+      },
+      "score": 30,
+      "correctCount": 3,
+      "totalQuestions": 8,
+      "accuracyPercent": 37.5,
+      "durationSeconds": 23,
+      "tabSwitchCount": 0,
+      "ipAddress": "::1",
+      "startedAt": "2026-10-29T06:34:20.658Z",
+      "createdAt": "2026-10-29T06:34:20.658Z",
+      "submittedAt": "2026-10-29T06:34:43.807Z"
+    },
+    {
+      "id": "att-1793255786883-lqjgt",
+      "contestId": "contest-1793254695419",
+      "participantId": "p-1793255786882-9k5j",
+      "participantName": "Nguyễn Văn T",
+      "participantCccd": "034082015264",
+      "unitName": "Chi hội thôn 1",
+      "assignedQuestionIds": [
+        "q-digital-4",
+        "q-land-1",
+        "q-id-2",
+        "q-grassroots-3",
+        "q-cyber-5"
+      ],
+      "answers": {
+        "q-digital-4": [
+          "B"
+        ],
+        "q-land-1": [
+          "C"
+        ],
+        "q-id-2": [
+          "C"
+        ],
+        "q-grassroots-3": [
+          "A"
+        ],
+        "q-cyber-5": [
+          "C"
+        ]
+      },
+      "score": 20,
+      "correctCount": 2,
+      "totalQuestions": 5,
+      "accuracyPercent": 40,
+      "durationSeconds": 12,
+      "tabSwitchCount": 0,
+      "ipAddress": "::1",
+      "startedAt": "2026-10-29T06:36:26.883Z",
+      "createdAt": "2026-10-29T06:36:26.883Z",
+      "submittedAt": "2026-10-29T06:36:38.500Z"
+    },
+    {
+      "id": "att-1793325116967-51kbt",
+      "contestId": "contest-easup-2026",
+      "participantId": "p-1793325116966-tcxz",
+      "participantName": "Thí sinh Kiểm thử",
+      "participantCccd": "066099990001",
+      "unitName": "Thôn 1",
+      "assignedQuestionIds": [
+        "q-id-2",
+        "q-marriage-7",
+        "q-digital-4",
+        "q-land-1",
+        "q-grassroots-3"
+      ],
+      "answers": {
+        "q-land-1": [
+          "B"
+        ]
+      },
+      "score": 10,
+      "correctCount": 1,
+      "totalQuestions": 5,
+      "accuracyPercent": 20,
+      "durationSeconds": 1,
+      "tabSwitchCount": 0,
+      "ipAddress": "::1",
+      "startedAt": "2026-10-30T01:51:56.967Z",
+      "createdAt": "2026-10-30T01:51:56.967Z",
+      "submittedAt": "2026-10-30T01:51:57.628Z"
+    }
+  ],
+  "lastSavedAt": "2026-10-30T02:20:13.291Z"
+}

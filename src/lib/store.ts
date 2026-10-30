@@ -670,7 +670,7 @@ class DataStore {
             this.mediaSubmissions = parsed.mediaSubmissions;
           }
           if (Array.isArray(parsed.users) && parsed.users.length > 0) {
-            this.users = parsed.users;
+            this.users = this.mergeUsersList(parsed.users, this.users);
           }
           if (Array.isArray(parsed.questionPackages) && parsed.questionPackages.length > 0) {
             this.questionPackages = parsed.questionPackages;
@@ -707,7 +707,68 @@ class DataStore {
     this.ensureAdminUsers();
   }
 
-  public saveToDisk(): void {
+  // Thuật toán hợp nhất người dùng thông minh chống mất mát dữ liệu
+  private mergeUsersList(
+    diskUsers: UserModel[],
+    memoryUsers: UserModel[],
+    deletedIds: string[] = []
+  ): UserModel[] {
+    const map = new Map<string, UserModel>();
+    const getKey = (u: UserModel) => (u.id ? u.id : (u.email ? u.email.toLowerCase() : ""));
+
+    // 1. Nạp danh sách từ đĩa vào Map (loại trừ các id đã xóa)
+    for (const du of diskUsers) {
+      if (!du) continue;
+      const key = getKey(du);
+      if (!key || (du.id && deletedIds.includes(du.id))) continue;
+      map.set(key, { ...du });
+    }
+
+    // 2. Hợp nhất danh sách trong bộ nhớ vào Map
+    for (const mu of memoryUsers) {
+      if (!mu) continue;
+      const key = getKey(mu);
+      if (!key || (mu.id && deletedIds.includes(mu.id))) continue;
+
+      const existing = map.get(key);
+      if (!existing) {
+        map.set(key, { ...mu });
+      } else {
+        // Trạng thái APPROVED là bất biến: Nếu một trong hai đã được duyệt thì giữ nguyên APPROVED
+        let finalStatus: "APPROVED" | "PENDING" | "REJECTED" = existing.status;
+        if (mu.status === "APPROVED" || existing.status === "APPROVED") {
+          finalStatus = "APPROVED";
+        } else if (mu.status === "REJECTED" || existing.status === "REJECTED") {
+          finalStatus = "REJECTED";
+        } else {
+          finalStatus = "PENDING";
+        }
+
+        let finalRole: "ADMIN" | "USER" = mu.role || existing.role;
+        const approvedAt =
+          mu.approvedAt ||
+          existing.approvedAt ||
+          (finalStatus === "APPROVED" ? (existing.createdAt || new Date().toISOString()) : undefined);
+
+        map.set(key, {
+          ...existing,
+          ...mu,
+          status: finalStatus,
+          role: finalRole,
+          approvedAt,
+          password: mu.password || existing.password,
+          phone: mu.phone || existing.phone,
+          organizationName: mu.organizationName || existing.organizationName,
+          name: mu.name || existing.name,
+          createdAt: existing.createdAt || mu.createdAt,
+        });
+      }
+    }
+
+    return Array.from(map.values());
+  }
+
+  public saveToDisk(force = false, deletedUserIds: string[] = []): void {
     if (!fsModule || !pathModule) return;
     try {
       const dataDir = pathModule.join(process.cwd(), "data");
@@ -723,6 +784,9 @@ class DataStore {
           const raw = fsModule.readFileSync(dbFile, "utf-8");
           if (raw && raw.trim()) {
             const diskData = JSON.parse(raw);
+            if (Array.isArray(diskData.users)) {
+              this.users = this.mergeUsersList(diskData.users, this.users, deletedUserIds);
+            }
             if (Array.isArray(diskData.participants)) {
               const pMap = new Map<string, ParticipantModel>();
               for (const p of diskData.participants) pMap.set(p.id, p);
@@ -828,6 +892,7 @@ class DataStore {
 
   // --- Users & Permissions Management ---
   public getUsers(filters?: { role?: string; status?: string; search?: string }): UserModel[] {
+    this.loadFromDisk();
     let result = [...this.users];
     if (filters?.role && filters.role !== "ALL") {
       result = result.filter((u) => u.role === filters.role);
@@ -849,10 +914,12 @@ class DataStore {
   }
 
   public getUserById(id: string): UserModel | undefined {
+    this.loadFromDisk();
     return this.users.find((u) => u.id === id);
   }
 
   public getUserByEmail(email: string): UserModel | undefined {
+    this.loadFromDisk();
     return this.users.find((u) => u.email.toLowerCase() === email.toLowerCase());
   }
 
@@ -865,6 +932,7 @@ class DataStore {
     status?: "APPROVED" | "PENDING" | "REJECTED";
     organizationName: string;
   }): UserModel {
+    this.loadFromDisk(true);
     const existing = this.getUserByEmail(userData.email);
     if (existing) {
       throw new Error(`Email "${userData.email}" đã tồn tại trong hệ thống!`);
@@ -889,6 +957,7 @@ class DataStore {
   }
 
   public updateUser(id: string, updateData: Partial<UserModel>): UserModel | null {
+    this.loadFromDisk(true);
     const index = this.users.findIndex((u) => u.id === id);
     if (index === -1) return null;
     this.users[index] = { ...this.users[index], ...updateData };
@@ -897,15 +966,17 @@ class DataStore {
   }
 
   public deleteUser(id: string): boolean {
+    this.loadFromDisk(true);
     const index = this.users.findIndex((u) => u.id === id);
     if (index === -1) return false;
     this.users.splice(index, 1);
-    this.saveToDisk();
+    this.saveToDisk(false, [id]);
     return true;
   }
 
   public approveUser(id: string, status: "APPROVED" | "REJECTED"): UserModel | null {
-    const user = this.getUserById(id);
+    this.loadFromDisk(true);
+    const user = this.users.find((u) => u.id === id);
     if (!user) return null;
     user.status = status;
     if (status === "APPROVED") {
@@ -916,7 +987,8 @@ class DataStore {
   }
 
   public changeUserRole(id: string, role: "ADMIN" | "USER"): UserModel | null {
-    const user = this.getUserById(id);
+    this.loadFromDisk(true);
+    const user = this.users.find((u) => u.id === id);
     if (!user) return null;
     user.role = role;
     this.saveToDisk();
