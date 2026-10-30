@@ -941,22 +941,22 @@ export default function AdminDashboardPage() {
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Top Administrative Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
-            <Link href="/" className="flex items-center space-x-2.5">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-2 sm:space-x-3">
+            <Link href="/" className="flex items-center space-x-2 shrink-0">
               <img
                 src="/logo.png"
                 alt="Logo Cuộc thi trực tuyến"
-                className="w-9 h-9 object-contain rounded-full shadow-xs"
+                className="w-8 h-8 sm:w-9 sm:h-9 object-contain rounded-full shadow-xs"
               />
-              <span className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight uppercase">
+              <span className="text-base sm:text-2xl font-black text-slate-900 tracking-tight uppercase">
                 THI TRỰC TUYẾN
               </span>
             </Link>
             {authUser && (
               <>
-                <span className="text-slate-300">|</span>
-                <span className="text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wide flex items-center">
+                <span className="hidden lg:inline text-slate-300">|</span>
+                <span className="hidden lg:flex text-xs sm:text-sm font-bold text-slate-700 uppercase tracking-wide items-center">
                   <Landmark className="w-4 h-4 mr-1 text-[#DC2626]" />
                   Bảng Điều Khiển Ban Tổ Chức
                 </span>
@@ -964,50 +964,83 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             {authUser ? (
-              <div
-                className={`flex items-center space-x-2 pl-3 pr-2 py-1.5 rounded-full text-xs font-semibold shadow-2xs border ${
-                  authUser.role === "ADMIN"
-                    ? "bg-red-50 border-red-300 text-red-900"
-                    : "bg-blue-50 border-blue-300 text-blue-900"
-                }`}
-              >
-                <span
-                  className={`w-2 h-2 rounded-full animate-pulse ${
-                    authUser.role === "ADMIN" ? "bg-red-600" : "bg-blue-600"
-                  }`}
-                ></span>
-                <span className="max-w-[160px] sm:max-w-[220px] truncate" title={authUser.name}>
-                  {authUser.name}
-                </span>
-                <span
-                  className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+              <>
+                {/* Giao diện Mobile (< sm): Tinh gọn chỉ hiện các biểu tượng gọn gàng nhất (Ảnh 2) */}
+                <div className="flex sm:hidden items-center space-x-1.5">
+                  <div
+                    className={`inline-flex items-center justify-center w-8 h-8 rounded-full border shadow-2xs ${
+                      authUser.role === "ADMIN"
+                        ? "bg-red-50 border-red-300 text-red-700"
+                        : "bg-blue-50 border-blue-300 text-blue-700"
+                    }`}
+                    title={`Đang đăng nhập: ${authUser.name} (${authUser.role === "ADMIN" ? "Quản trị viên" : "Người dùng"})`}
+                  >
+                    <User className="w-4 h-4" />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePasswordModal(true)}
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-600 border border-slate-200 flex items-center justify-center transition-colors shadow-2xs"
+                    title="Đổi mật khẩu tài khoản"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-red-50 text-slate-500 hover:text-red-600 border border-slate-200 flex items-center justify-center transition-colors shadow-2xs"
+                    title="Đăng xuất khỏi hệ thống"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                {/* Giao diện Desktop (>= sm): Hiển thị đầy đủ thông tin */}
+                <div
+                  className={`hidden sm:flex items-center space-x-2 pl-3 pr-2 py-1.5 rounded-full text-xs font-semibold shadow-2xs border ${
                     authUser.role === "ADMIN"
-                      ? "text-red-700 bg-red-100"
-                      : "text-blue-700 bg-blue-100"
+                      ? "bg-red-50 border-red-300 text-red-900"
+                      : "bg-blue-50 border-blue-300 text-blue-900"
                   }`}
                 >
-                  {authUser.role === "ADMIN" ? "Admin (Toàn quyền)" : "Người dùng"}
-                </span>
-                {/* Nút Đổi mật khẩu tài khoản */}
-                <button
-                  type="button"
-                  onClick={() => setShowChangePasswordModal(true)}
-                  className="p-1 rounded-full text-slate-500 hover:text-amber-600 hover:bg-amber-100/60 transition-colors cursor-pointer"
-                  title="Đổi mật khẩu tài khoản"
-                >
-                  <KeyRound className="w-3.5 h-3.5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="p-1 rounded-full text-slate-400 hover:text-red-600 transition-colors ml-1 cursor-pointer"
-                  title="Đăng xuất khỏi hệ thống"
-                >
-                  <LogOut className="w-3.5 h-3.5" />
-                </button>
-              </div>
+                  <span
+                    className={`w-2 h-2 rounded-full animate-pulse ${
+                      authUser.role === "ADMIN" ? "bg-red-600" : "bg-blue-600"
+                    }`}
+                  ></span>
+                  <span className="max-w-[160px] sm:max-w-[220px] truncate" title={authUser.name}>
+                    {authUser.name}
+                  </span>
+                  <span
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${
+                      authUser.role === "ADMIN"
+                        ? "text-red-700 bg-red-100"
+                        : "text-blue-700 bg-blue-100"
+                    }`}
+                  >
+                    {authUser.role === "ADMIN" ? "Admin (Toàn quyền)" : "Người dùng"}
+                  </span>
+                  {/* Nút Đổi mật khẩu tài khoản */}
+                  <button
+                    type="button"
+                    onClick={() => setShowChangePasswordModal(true)}
+                    className="p-1 rounded-full text-slate-500 hover:text-amber-600 hover:bg-amber-100/60 transition-colors cursor-pointer"
+                    title="Đổi mật khẩu tài khoản"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="p-1 rounded-full text-slate-400 hover:text-red-600 transition-colors ml-1 cursor-pointer"
+                    title="Đăng xuất khỏi hệ thống"
+                  >
+                    <LogOut className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </>
             ) : (
               <button
                 type="button"

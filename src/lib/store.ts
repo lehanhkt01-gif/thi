@@ -101,6 +101,9 @@ export interface ContestModel {
   audioUrl?: string;
   themeColor?: string;
   shortDesc?: string;
+  rulesFileUrl?: string;
+  planHtml?: string;
+  planFileUrl?: string;
   requiredFields?: string;
   requiredFieldKeys?: string[];
   customLeaderboard?: string;
@@ -1233,6 +1236,9 @@ class DataStore {
         audioUrl: contestData.audioUrl || "",
         themeColor: contestData.themeColor || "#DC2626",
         shortDesc: contestData.shortDesc || "",
+        rulesFileUrl: contestData.rulesFileUrl || "",
+        planHtml: contestData.planHtml || "",
+        planFileUrl: contestData.planFileUrl || "",
         requiredFields: contestData.requiredFields || "Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh",
         customLeaderboard: contestData.customLeaderboard || "",
         examPassword: contestData.examPassword || "",

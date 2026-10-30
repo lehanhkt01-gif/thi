@@ -48,6 +48,7 @@ export async function POST(req: NextRequest) {
         if (mime.includes("jpeg") || mime.includes("jpg")) fileExt = ".jpg";
         else if (mime.includes("webp")) fileExt = ".webp";
         else if (mime.includes("gif")) fileExt = ".gif";
+        else if (mime.includes("pdf")) fileExt = ".pdf";
         else fileExt = ".png";
 
         fileBuffer = Buffer.from(matches[2], "base64");

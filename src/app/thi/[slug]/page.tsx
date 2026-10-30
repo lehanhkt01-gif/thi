@@ -31,6 +31,12 @@ import {
   ChevronRight,
   Sparkles,
   LogOut,
+  Upload,
+  Download,
+  ExternalLink,
+  Trash2,
+  Eye,
+  FileCheck,
 } from "lucide-react";
 import AudioPlayerAnNhien from "@/components/AudioPlayerAnNhien";
 import LoginModal, { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
@@ -124,6 +130,107 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
   // Informational Modals (Thể lệ, Kế hoạch)
   const [infoModal, setInfoModal] = useState<"rules" | "plan" | null>(null);
+  const [uploadingDoc, setUploadingDoc] = useState(false);
+
+  // Tải lên file PDF hoặc Hình ảnh đính kèm Thể lệ / Kế hoạch (Ảnh 3)
+  const handleDocFileUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    targetField: "rulesFileUrl" | "planFileUrl"
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 25 * 1024 * 1024) {
+      alert("Tệp tải lên không được vượt quá 25MB!");
+      return;
+    }
+
+    try {
+      setUploadingDoc(true);
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Tải tệp lên máy chủ thất bại!");
+      }
+
+      const fileUrl = data.url;
+
+      // Cập nhật cuộc thi lưu trữ lâu dài trên server
+      const updateRes = await fetch(`/api/contests/${slug}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+        },
+        body: JSON.stringify({
+          [targetField]: fileUrl,
+        }),
+      });
+
+      const updateData = await updateRes.json();
+      if (!updateRes.ok) {
+        throw new Error(updateData.error || "Lưu đường dẫn tệp vào cuộc thi thất bại!");
+      }
+
+      setContest((prev: any) => ({
+        ...prev,
+        [targetField]: fileUrl,
+      }));
+
+      alert(`Đã cập nhật ${targetField === "rulesFileUrl" ? "file Thể lệ" : "file Kế hoạch"} thành công!`);
+    } catch (err: any) {
+      alert("Lỗi khi tải file: " + err.message);
+    } finally {
+      setUploadingDoc(false);
+      e.target.value = "";
+    }
+  };
+
+  // Gỡ bỏ file đính kèm
+  const handleRemoveDocFile = async (targetField: "rulesFileUrl" | "planFileUrl") => {
+    if (!confirm(`Bạn có chắc chắn muốn gỡ bỏ file ${targetField === "rulesFileUrl" ? "Thể lệ" : "Kế hoạch"} này không?`)) {
+      return;
+    }
+
+    try {
+      setUploadingDoc(true);
+      const updateRes = await fetch(`/api/contests/${slug}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+        },
+        body: JSON.stringify({
+          [targetField]: "",
+        }),
+      });
+
+      if (!updateRes.ok) {
+        const updateData = await updateRes.json();
+        throw new Error(updateData.error || "Gỡ file thất bại!");
+      }
+
+      setContest((prev: any) => ({
+        ...prev,
+        [targetField]: "",
+      }));
+
+      alert(`Đã gỡ bỏ file ${targetField === "rulesFileUrl" ? "Thể lệ" : "Kế hoạch"} thành công!`);
+    } catch (err: any) {
+      alert("Lỗi khi gỡ file: " + err.message);
+    } finally {
+      setUploadingDoc(false);
+    }
+  };
 
   // Authentication State & SSO Sync (Đồng bộ đăng nhập hệ thống & Google)
   const [authUser, setAuthUser] = useState<any>(null);
@@ -633,36 +740,32 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
     return (
       <div className="w-full bg-[#F8FAFC] min-h-screen text-slate-800 pb-16">
-        {/* 1. SUB-NAVBAR CHUẨN ẢNH 2 (TRANG CHỦ - THỂ LỆ - KẾ HOẠCH - BẢNG XẾP HẠNG) */}
+        {/* 1. SUB-NAVBAR CHUẨN ẢNH 3 (< TRANG CHỦ, THỂ LỆ, KẾ HOẠCH) */}
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 sm:h-14 flex items-center justify-between">
-            <Link href="/" className="flex items-center space-x-2 text-xs font-bold text-slate-600 hover:text-blue-700">
+            <Link
+              href="/"
+              className="flex items-center space-x-1.5 text-xs sm:text-sm font-bold text-slate-700 hover:text-[#DC2626] transition-colors"
+            >
               <ChevronLeft className="w-4 h-4" />
-              <span>Cổng Cuộc thi</span>
+              <span>TRANG CHỦ</span>
             </Link>
 
             <nav className="flex items-center space-x-6 sm:space-x-10 text-xs sm:text-sm font-bold uppercase tracking-wider">
-              <Link href="/" className="text-[#DC2626] hover:text-red-700 transition-colors">
-                TRANG CHỦ
-              </Link>
               <button
+                type="button"
                 onClick={() => setInfoModal("rules")}
-                className="text-slate-700 hover:text-[#0052CC] transition-colors"
+                className="text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer"
               >
                 THỂ LỆ
               </button>
               <button
+                type="button"
                 onClick={() => setInfoModal("plan")}
-                className="text-slate-700 hover:text-[#0052CC] transition-colors"
+                className="text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer"
               >
                 KẾ HOẠCH
               </button>
-              <a
-                href="#bang-xep-hang"
-                className="text-slate-700 hover:text-[#0052CC] transition-colors hidden sm:inline"
-              >
-                BẢNG XẾP HẠNG
-              </a>
             </nav>
 
             <div className="flex items-center space-x-2">
@@ -718,9 +821,9 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </div>
         </header>
 
-        {/* 2. HERO BANNER CHUẨN ẢNH 3 - BANNER NẰM TRÙM LÊN CHE TOÀN BỘ KHU VỰC HERO (ĐÃ THU GỌN 1/3) */}
+        {/* 2. HERO BANNER CHUẨN ẢNH 3 - TĂNG CHIỀU CAO THÊM 1/3 (ẢNH 4) */}
         <section
-          className="relative w-full overflow-hidden py-3 sm:py-5 px-2 sm:px-4 shadow-md transition-colors duration-300"
+          className="relative w-full overflow-hidden py-6 sm:py-8 md:py-10 px-2 sm:px-4 shadow-md transition-colors duration-300"
           style={{
             backgroundColor: contest?.themeColor || "#990000",
             backgroundImage: `radial-gradient(ellipse at 50% 30%, ${contest?.themeColor || "#DC2626"} 0%, #991B1B 65%, #7F1D1D 100%)`,
@@ -731,11 +834,11 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
           {contest?.bannerUrl || true ? (
             <div className="max-w-4xl lg:max-w-5xl mx-auto relative z-10 flex justify-center">
-              <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/30 bg-black/10 backdrop-blur-xs w-full max-h-[220px] sm:max-h-[300px] md:max-h-[360px] flex items-center justify-center">
+              <div className="rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/30 bg-black/10 backdrop-blur-xs w-full max-h-[300px] sm:max-h-[420px] md:max-h-[500px] flex items-center justify-center">
                 <img
                   src={contest?.bannerUrl || "/banner-easup.png"}
                   alt={contest?.title || "Cuộc thi trực tuyến"}
-                  className="w-full h-full max-h-[220px] sm:max-h-[300px] md:max-h-[360px] block object-cover object-center transform hover:scale-[1.005] transition-transform duration-300"
+                  className="w-full h-auto max-h-[300px] sm:max-h-[420px] md:max-h-[500px] block object-contain sm:object-cover object-center transform hover:scale-[1.005] transition-transform duration-300"
                   onError={(e) => {
                     const target = e.currentTarget;
                     if (!target.src.includes("banner-easup.png")) {
@@ -916,11 +1019,21 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             )}
           </div>
 
-          {/* Loa An Nhiên đọc thể lệ */}
+          {/* Loa An Nhiên đọc thể lệ (Đọc nội dung trong ô "Thể lệ cuộc thi" thuộc phần "1 tổng quan" - Ảnh 1) */}
           <div className="mt-6 max-w-md mx-auto">
             <AudioPlayerAnNhien
               label="Nghe đọc Thể lệ (Giọng đọc An Nhiên)"
-              text={`Chào mừng bà con và các bạn đến với ${contest.title}. Thời gian làm bài ${contest.durationMinutes} phút. Mỗi thí sinh có tối đa ${contest.maxAttempts} lượt thi. Đề nghị điền chính xác số Căn cước công dân và chọn đơn vị dự thi.`}
+              text={
+                (contest.shortDesc && contest.shortDesc.trim()) ||
+                (contest.rulesHtml
+                  ? contest.rulesHtml
+                      .replace(/<[^>]*>/g, " ")
+                      .replace(/&nbsp;/g, " ")
+                      .replace(/\s+/g, " ")
+                      .trim()
+                  : "") ||
+                `Chào mừng bà con và các bạn đến với ${contest.title}. Thời gian làm bài ${contest.durationMinutes} phút. Mỗi thí sinh có tối đa ${contest.maxAttempts} lượt thi. Đề nghị điền chính xác số Căn cước công dân và chọn đơn vị dự thi.`
+              }
             />
           </div>
         </section>
@@ -1509,34 +1622,146 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </div>
         )}
 
-        {/* Modal Thông tin Thể lệ / Kế hoạch */}
-        {infoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-            <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-8 shadow-dialog border border-slate-100 max-h-[80vh] overflow-y-auto relative">
-              <button
-                onClick={() => setInfoModal(null)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500"
-              >
-                <X className="w-4 h-4" />
-              </button>
-              <h3 className="text-lg font-bold text-slate-900 pb-3 border-b border-slate-100 mb-4 uppercase">
-                {infoModal === "rules" ? "Thể Lệ Cuộc Thi" : "Kế Hoạch Tổ Chức"}
-              </h3>
-              <div
-                className="text-xs sm:text-sm text-slate-700 space-y-3 leading-relaxed"
-                dangerouslySetInnerHTML={{ __html: contest.rulesHtml || "<p>Thông tin đang được cập nhật...</p>" }}
-              />
-              <div className="mt-6 pt-3 border-t border-slate-100 text-right">
-                <button
-                  onClick={() => setInfoModal(null)}
-                  className="btn-admin-primary px-5 py-2 text-xs font-bold"
-                >
-                  Đã hiểu &amp; Đóng
-                </button>
+        {/* Modal Thông tin Thể lệ / Kế hoạch (Ảnh 3: Hỗ trợ hiển thị và cập nhật file PDF hoặc Hình ảnh) */}
+        {infoModal && (() => {
+          const isRules = infoModal === "rules";
+          const currentFileUrl = isRules ? contest.rulesFileUrl : contest.planFileUrl;
+          const isPdf = currentFileUrl && (currentFileUrl.toLowerCase().endsWith(".pdf") || currentFileUrl.includes(".pdf"));
+          const isImg = currentFileUrl && (!isPdf || currentFileUrl.match(/\.(jpeg|jpg|png|webp|gif)($|\?)/i) || currentFileUrl.startsWith("data:image/"));
+          const htmlContent = isRules
+            ? (contest.rulesHtml || (contest.shortDesc ? `<p>${contest.shortDesc}</p>` : "<p>Thông tin thể lệ đang được cập nhật...</p>"))
+            : (contest.planHtml || contest.announcement || "<p>Kế hoạch chi tiết của cuộc thi do Ban tổ chức ban hành...</p>");
+
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+              <div className="bg-white rounded-3xl max-w-2xl sm:max-w-3xl w-full p-5 sm:p-7 shadow-dialog border border-slate-100 max-h-[88vh] overflow-y-auto relative flex flex-col">
+                {/* Header Modal */}
+                <div className="flex items-center justify-between pb-3.5 border-b border-slate-200 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-8 h-8 rounded-full bg-red-50 text-[#DC2626] flex items-center justify-center">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 uppercase tracking-tight">
+                      {isRules ? "Thể Lệ Cuộc Thi" : "Kế Hoạch Tổ Chức"}
+                    </h3>
+                  </div>
+                  <button
+                    onClick={() => setInfoModal(null)}
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center text-slate-500 hover:text-slate-700 transition-colors cursor-pointer"
+                    title="Đóng modal"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Quản lý tải lên file PDF/Hình ảnh dành cho Người tạo cuộc thi & Admin (Ảnh 3) */}
+                {(isAdmin || isCreator) && (
+                  <div className="mb-4 p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                      <div className="flex items-center space-x-2">
+                        <Upload className="w-4 h-4 text-amber-700 shrink-0" />
+                        <div>
+                          <p className="text-xs font-bold text-amber-900">
+                            Cập nhật file PDF / Hình ảnh {isRules ? "Thể lệ" : "Kế hoạch"}
+                          </p>
+                          <p className="text-[11px] text-amber-700">
+                            (Dành cho Người tạo &amp; Ban tổ chức • Thí sinh bấm vào sẽ nổi lên xem trực tiếp)
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center space-x-2 shrink-0">
+                        <label className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-white transition-all shadow-xs cursor-pointer ${uploadingDoc ? "bg-slate-400 cursor-not-allowed" : "bg-[#DC2626] hover:bg-red-700"}`}>
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>{uploadingDoc ? "Đang tải lên..." : (currentFileUrl ? "Đổi file khác" : "Tải file lên")}</span>
+                          <input
+                            type="file"
+                            accept=".pdf,image/*"
+                            disabled={uploadingDoc}
+                            onChange={(e) => handleDocFileUpload(e, isRules ? "rulesFileUrl" : "planFileUrl")}
+                            className="hidden"
+                          />
+                        </label>
+
+                        {currentFileUrl && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveDocFile(isRules ? "rulesFileUrl" : "planFileUrl")}
+                            disabled={uploadingDoc}
+                            className="p-1.5 rounded-xl text-red-600 hover:bg-red-100/60 border border-red-200 text-xs font-semibold transition-colors cursor-pointer"
+                            title="Gỡ bỏ file hiện tại"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Nội dung văn bản */}
+                <div
+                  className="text-xs sm:text-sm text-slate-700 space-y-3 leading-relaxed mb-4 prose max-w-none"
+                  dangerouslySetInnerHTML={{ __html: htmlContent }}
+                />
+
+                {/* Khu vực hiển thị file đính kèm nổi lên trên (Ảnh 3: PDF / Hình ảnh) */}
+                {currentFileUrl && (
+                  <div className="mt-2 pt-4 border-t border-slate-200">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-2">
+                        <FileCheck className="w-4 h-4 text-emerald-600" />
+                        <span className="text-xs font-bold text-slate-900 uppercase">
+                          {isPdf ? "Văn bản đính kèm chính thức (Định dạng PDF)" : "Hình ảnh / Tài liệu đính kèm"}
+                        </span>
+                      </div>
+                      <a
+                        href={currentFileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-1 text-xs font-bold text-[#0052CC] hover:underline"
+                      >
+                        <span>{isPdf ? "Mở tab mới / Tải PDF" : "Xem ảnh gốc"}</span>
+                        <ExternalLink className="w-3.5 h-3.5 ml-0.5" />
+                      </a>
+                    </div>
+
+                    {isPdf ? (
+                      <div className="w-full h-[360px] sm:h-[480px] rounded-2xl overflow-hidden border border-slate-300 bg-slate-100 shadow-inner">
+                        <iframe
+                          src={`${currentFileUrl}#toolbar=1`}
+                          title={isRules ? "Thể lệ cuộc thi PDF" : "Kế hoạch cuộc thi PDF"}
+                          className="w-full h-full border-none"
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 p-2 flex justify-center shadow-xs">
+                        <img
+                          src={currentFileUrl}
+                          alt={isRules ? "Thể lệ cuộc thi" : "Kế hoạch cuộc thi"}
+                          className="w-full max-h-[500px] object-contain rounded-xl"
+                        />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Footer Modal */}
+                <div className="mt-6 pt-3 border-t border-slate-200 flex items-center justify-between">
+                  <div className="text-[11px] text-slate-400">
+                    Hệ sinh thái chuyển đổi số easupso.com
+                  </div>
+                  <button
+                    onClick={() => setInfoModal(null)}
+                    className="btn-admin-primary px-5 py-2 text-xs font-bold cursor-pointer"
+                  >
+                    Đã hiểu &amp; Đóng
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* MODAL ĐĂNG NHẬP HỆ THỐNG & GOOGLE SIGN-IN */}
         <LoginModal
