@@ -39,6 +39,7 @@ import {
   Copy,
   Check,
   ChevronLeft,
+  ChevronDown,
   List,
   Navigation,
   User,
@@ -70,6 +71,7 @@ export default function AdminDashboardPage() {
   const [contests, setContests] = useState<any[]>([]);
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PUBLISHED" | "DRAFT">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [creatorFilter, setCreatorFilter] = useState<string>("ALL");
 
   // Question Bank State (Kho đề thi & Phân loại Bộ đề)
   const [questions, setQuestions] = useState<any[]>([]);
@@ -123,6 +125,7 @@ export default function AdminDashboardPage() {
   // Media Contests State (Ảnh 2)
   const [mediaContests, setMediaContests] = useState<any[]>([]);
   const [mediaSearchQuery, setMediaSearchQuery] = useState("");
+  const [mediaCreatorFilter, setMediaCreatorFilter] = useState<string>("ALL");
   const [selectedMediaContestIds, setSelectedMediaContestIds] = useState<string[]>([]);
   const [showCreateMediaModal, setShowCreateMediaModal] = useState(false);
   const [showPlanTemplateModal, setShowPlanTemplateModal] = useState(false);
@@ -906,6 +909,40 @@ export default function AdminDashboardPage() {
     setNewAnnContent("");
   };
 
+  // Helper lấy thông tin chi tiết tài khoản tạo cuộc thi trắc nghiệm
+  const getContestCreatorInfo = (c: any) => {
+    const rawEmail = (c?.creatorEmail || "").trim();
+    const rawId = c?.creatorId || "";
+    const rawName = (c?.creatorName || "").trim();
+
+    // Đối chiếu với danh sách tài khoản người dùng thực tế
+    const matchedUser = usersList.find(
+      (u) =>
+        (rawEmail && u.email?.toLowerCase() === rawEmail.toLowerCase()) ||
+        (rawId && u.id === rawId)
+    );
+
+    const displayName =
+      rawName ||
+      matchedUser?.name ||
+      (c?.organizerEmail && c.organizerEmail.toLowerCase() === rawEmail.toLowerCase() ? c.organizerName : "") ||
+      (rawEmail ? rawEmail.split("@")[0] : "") ||
+      c?.organizerName ||
+      "Ban Tổ Chức";
+
+    const displayEmail = rawEmail || matchedUser?.email || (c?.organizerEmail || "");
+    const org = matchedUser?.organizationName || c?.organizationName || "";
+    const filterKey = (rawEmail || rawId || rawName || displayName).toLowerCase().trim();
+
+    return {
+      name: displayName,
+      email: displayEmail,
+      org,
+      filterKey,
+      role: matchedUser?.role || (rawEmail === "admin@easupso.com" || rawEmail === "lehanhkt01@gmail.com" ? "ADMIN" : "USER"),
+    };
+  };
+
   // Danh sách cuộc thi mà tài khoản được quyền xem trong trang quản trị:
   // - Admin (Toàn quyền): Xem tất cả các cuộc thi trên hệ thống
   // - Người dùng cơ sở (USER): CHỈ XEM ĐƯỢC các cuộc thi do chính mình tạo
@@ -916,17 +953,84 @@ export default function AdminDashboardPage() {
     return canUserManageContest(c);
   });
 
-  // Filtered contests
+  // Danh sách các tài khoản người tạo duy nhất để đưa vào Dropdown bộ lọc cuộc thi trắc nghiệm
+  const contestCreators = React.useMemo(() => {
+    const map = new Map<string, { key: string; name: string; email: string; count: number; org?: string }>();
+    visibleContests.forEach((c) => {
+      const info = getContestCreatorInfo(c);
+      const key = info.filterKey;
+      if (!key) return;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          name: info.name,
+          email: info.email,
+          org: info.org,
+          count: 1,
+        });
+      } else {
+        map.get(key)!.count += 1;
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [visibleContests, usersList]);
+
+  // Filtered contests theo từ khóa tìm kiếm, trạng thái và BỘ LỌC NGƯỜI TẠO
   const filteredContests = visibleContests.filter((c) => {
     const matchesSearch =
       c.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.slug.toLowerCase().includes(searchQuery.toLowerCase());
+      c.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (c.organizerName && c.organizerName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.creatorName && c.creatorName.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (c.creatorEmail && c.creatorEmail.toLowerCase().includes(searchQuery.toLowerCase()));
+
     const matchesStatus =
       statusFilter === "ALL" ||
       (statusFilter === "PUBLISHED" && c.status === "PUBLISHED") ||
       (statusFilter === "DRAFT" && c.status === "DRAFT");
-    return matchesSearch && matchesStatus;
+
+    if (creatorFilter === "ALL") {
+      return matchesSearch && matchesStatus;
+    }
+
+    const info = getContestCreatorInfo(c);
+    const targetKey = creatorFilter.toLowerCase().trim();
+    const matchesCreator =
+      info.filterKey === targetKey ||
+      (info.email && info.email.toLowerCase() === targetKey) ||
+      (c.creatorEmail && c.creatorEmail.toLowerCase() === targetKey) ||
+      (c.creatorId && c.creatorId === creatorFilter);
+
+    return matchesSearch && matchesStatus && matchesCreator;
   });
+
+  // Helper lấy thông tin người tạo cuộc thi bình chọn Ảnh/Video
+  const getMediaContestCreatorInfo = (c: any) => {
+    const rawEmail = (c?.creatorEmail || "").trim();
+    const rawId = c?.creatorId || "";
+    const rawName = (c?.creatorName || "").trim();
+
+    const matchedUser = usersList.find(
+      (u) =>
+        (rawEmail && u.email?.toLowerCase() === rawEmail.toLowerCase()) ||
+        (rawId && u.id === rawId)
+    );
+
+    const displayName =
+      rawName ||
+      matchedUser?.name ||
+      (rawEmail ? rawEmail.split("@")[0] : "") ||
+      "Ban Tổ Chức";
+
+    const displayEmail = rawEmail || matchedUser?.email || "";
+    const filterKey = (rawEmail || rawId || rawName || displayName).toLowerCase().trim();
+
+    return {
+      name: displayName,
+      email: displayEmail,
+      filterKey,
+    };
+  };
 
   // Danh sách cuộc thi bình chọn Ảnh/Video phân quyền:
   // - Admin: Xem tất cả
@@ -935,6 +1039,35 @@ export default function AdminDashboardPage() {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     return canUserManageMediaContest(c);
+  });
+
+  const mediaContestCreators = React.useMemo(() => {
+    const map = new Map<string, { key: string; name: string; email: string; count: number }>();
+    visibleMediaContests.forEach((c) => {
+      const info = getMediaContestCreatorInfo(c);
+      const key = info.filterKey;
+      if (!key) return;
+      if (!map.has(key)) {
+        map.set(key, { key, name: info.name, email: info.email, count: 1 });
+      } else {
+        map.get(key)!.count += 1;
+      }
+    });
+    return Array.from(map.values()).sort((a, b) => b.count - a.count);
+  }, [visibleMediaContests, usersList]);
+
+  const filteredMediaContests = visibleMediaContests.filter((c) => {
+    const matchesSearch =
+      !mediaSearchQuery ||
+      c.title.toLowerCase().includes(mediaSearchQuery.toLowerCase()) ||
+      (c.creatorName && c.creatorName.toLowerCase().includes(mediaSearchQuery.toLowerCase())) ||
+      (c.creatorEmail && c.creatorEmail.toLowerCase().includes(mediaSearchQuery.toLowerCase()));
+
+    if (mediaCreatorFilter === "ALL") return matchesSearch;
+
+    const info = getMediaContestCreatorInfo(c);
+    const targetKey = mediaCreatorFilter.toLowerCase().trim();
+    return matchesSearch && (info.filterKey === targetKey || (info.email && info.email.toLowerCase() === targetKey));
   });
 
   return (
@@ -1363,28 +1496,88 @@ export default function AdminDashboardPage() {
                   </div>
                 </div>
 
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Tìm kiếm theo tên cuộc thi hoặc đường dẫn slug..."
-                    className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white outline-none focus:border-red-600"
-                  />
+                {/* Search Bar & Bộ lọc người tạo */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                  {/* Search Bar */}
+                  <div className="relative sm:col-span-7 lg:col-span-8">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Tìm kiếm theo tên cuộc thi, đường dẫn slug hoặc người tạo..."
+                      className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white outline-none focus:border-red-600 shadow-2xs"
+                    />
+                  </div>
+
+                  {/* Dropdown Bộ lọc danh sách người tạo */}
+                  <div className="sm:col-span-5 lg:col-span-4 flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <User className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <select
+                        value={creatorFilter}
+                        onChange={(e) => setCreatorFilter(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white outline-none focus:border-red-600 appearance-none font-medium text-slate-700 cursor-pointer shadow-2xs truncate"
+                        title="Lọc danh sách theo tài khoản người tạo"
+                      >
+                        <option value="ALL">👤 Tất cả người tạo ({visibleContests.length})</option>
+                        {contestCreators.map((cr) => (
+                          <option key={cr.key} value={cr.key}>
+                            {cr.name} ({cr.count} cuộc thi)
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                      </div>
+                    </div>
+
+                    {creatorFilter !== "ALL" && (
+                      <button
+                        type="button"
+                        onClick={() => setCreatorFilter("ALL")}
+                        className="px-2.5 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors cursor-pointer shrink-0"
+                        title="Bỏ lọc người tạo"
+                      >
+                        Xóa lọc
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Filter tags summary nếu đang lọc theo người tạo */}
+                {creatorFilter !== "ALL" && (
+                  <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                    <Filter className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                    <span>Đang lọc theo người tạo:</span>
+                    <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                      {contestCreators.find((cr) => cr.key === creatorFilter)?.name || creatorFilter}
+                    </span>
+                    <span className="text-slate-400">({filteredContests.length} cuộc thi)</span>
+                    <button
+                      type="button"
+                      onClick={() => setCreatorFilter("ALL")}
+                      className="ml-auto text-red-600 hover:text-red-700 font-semibold hover:underline"
+                    >
+                      Bỏ lọc
+                    </button>
+                  </div>
+                )}
 
                 {/* List of Contests Cards */}
                 {filteredContests.length === 0 ? (
                   <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 text-xs sm:text-sm">
                     {authUser?.role === "ADMIN"
-                      ? "Không tìm thấy cuộc thi nào phù hợp. Hãy bấm nút Tạo mới để khởi tạo cuộc thi đầu tiên!"
+                      ? "Không tìm thấy cuộc thi nào phù hợp với bộ lọc hiện tại. Hãy thử chọn Tất cả người tạo hoặc bấm nút Tạo mới!"
                       : "Bạn chưa tạo cuộc thi nào. Hãy bấm nút Tạo mới để bắt đầu khởi tạo cuộc thi của đơn vị mình!"}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 gap-4">
-                    {filteredContests.map((c) => (
+                    {filteredContests.map((c) => {
+                      const creatorInfo = getContestCreatorInfo(c);
+                      return (
                       <div
                         key={c.id}
                         className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
@@ -1403,8 +1596,8 @@ export default function AdminDashboardPage() {
                           </div>
 
                           {/* Contest Info */}
-                          <div>
-                            <div className="flex items-center space-x-2 mb-1">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex flex-wrap items-center gap-2 mb-1">
                               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                                 {c.status === "PUBLISHED" ? "ĐANG DIỄN RA" : "BẢN NHÁP"}
                               </span>
@@ -1417,6 +1610,27 @@ export default function AdminDashboardPage() {
                             <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug line-clamp-2">
                               {c.title}
                             </h3>
+
+                            {/* Thông tin tài khoản tạo cuộc thi */}
+                            <div className="flex flex-wrap items-center gap-2 mt-2">
+                              <button
+                                type="button"
+                                onClick={() => setCreatorFilter(creatorInfo.filterKey)}
+                                title={`Bấm để lọc các cuộc thi của: ${creatorInfo.name}`}
+                                className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 transition-colors cursor-pointer group text-left"
+                              >
+                                <User className="w-3.5 h-3.5 mr-1.5 text-slate-400 group-hover:text-red-600 shrink-0" />
+                                <span className="text-slate-500 mr-1">Tài khoản tạo:</span>
+                                <span className="font-bold text-slate-800 group-hover:text-red-700">
+                                  {creatorInfo.name}
+                                </span>
+                                {creatorInfo.email && (
+                                  <span className="text-slate-400 group-hover:text-red-500/80 text-[11px] ml-1 font-mono">
+                                    ({creatorInfo.email})
+                                  </span>
+                                )}
+                              </button>
+                            </div>
 
                             <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
                               <span className="flex items-center">
@@ -1491,7 +1705,8 @@ export default function AdminDashboardPage() {
                           )}
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -1585,15 +1800,38 @@ export default function AdminDashboardPage() {
                         )}
                       </div>
 
-                      {/* Right Input: Tìm kiếm cuộc thi... */}
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={mediaSearchQuery}
-                          onChange={(e) => setMediaSearchQuery(e.target.value)}
-                          placeholder="Tìm kiếm cuộc thi..."
-                          className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 w-full sm:w-56 focus:outline-none focus:border-red-500 bg-white"
-                        />
+                      {/* Right Filter & Input */}
+                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+                        {/* Media Creator Filter */}
+                        <div className="relative min-w-[200px]">
+                          <select
+                            value={mediaCreatorFilter}
+                            onChange={(e) => setMediaCreatorFilter(e.target.value)}
+                            className="w-full pl-3 pr-8 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-red-500 appearance-none cursor-pointer"
+                            title="Lọc cuộc thi theo người tạo"
+                          >
+                            <option value="ALL">👤 Tất cả người tạo ({visibleMediaContests.length})</option>
+                            {mediaContestCreators.map((cr) => (
+                              <option key={cr.key} value={cr.key}>
+                                {cr.name} ({cr.count})
+                              </option>
+                            ))}
+                          </select>
+                          <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
+                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+                          </div>
+                        </div>
+
+                        {/* Search Input: Tìm kiếm cuộc thi... */}
+                        <div className="relative">
+                          <input
+                            type="text"
+                            value={mediaSearchQuery}
+                            onChange={(e) => setMediaSearchQuery(e.target.value)}
+                            placeholder="Tìm kiếm cuộc thi..."
+                            className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 w-full sm:w-52 focus:outline-none focus:border-red-500 bg-white"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -1622,6 +1860,7 @@ export default function AdminDashboardPage() {
                           </th>
                           <th className="py-3 px-2 w-12 text-slate-700"># ⇅</th>
                           <th className="py-3 px-3 text-slate-700">Tên cuộc thi ⇅</th>
+                          <th className="py-3 px-3 text-slate-700">Tài khoản tạo ⇅</th>
                           <th className="py-3 px-3 text-slate-700">Ngày bắt đầu ⇅</th>
                           <th className="py-3 px-3 text-slate-700">Ngày kết thúc ⇅</th>
                           <th className="py-3 px-3 text-center text-slate-700">Tổng số tác phẩm ⇅</th>
@@ -1631,13 +1870,10 @@ export default function AdminDashboardPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {visibleMediaContests
-                          .filter((c) =>
-                            !mediaSearchQuery ||
-                            c.title.toLowerCase().includes(mediaSearchQuery.toLowerCase())
-                          )
+                        {filteredMediaContests
                           .map((c, idx) => {
                             const isSelected = selectedMediaContestIds.includes(c.id);
+                            const mediaCreatorInfo = getMediaContestCreatorInfo(c);
                             return (
                               <tr
                                 key={c.id}
@@ -1691,6 +1927,14 @@ export default function AdminDashboardPage() {
                                       </span>
                                     </div>
                                   </div>
+                                </td>
+
+                                {/* Tài khoản tạo */}
+                                <td className="py-3 px-3 text-slate-700">
+                                  <div className="font-semibold text-slate-900">{mediaCreatorInfo.name}</div>
+                                  {mediaCreatorInfo.email && (
+                                    <div className="text-[11px] text-slate-400 font-mono">{mediaCreatorInfo.email}</div>
+                                  )}
                                 </td>
 
                                 {/* Ngày bắt đầu */}
