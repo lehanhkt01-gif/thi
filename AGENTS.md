@@ -170,3 +170,31 @@
   5. `avgDurationSeconds` ASC
 - **Hiển thị đầy đủ đơn vị**: Danh sách tổ chức / thôn buôn hiển thị đầy đủ, đơn vị chưa có bài thi hiển thị `0` ở cuối bảng để BTC dễ đôn đốc.
 
+---
+
+## 8. QUY ƯỚC CẤU TRÚC ĐƠN VỊ PHÂN CẤP 3 TẦNG (3-TIER HIERARCHICAL UNITS)
+
+### 8.1. Mô hình 3 Cấp
+- **Cấp 1 (Cơ quan / Tổ chức cấp trên / Ban Tổ Chức)**:
+  - Khái niệm: Cơ quan quản trị hoặc chủ quản cuộc thi (`contest.unitGroupName`).
+  - Ví dụ: *Đoàn TNCS Hồ Chí Minh Xã Ea Súp*, *UBND Xã Ea Súp*, *Phòng Giáo dục & Đào tạo*.
+- **Cấp 2 (Đơn vị con / Trường học / Chi đoàn cơ sở)**:
+  - Khái niệm: Các đơn vị cấp cơ sở trực thuộc Cấp 1 (`contest.units[].name`).
+  - Ví dụ: *Trường THPT Ea Súp*, *Trường THCS Lê Hồng Phong*, *Chi đoàn Thôn 1*, *Chi đoàn Công an xã*.
+- **Cấp 3 (Đơn vị trực thuộc / Chi đoàn con / Lớp học)**:
+  - Khái niệm: Các đơn vị trực thuộc bên trong đơn vị Cấp 2 (`contest.units[].subUnits[]`).
+  - Ví dụ: Trong *Trường THPT Ea Súp* có *Lớp 10A1*, *Lớp 10A2*, *Lớp 11A1*, *Lớp 12A1*...; trong *Chi đoàn Thôn 1* có *Tổ 1*, *Tổ 2*...
+
+### 8.2. Nghiệp vụ Quản trị & Thí sinh
+- **Quản trị Bước 3 Wizard**:
+  - Hỗ trợ thêm/xóa nhanh đơn vị Cấp 2.
+  - Mỗi đơn vị Cấp 2 có nút `+ Cấp 3` để mở modal chuyên dụng quản lý, thêm từng lớp hoặc dán nhiều lớp.
+  - Hỗ trợ cú pháp nhập nhanh thông minh: `Trường THPT Ea Súp: Lớp 10A1, Lớp 10A2, Lớp 11A1` -> tự động phân tách Cấp 2 và Cấp 3.
+  - Cung cấp sẵn các mẫu 3 cấp chuẩn: *Đoàn xã - Trường THPT*, *Khối Trường học - Khối Lớp*.
+- **Phòng thi (Thí sinh đăng ký)**:
+  - Thí sinh chọn Đơn vị (Cấp 2). Nếu đơn vị đó có cấu hình Cấp 3, hệ thống tự động hiển thị thêm dropdown chọn Lớp/Chi đoàn trực thuộc (Cấp 3).
+  - Kết quả và bài thi lưu trữ cả `unitName` (Cấp 2) và `subUnitName` (Cấp 3).
+- **Bảng xếp hạng & Bộ lọc (Ảnh 1 & 2)**:
+  - Bộ lọc Dropdown đơn vị hiển thị phân cấp 3 tầng với thụt dòng `↳` trực quan.
+  - Cho phép xem kết quả chung của toàn trường hoặc lọc chi tiết theo từng lớp con.
+

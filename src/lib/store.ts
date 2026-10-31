@@ -70,9 +70,10 @@ export interface QuestionModel {
 
 export interface ContestUnitModel {
   id: string;
-  contestId: string;
+  contestId?: string;
   name: string;
-  groupType: "VILLAGE" | "AGENCY" | "SCHOOL";
+  groupType?: "VILLAGE" | "AGENCY" | "SCHOOL" | string;
+  subUnits?: string[]; // Cấp 3: Danh sách các đơn vị trực thuộc (Lớp 10A1, 10A2, Chi đoàn con...)
 }
 
 export interface ContestModel {
@@ -171,6 +172,7 @@ export interface ParticipantModel {
   contestId: string;
   unitId: string;
   unitName: string;
+  subUnitName?: string; // Cấp 3: Lớp 10A1, 10A2, Chi đoàn con...
   fullName: string;
   cccd: string;
   phone: string;
@@ -191,6 +193,7 @@ export interface ExamAttemptModel {
   participantName: string;
   participantCccd: string;
   unitName: string;
+  subUnitName?: string; // Cấp 3: Lớp 10A1, 10A2, Chi đoàn con...
   assignedQuestionIds: string[];
   answers: Record<string, string[]>; // { questionId: ["A"] }
   score: number;
@@ -1794,6 +1797,7 @@ class DataStore {
       gender?: string;
       job?: string;
       workplace?: string;
+      subUnitName?: string;
     }
   ): ParticipantModel {
     this.loadFromDisk();
@@ -1818,6 +1822,7 @@ class DataStore {
           contestId,
           unitId: unit.id,
           unitName: unit.name,
+          subUnitName: extra?.subUnitName || systemCandidate.subUnitName,
           fullName: (fullName && fullName.trim()) || systemCandidate.fullName,
           cccd: cleanCccd,
           phone: cleanPhone || systemCandidate.phone,
@@ -1843,6 +1848,7 @@ class DataStore {
         existing.unitId = unit.id;
         existing.unitName = unit.name;
       }
+      if (extra?.subUnitName) existing.subUnitName = extra.subUnitName;
       if (birthYear) existing.birthYear = birthYear;
       if (address) existing.address = address;
       if (extra?.email) existing.email = extra.email;
@@ -1856,6 +1862,7 @@ class DataStore {
         if (a.participantId === existing.id || a.participantCccd === cleanCccd) {
           a.participantName = existing.fullName;
           a.unitName = existing.unitName;
+          if (existing.subUnitName) a.subUnitName = existing.subUnitName;
         }
       }
 
@@ -1868,6 +1875,7 @@ class DataStore {
       contestId,
       unitId: unit.id,
       unitName: unit.name,
+      subUnitName: extra?.subUnitName,
       fullName: fullName.trim(),
       cccd: cleanCccd,
       phone: cleanPhone,
@@ -1995,6 +2003,7 @@ class DataStore {
       participantName: participant.fullName,
       participantCccd: participant.cccd,
       unitName: participant.unitName,
+      subUnitName: participant.subUnitName,
       assignedQuestionIds,
       answers: {},
       score: 0,
@@ -2291,10 +2300,16 @@ class DataStore {
       validIds.add(contest.slug);
     }
 
-    // 2. Danh sách đơn vị đồng bộ 2 chiều từ contest.units (Ảnh 1)
-    const configuredUnits: string[] = (contest?.units && contest.units.length > 0)
-      ? contest.units.map((u: any) => (typeof u === "string" ? u : u.name))
-      : EA_SUP_VILLAGES;
+    // 2. Danh sách đơn vị đồng bộ 2 chiều từ contest.units (Ảnh 1) - Hỗ trợ phân cấp 3 tầng (Cấp 1 -> Cấp 2 -> Cấp 3)
+    const unitsHierarchy: { name: string; subUnits: string[] }[] = (contest?.units && contest.units.length > 0)
+      ? contest.units.map((u: any) => ({
+          name: typeof u === "string" ? u : u.name,
+          subUnits: (typeof u === "object" && Array.isArray(u.subUnits)) ? u.subUnits : [],
+        }))
+      : EA_SUP_VILLAGES.map((v) => ({ name: v, subUnits: [] }));
+
+    const configuredUnits: string[] = unitsHierarchy.map((u) => u.name);
+    const unitGroupName = contest?.unitGroupName || "Đoàn TNCS Hồ Chí Minh Xã Ea Súp";
 
     // 3. Khung thời gian theo period (week / contest) chuẩn giờ Việt Nam UTC+7
     let periodLabel = "Toàn cuộc thi";
@@ -2377,9 +2392,15 @@ class DataStore {
         );
       }
 
-      // Lọc theo đơn vị con nếu có (Ảnh 1)
+      // Lọc theo đơn vị con nếu có (Ảnh 1) - Hỗ trợ cả Cấp 2 và Cấp 3 (Lớp/Chi đoàn)
       if (options?.unitName && options.unitName !== "ALL") {
-        filtered = filtered.filter((a) => a.unitName === options.unitName);
+        const filterVal = options.unitName.trim();
+        filtered = filtered.filter((a) => {
+          if (a.unitName === filterVal) return true;
+          if (a.subUnitName === filterVal) return true;
+          if (a.unitName && (a.unitName.startsWith(filterVal + " - ") || a.unitName.endsWith(" - " + filterVal))) return true;
+          return false;
+        });
       }
 
       // Nhóm theo từng cá nhân (Deduplication - Best Attempt Only)
@@ -2451,6 +2472,7 @@ class DataStore {
           participantId: bestAttempt.participantId,
           fullName: bestAttempt.participantName,
           unitName: bestAttempt.unitName,
+          subUnitName: bestAttempt.subUnitName,
           phoneMasked,
           cccdMasked,
           score: bestAttempt.score,
@@ -2495,7 +2517,9 @@ class DataStore {
           title: contest?.title || "Cuộc thi trực tuyến xã Ea Súp",
           bannerUrl: contest?.bannerUrl || "",
           themeColor: contest?.themeColor || "#00A9E0",
+          unitGroupName,
           units: configuredUnits,
+          unitsHierarchy,
           hasTieBreaker: contest?.hasTieBreaker ?? true,
         },
         scope: "individual" as const,
@@ -2503,7 +2527,9 @@ class DataStore {
         periodLabel,
         totalParticipants,
         totalAttempts,
+        unitGroupName,
         units: configuredUnits,
+        unitsHierarchy,
         rankings: rankedList,
       };
     }
@@ -2608,7 +2634,9 @@ class DataStore {
         title: contest?.title || "Cuộc thi trực tuyến xã Ea Súp",
         bannerUrl: contest?.bannerUrl || "",
         themeColor: contest?.themeColor || "#00A9E0",
+        unitGroupName,
         units: configuredUnits,
+        unitsHierarchy,
         hasTieBreaker: contest?.hasTieBreaker ?? true,
       },
       scope: "organization" as const,
@@ -2616,7 +2644,9 @@ class DataStore {
       periodLabel,
       totalParticipants,
       totalAttempts,
+      unitGroupName,
       units: configuredUnits,
+      unitsHierarchy,
       rankings: rankedOrgList,
     };
   }

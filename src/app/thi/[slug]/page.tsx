@@ -86,6 +86,8 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
   const [cccd, setCccd] = useState("");
   const [phone, setPhone] = useState("");
   const [unitId, setUnitId] = useState("");
+  const [subUnitName, setSubUnitName] = useState("");
+  const [customSubUnit, setCustomSubUnit] = useState("");
   const [email, setEmail] = useState("");
   const [birthday, setBirthday] = useState("");
   const [gender, setGender] = useState("");
@@ -611,6 +613,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           cccd: cccd.trim() || phone.trim() || "ANONYMOUS",
           phone,
           unitId,
+          subUnitName: subUnitName === "OTHER" ? customSubUnit.trim() : subUnitName.trim(),
           email,
           birthday,
           gender,
@@ -1439,22 +1442,70 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                     </div>
                   )}
 
-                  {/* Đơn vị tham gia */}
+                  {/* Đơn vị tham gia (Cấp 2: Trường THPT, Chi đoàn, Thôn buôn) */}
                   <div>
+                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                      Đơn vị tham gia (Cấp 2) <span className="text-red-600">*</span>
+                    </label>
                     <select
                       value={unitId}
-                      onChange={(e) => setUnitId(e.target.value)}
+                      onChange={(e) => {
+                        setUnitId(e.target.value);
+                        setSubUnitName("");
+                        setCustomSubUnit("");
+                      }}
                       required
                       className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none bg-white font-medium text-slate-800"
                     >
                       <option value="">-- Chọn đơn vị tham gia * --</option>
                       {(contest.units || []).map((u: any) => (
                         <option key={u.id} value={u.id}>
-                          {u.name}
+                          {u.name} {u.subUnits && u.subUnits.length > 0 ? `(${u.subUnits.length} lớp/đơn vị trực thuộc)` : ""}
                         </option>
                       ))}
                     </select>
                   </div>
+
+                  {/* Đơn vị trực thuộc / Lớp con (Cấp 3 - Tự động hiển thị khi đơn vị có cấp 3) */}
+                  {(() => {
+                    const selectedUnitObj = (contest?.units || []).find(
+                      (u: any) => u.id === unitId || u.name === unitId
+                    );
+                    const subUnitsList: string[] = selectedUnitObj?.subUnits || [];
+                    if (subUnitsList.length === 0) return null;
+
+                    return (
+                      <div className="space-y-1.5 p-3 rounded-xl bg-blue-50/70 border border-blue-200">
+                        <label className="block text-xs font-bold text-blue-900">
+                          Lớp / Chi đoàn trực thuộc (Cấp 3) <span className="text-red-600">*</span>
+                        </label>
+                        <select
+                          value={subUnitName}
+                          onChange={(e) => setSubUnitName(e.target.value)}
+                          required
+                          className="w-full px-3 py-2 rounded-xl border border-blue-300 text-xs sm:text-sm focus:border-blue-600 outline-none bg-white font-medium text-slate-900 shadow-2xs"
+                        >
+                          <option value="">-- Chọn Lớp / Chi đoàn con * --</option>
+                          {subUnitsList.map((sub, sIdx) => (
+                            <option key={sIdx} value={sub}>
+                              {sub}
+                            </option>
+                          ))}
+                          <option value="OTHER">-- Đơn vị / Lớp khác (Tự nhập tay) --</option>
+                        </select>
+                        {subUnitName === "OTHER" && (
+                          <input
+                            type="text"
+                            value={customSubUnit}
+                            onChange={(e) => setCustomSubUnit(e.target.value)}
+                            placeholder="Nhập tên lớp / chi đoàn con của bạn..."
+                            required
+                            className="w-full mt-2 px-3 py-2 rounded-xl border border-blue-300 text-xs bg-white outline-none focus:border-blue-600 font-medium"
+                          />
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Pink Callout Box (Ảnh 1 & Thể lệ 3 lần thi) */}

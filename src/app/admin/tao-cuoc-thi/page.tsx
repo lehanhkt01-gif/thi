@@ -52,6 +52,7 @@ import {
   BarChart2,
   Navigation,
   Compass,
+  School,
 } from "lucide-react";
 import FloatingActionBar from "@/components/FloatingActionBar";
 import SparklineChart from "@/components/SparklineChart";
@@ -420,9 +421,10 @@ export default function ContestWizardPage() {
     }
     setIsSavingCurrentStep(true);
     try {
-      const unitsPayload = contestUnits.map((name, idx) => ({
+      const unitsPayload = contestUnits.map((u, idx) => ({
         id: `unit-${idx + 1}`,
-        name,
+        name: typeof u === "string" ? u : u.name,
+        subUnits: typeof u === "object" && Array.isArray(u.subUnits) ? u.subUnits : [],
         groupType: "AGENCY",
       }));
 
@@ -671,65 +673,120 @@ export default function ContestWizardPage() {
     explanation: "",
   });
 
-  // Bước 3: Đơn vị dự thi (Nhóm đơn vị & Đơn vị con)
-  const DEFAULT_UNIT_GROUPS = [
+  // Cấu trúc đơn vị 3 cấp: Cấp 1 (Tổ chức/Đoàn xã) -> Cấp 2 (Đơn vị con/Trường học) -> Cấp 3 (Lớp/Chi đoàn trực thuộc)
+  const normalizeUnitItem = (u: any): { name: string; subUnits: string[] } => {
+    if (!u) return { name: "", subUnits: [] };
+    if (typeof u === "string") {
+      const raw = u.trim();
+      if (raw.includes(":") || raw.includes(">")) {
+        const parts = raw.split(/[:>]/);
+        const parentName = parts[0].trim();
+        const children = (parts[1] || "")
+          .split(/[,;\n]+/)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0);
+        return { name: parentName, subUnits: children };
+      }
+      return { name: raw, subUnits: [] };
+    }
+    return {
+      name: (u.name || "").trim(),
+      subUnits: Array.isArray(u.subUnits) ? u.subUnits.map((s: string) => s.trim()).filter(Boolean) : [],
+    };
+  };
+
+  // Bước 3: Đơn vị dự thi (Nhóm đơn vị & Đơn vị con 3 cấp)
+  const DEFAULT_UNIT_GROUPS: Array<{
+    id: string;
+    name: string;
+    units: Array<{ name: string; subUnits: string[] }>;
+  }> = [
+    {
+      id: "group-doan-xa-3tier",
+      name: "Đoàn TNCS Hồ Chí Minh Xã Ea Súp (Mẫu 3 cấp chuẩn)",
+      units: [
+        {
+          name: "Trường THPT Ea Súp",
+          subUnits: [
+            "Lớp 10A1", "Lớp 10A2", "Lớp 10A3", "Lớp 10A4",
+            "Lớp 11A1", "Lớp 11A2", "Lớp 11A3",
+            "Lớp 12A1", "Lớp 12A2", "Lớp 12A3"
+          ],
+        },
+        {
+          name: "Trường THCS Lê Hồng Phong",
+          subUnits: ["Lớp 9A1", "Lớp 9A2", "Lớp 8A1", "Lớp 8A2", "Lớp 7A1", "Lớp 6A1"],
+        },
+        {
+          name: "Trường Tiểu học Hùng Vương",
+          subUnits: ["Lớp 5A1", "Lớp 5A2", "Lớp 4A1", "Lớp 3A1"],
+        },
+        { name: "Chi đoàn Khối Cơ quan UBND xã", subUnits: [] },
+        { name: "Chi đoàn Công an xã", subUnits: [] },
+        { name: "Chi đoàn Ban Chỉ huy Quân sự xã", subUnits: [] },
+        { name: "Chi đoàn Buôn Ea Súp", subUnits: [] },
+        { name: "Chi đoàn Thôn Đoàn Kết", subUnits: [] },
+        { name: "Chi đoàn Thôn Quyết Thắng", subUnits: [] },
+        { name: "Chi đoàn Thôn 1", subUnits: [] },
+        { name: "Chi đoàn Thôn 2", subUnits: [] },
+      ],
+    },
+    {
+      id: "group-thpt-3tier",
+      name: "Trường THPT Ea Súp (Mẫu Khối - Lớp 3 cấp)",
+      units: [
+        {
+          name: "Khối 10",
+          subUnits: ["Lớp 10A1", "Lớp 10A2", "Lớp 10A3", "Lớp 10A4", "Lớp 10A5"],
+        },
+        {
+          name: "Khối 11",
+          subUnits: ["Lớp 11A1", "Lớp 11A2", "Lớp 11A3", "Lớp 11A4", "Lớp 11A5"],
+        },
+        {
+          name: "Khối 12",
+          subUnits: ["Lớp 12A1", "Lớp 12A2", "Lớp 12A3", "Lớp 12A4", "Lớp 12A5"],
+        },
+        { name: "Chi đoàn Cán bộ - Giáo viên", subUnits: [] },
+      ],
+    },
     {
       id: "group-party",
       name: "Khối Cơ quan Đảng - Đoàn thể",
       units: [
-        "Ban Tuyên giáo Đảng ủy",
-        "Ủy ban MTTQ Việt Nam xã Ea Súp",
-        "Đoàn Thanh niên Cộng sản Hồ Chí Minh",
-        "Hội Liên hiệp Phụ nữ xã",
-        "Hội Nông dân xã Ea Súp",
-        "Hội Cựu chiến binh xã",
-        "Công đoàn cơ sở xã",
+        { name: "Ban Tuyên giáo Đảng ủy", subUnits: [] },
+        { name: "Ủy ban MTTQ Việt Nam xã Ea Súp", subUnits: [] },
+        { name: "Đoàn Thanh niên Cộng sản Hồ Chí Minh", subUnits: [] },
+        { name: "Hội Liên hiệp Phụ nữ xã", subUnits: [] },
+        { name: "Hội Nông dân xã Ea Súp", subUnits: [] },
+        { name: "Hội Cựu chiến binh xã", subUnits: [] },
+        { name: "Công đoàn cơ sở xã", subUnits: [] },
       ],
     },
     {
       id: "group-villages",
       name: "20 Thôn, Buôn Xã Ea Súp",
-      units: EA_SUP_VILLAGES,
+      units: EA_SUP_VILLAGES.map((v) => ({ name: v, subUnits: [] })),
     },
     {
       id: "group-ubnd",
       name: "Khối UBND & Lực lượng vũ trang",
       units: [
-        "Bộ phận Một cửa UBND xã",
-        "Công an xã Ea Súp",
-        "Ban Chỉ huy Quân sự xã",
-        "Bộ phận Địa chính - Nông nghiệp",
-        "Bộ phận Tư pháp - Hộ tịch",
-      ],
-    },
-    {
-      id: "group-schools",
-      name: "Khối Trường học & Giáo dục",
-      units: [
-        "Trường THPT Ea Súp",
-        "Trường THCS Lê Hồng Phong",
-        "Trường Tiểu học Hùng Vương",
-        "Trường Mầm non Hoa Phượng",
-      ],
-    },
-    {
-      id: "group-branches",
-      name: "Khối Chi bộ trực thuộc Đảng ủy",
-      units: [
-        "Chi bộ Thôn 1",
-        "Chi bộ Thôn 2",
-        "Chi bộ Buôn Ea Súp",
-        "Chi bộ Quân sự",
-        "Chi bộ Công an",
-        "Chi bộ Y tế",
+        { name: "Bộ phận Một cửa UBND xã", subUnits: [] },
+        { name: "Công an xã Ea Súp", subUnits: [] },
+        { name: "Ban Chỉ huy Quân sự xã", subUnits: [] },
+        { name: "Bộ phận Địa chính - Nông nghiệp", subUnits: [] },
+        { name: "Bộ phận Tư pháp - Hộ tịch", subUnits: [] },
       ],
     },
   ];
 
   const [unitGroups, setUnitGroups] = useState(DEFAULT_UNIT_GROUPS);
-  const [selectedGroupId, setSelectedGroupId] = useState("group-party");
-  const [unitGroupName, setUnitGroupName] = useState("Khối Cơ quan Đảng - Đoàn thể");
-  const [contestUnits, setContestUnits] = useState<string[]>([...DEFAULT_UNIT_GROUPS[0].units]);
+  const [selectedGroupId, setSelectedGroupId] = useState("group-doan-xa-3tier");
+  const [unitGroupName, setUnitGroupName] = useState("Đoàn TNCS Hồ Chí Minh Xã Ea Súp");
+  const [contestUnits, setContestUnits] = useState<Array<{ name: string; subUnits: string[] }>>([
+    ...DEFAULT_UNIT_GROUPS[0].units,
+  ]);
   const [newUnitInput, setNewUnitInput] = useState("");
   const [bulkInput, setBulkInput] = useState("");
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -737,6 +794,12 @@ export default function ContestWizardPage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupUnitsText, setNewGroupUnitsText] = useState("");
   const [unitFilterSearch, setUnitFilterSearch] = useState("");
+
+  // Quản lý Modal Cấp 3 (Đơn vị con của đơn vị cấp 2 - Ví dụ Lớp 10A1 của Trường THPT Ea Súp)
+  const [editingSubUnitParent, setEditingSubUnitParent] = useState<{ name: string; subUnits: string[] } | null>(null);
+  const [newSubUnitInput, setNewSubUnitInput] = useState("");
+  const [bulkSubUnitInput, setBulkSubUnitInput] = useState("");
+  const [showBulkSubUnitModal, setShowBulkSubUnitModal] = useState(false);
 
   // Cho phép sửa tên nhóm / tổ chức trực tiếp tại ô Chọn đơn vị (Ảnh 1)
   const handleUnitGroupNameChange = (val: string) => {
@@ -756,46 +819,135 @@ export default function ContestWizardPage() {
     const found = unitGroups.find((g) => g.id === groupId);
     if (found) {
       setUnitGroupName(found.name);
-      setContestUnits([...found.units]);
+      const normalized = found.units.map(normalizeUnitItem);
+      setContestUnits(normalized);
     }
   };
 
-  // Thêm đơn vị con mới (hỗ trợ nhập 1 hoặc nhiều cách nhau bằng dấu phẩy / xuống dòng)
+  // Thêm đơn vị con mới (hỗ trợ nhập 1 hoặc nhiều, hỗ trợ cú pháp 3 cấp: "Trường THPT: 10a1, 10a2...")
   const handleAddUnit = () => {
     const val = newUnitInput.trim();
     if (!val) return;
     const splitUnits = val
-      .split(/[\n,;]+/)
+      .split(/[\n;]+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
     if (splitUnits.length === 0) return;
 
-    const newSet = new Set([...contestUnits]);
-    splitUnits.forEach((u) => newSet.add(u));
-    const next = Array.from(newSet);
+    const parsedUnits = splitUnits.map(normalizeUnitItem);
 
-    setContestUnits(next);
-    setUnitGroups((prev) =>
-      prev.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
-    );
+    setContestUnits((prev) => {
+      const next = [...prev];
+      for (const p of parsedUnits) {
+        const found = next.find((item) => item.name.toLowerCase() === p.name.toLowerCase());
+        if (found) {
+          const setSub = new Set([...found.subUnits, ...p.subUnits]);
+          found.subUnits = Array.from(setSub);
+        } else {
+          next.push(p);
+        }
+      }
+      setUnitGroups((prevGroups) =>
+        prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+      );
+      return next;
+    });
     setNewUnitInput("");
   };
 
-  // Tạo tổ chức / đơn vị con mới (Ảnh 2)
+  // Thêm đơn vị con cấp 3 vào đơn vị cấp 2 đang chọn (Ví dụ thêm Lớp 10A1 vào Trường THPT Ea Súp)
+  const handleAddSubUnitsToParent = (parentName: string, subUnitsInputText: string) => {
+    const subs = subUnitsInputText
+      .split(/[\n,;]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+    if (subs.length === 0) return;
+
+    setContestUnits((prev) => {
+      const next = prev.map((u) => {
+        if (u.name.toLowerCase() === parentName.toLowerCase()) {
+          const setSub = new Set([...u.subUnits, ...subs]);
+          return { ...u, subUnits: Array.from(setSub) };
+        }
+        return u;
+      });
+      setUnitGroups((prevGroups) =>
+        prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+      );
+      // Cập nhật lại editingSubUnitParent nếu đang mở
+      setEditingSubUnitParent((current) => {
+        if (current && current.name.toLowerCase() === parentName.toLowerCase()) {
+          const updated = next.find((item) => item.name.toLowerCase() === parentName.toLowerCase());
+          return updated || null;
+        }
+        return current;
+      });
+      return next;
+    });
+  };
+
+  // Xóa 1 đơn vị con cấp 3 khỏi đơn vị cấp 2
+  const handleRemoveSubUnit = (parentName: string, subUnitToRemove: string) => {
+    setContestUnits((prev) => {
+      const next = prev.map((u) => {
+        if (u.name.toLowerCase() === parentName.toLowerCase()) {
+          return { ...u, subUnits: u.subUnits.filter((s) => s !== subUnitToRemove) };
+        }
+        return u;
+      });
+      setUnitGroups((prevGroups) =>
+        prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+      );
+      setEditingSubUnitParent((current) => {
+        if (current && current.name.toLowerCase() === parentName.toLowerCase()) {
+          const updated = next.find((item) => item.name.toLowerCase() === parentName.toLowerCase());
+          return updated || null;
+        }
+        return current;
+      });
+      return next;
+    });
+  };
+
+  // Xóa toàn bộ đơn vị con cấp 3 của 1 đơn vị cấp 2
+  const handleClearSubUnitsOfParent = (parentName: string) => {
+    setContestUnits((prev) => {
+      const next = prev.map((u) => {
+        if (u.name.toLowerCase() === parentName.toLowerCase()) {
+          return { ...u, subUnits: [] };
+        }
+        return u;
+      });
+      setUnitGroups((prevGroups) =>
+        prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+      );
+      setEditingSubUnitParent((current) => {
+        if (current && current.name.toLowerCase() === parentName.toLowerCase()) {
+          return { ...current, subUnits: [] };
+        }
+        return current;
+      });
+      return next;
+    });
+  };
+
+  // Tạo tổ chức / đơn vị con mới (Ảnh 2) - Hỗ trợ cả cú pháp 3 cấp thông minh
   const handleCreateNewGroup = () => {
     if (!newGroupName.trim()) {
       alert("Vui lòng nhập tên tổ chức / đơn vị mới!");
       return;
     }
-    const units = newGroupUnitsText
-      .split(/[\n,;]+/)
+    const lines = newGroupUnitsText
+      .split(/[\n;]+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
+
+    const parsedUnits = lines.map(normalizeUnitItem);
 
     const createdGroup = {
       id: `group-custom-${Date.now()}`,
       name: newGroupName.trim(),
-      units: units.length > 0 ? units : [newGroupName.trim()],
+      units: parsedUnits.length > 0 ? parsedUnits : [{ name: newGroupName.trim(), subUnits: [] }],
     };
 
     setUnitGroups((prev) => [createdGroup, ...prev]);
@@ -807,27 +959,39 @@ export default function ContestWizardPage() {
     setShowAddGroupModal(false);
   };
 
-  // Thêm / dán hàng loạt đơn vị con
+  // Thêm / dán hàng loạt đơn vị con (Hỗ trợ cả cú pháp 3 cấp: "Trường THPT Ea Súp: 10a1, 10a2...")
   const handleAddBulkUnits = () => {
     if (!bulkInput.trim()) return;
     const lines = bulkInput
-      .split(/[\n,;]+/)
+      .split(/[\n;]+/)
       .map((s) => s.trim())
       .filter((s) => s.length > 0);
-    const set = new Set([...contestUnits, ...lines]);
-    const next = Array.from(set);
-    setContestUnits(next);
-    setUnitGroups((prev) =>
-      prev.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
-    );
+    const parsed = lines.map(normalizeUnitItem);
+
+    setContestUnits((prev) => {
+      const next = [...prev];
+      for (const p of parsed) {
+        const found = next.find((item) => item.name.toLowerCase() === p.name.toLowerCase());
+        if (found) {
+          const setSub = new Set([...found.subUnits, ...p.subUnits]);
+          found.subUnits = Array.from(setSub);
+        } else {
+          next.push(p);
+        }
+      }
+      setUnitGroups((prevGroups) =>
+        prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
+      );
+      return next;
+    });
     setBulkInput("");
     setShowBulkModal(false);
   };
 
-  // Xóa 1 đơn vị con
+  // Xóa 1 đơn vị con cấp 2
   const handleRemoveUnit = (name: string) => {
     setContestUnits((prev) => {
-      const next = prev.filter((u) => u !== name);
+      const next = prev.filter((u) => u.name !== name);
       setUnitGroups((prevGroups) =>
         prevGroups.map((g) => (g.id === selectedGroupId ? { ...g, units: next } : g))
       );
@@ -1451,9 +1615,10 @@ export default function ContestWizardPage() {
   const handlePublishContest = async () => {
     setIsSubmitting(true);
     try {
-      const unitsPayload = contestUnits.map((name, idx) => ({
+      const unitsPayload = contestUnits.map((u, idx) => ({
         id: `unit-${idx + 1}`,
-        name,
+        name: typeof u === "string" ? u : u.name,
+        subUnits: typeof u === "object" && Array.isArray(u.subUnits) ? u.subUnits : [],
         groupType: "AGENCY",
       }));
 
@@ -1658,16 +1823,15 @@ export default function ContestWizardPage() {
               if (c.prize3Count) setPrize3Count(c.prize3Count);
               if (c.prize4Count) setPrize4Count(c.prize4Count);
               if (c.units && c.units.length > 0) {
-                const loadedUnitNames = c.units.map((u: any) =>
-                  typeof u === "string" ? u : u.name
-                );
-                setContestUnits(loadedUnitNames);
+                const loadedUnits = c.units.map(normalizeUnitItem);
+                setContestUnits(loadedUnits);
 
                 // Khớp ô "Chọn đơn vị" với thông tin đã thiết lập từ trước
+                const loadedUnitNames = loadedUnits.map((u: any) => u.name);
                 const matchedGroup = DEFAULT_UNIT_GROUPS.find(
                   (g) =>
                     g.units.length === loadedUnitNames.length &&
-                    g.units.every((uName) => loadedUnitNames.includes(uName))
+                    g.units.every((item: any) => loadedUnitNames.includes(item.name))
                 );
 
                 if (matchedGroup) {
@@ -1675,7 +1839,7 @@ export default function ContestWizardPage() {
                   setUnitGroupName(c.unitGroupName || matchedGroup.name);
                   setUnitGroups((groups) =>
                     groups.map((g) =>
-                      g.id === matchedGroup.id ? { ...g, name: c.unitGroupName || matchedGroup.name, units: loadedUnitNames } : g
+                      g.id === matchedGroup.id ? { ...g, name: c.unitGroupName || matchedGroup.name, units: loadedUnits } : g
                     )
                   );
                 } else {
@@ -1690,7 +1854,7 @@ export default function ContestWizardPage() {
                   const savedGroup = {
                     id: customId,
                     name: customName,
-                    units: loadedUnitNames,
+                    units: loadedUnits,
                   };
 
                   setUnitGroups((prev) => {
@@ -3505,12 +3669,19 @@ export default function ContestWizardPage() {
                 />
               </div>
 
-              {/* Danh sách các đơn vị con đã cấu hình (Ảnh 1 - cho phép thêm, xóa đơn vị con) */}
+              {/* Danh sách các đơn vị con đã cấu hình (Ảnh 1 - cho phép thêm, xóa đơn vị con & quản lý cấp 3) */}
               <div className="pt-2">
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
-                    ĐÃ CẤU HÌNH {contestUnits.length} ĐƠN VỊ
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                      ĐÃ CẤU HÌNH {contestUnits.length} ĐƠN VỊ CON (CẤP 2)
+                    </span>
+                    {contestUnits.some((u) => u.subUnits && u.subUnits.length > 0) && (
+                      <span className="text-[11px] text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-full font-bold">
+                        {contestUnits.reduce((sum, u) => sum + (u.subUnits?.length || 0), 0)} đơn vị trực thuộc (Cấp 3)
+                      </span>
+                    )}
+                  </div>
                   {contestUnits.length > 0 && (
                     <button
                       type="button"
@@ -3522,7 +3693,7 @@ export default function ContestWizardPage() {
                   )}
                 </div>
 
-                {/* Ô nhập thêm đơn vị con mới (Ảnh 1) */}
+                {/* Ô nhập thêm đơn vị con mới (Ảnh 1 - Hỗ trợ cú pháp 3 cấp: "Trường THPT: 10a1, 10a2...") */}
                 <div className="flex gap-2 mb-2.5">
                   <input
                     type="text"
@@ -3534,7 +3705,7 @@ export default function ContestWizardPage() {
                         handleAddUnit();
                       }
                     }}
-                    placeholder="Nhập tên đơn vị con mới rồi bấm Thêm (VD: Chi hội Buôn Ea Súp)..."
+                    placeholder="Nhập tên đơn vị mới (VD: Trường THPT Ea Súp: Lớp 10A1, 10A2... hoặc Chi đoàn Buôn Ea Súp)..."
                     className="flex-1 px-3 py-2 rounded-xl border border-slate-300 text-xs bg-white text-slate-800 placeholder-slate-400 outline-none focus:border-red-600 focus:ring-1 focus:ring-red-600"
                   />
                   <button
@@ -3549,36 +3720,74 @@ export default function ContestWizardPage() {
                     type="button"
                     onClick={() => setShowBulkModal(true)}
                     className="px-3 py-2 rounded-xl border border-slate-300 hover:border-slate-400 bg-white text-slate-700 hover:bg-slate-50 text-xs font-medium flex items-center gap-1 transition-all cursor-pointer shrink-0"
-                    title="Dán danh sách nhiều đơn vị con"
+                    title="Dán danh sách nhiều đơn vị con (hỗ trợ cả cú pháp 3 cấp)"
                   >
                     <span>Dán nhiều</span>
                   </button>
                 </div>
 
-                {/* Danh sách thẻ tag đơn vị con (Ảnh 1 - nút X xóa từng đơn vị) */}
-                <div className="flex flex-wrap gap-1.5 max-h-56 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                {/* Danh sách thẻ tag đơn vị con (Hỗ trợ quản lý đơn vị con cấp 3 như Lớp 10a1, 10a2...) */}
+                <div className="flex flex-wrap gap-2 max-h-72 overflow-y-auto p-3 bg-slate-50 rounded-xl border border-slate-200">
                   {contestUnits.length === 0 ? (
-                    <div className="w-full text-center py-4 text-xs text-slate-400">
+                    <div className="w-full text-center py-5 text-xs text-slate-400">
                       Chưa có đơn vị con nào. Hãy nhập tên đơn vị con ở trên hoặc chọn mẫu nhanh.
                     </div>
                   ) : (
-                    contestUnits.map((u, i) => (
-                      <span
-                        key={i}
-                        className="inline-flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 text-xs font-medium shadow-2xs hover:border-slate-300 transition-colors"
-                      >
-                        <span>{u}</span>
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveUnit(u)}
-                          className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-0.5 rounded transition-colors cursor-pointer"
-                          title={`Xóa ${u}`}
+                    contestUnits.map((u, i) => {
+                      const hasSubUnits = u.subUnits && u.subUnits.length > 0;
+                      return (
+                        <div
+                          key={i}
+                          className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border transition-all ${
+                            hasSubUnits
+                              ? "bg-white border-blue-300 shadow-xs"
+                              : "bg-white border-slate-200 text-slate-700 shadow-2xs"
+                          }`}
                         >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
-                      </span>
-                    ))
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-xs text-slate-800">{u.name}</span>
+                            {hasSubUnits && (
+                              <button
+                                type="button"
+                                onClick={() => setEditingSubUnitParent(u)}
+                                className="text-[10px] bg-blue-100 hover:bg-blue-200 text-blue-800 font-bold px-1.5 py-0.5 rounded-md cursor-pointer transition-colors"
+                                title="Bấm để xem và sửa danh sách lớp con"
+                              >
+                                {u.subUnits.length} lớp con
+                              </button>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1 pl-1 border-l border-slate-200">
+                            <button
+                              type="button"
+                              onClick={() => setEditingSubUnitParent(u)}
+                              className="text-[11px] text-[#0284C7] hover:text-blue-800 font-bold px-1.5 py-0.5 rounded hover:bg-sky-50 transition-colors cursor-pointer flex items-center gap-0.5"
+                              title={`Cấu hình đơn vị con cấp 3 cho ${u.name}`}
+                            >
+                              <Plus className="w-3 h-3 stroke-[2.5]" />
+                              <span>{hasSubUnits ? "Sửa con" : "+ Cấp 3"}</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveUnit(u.name)}
+                              className="text-slate-400 hover:text-red-600 hover:bg-red-50 p-1 rounded transition-colors cursor-pointer"
+                              title={`Xóa ${u.name}`}
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })
                   )}
+                </div>
+
+                <div className="text-[11px] text-slate-500 italic mt-1.5 flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                  <span>
+                    <strong>Mô hình 3 cấp:</strong> Cơ quan tổ chức (Cấp 1) &gt; Đơn vị con (Cấp 2: Trường THPT) &gt; Đơn vị trực thuộc (Cấp 3: Lớp 10A1, 10A2...). Bấm nút <strong>+ Cấp 3</strong> trên từng đơn vị để thêm lớp hoặc chi đoàn con.
+                  </span>
                 </div>
               </div>
             </div>
@@ -4435,6 +4644,171 @@ export default function ContestWizardPage() {
                 className="btn-admin-primary text-xs px-5 py-2 font-bold cursor-pointer"
               >
                 Tạo &amp; Áp dụng ngay
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 9. Modal Cấu Hình Đơn Vị Trực Thuộc / Lớp Con (Cấp 3) */}
+      {editingSubUnitParent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 relative animate-scale-up">
+            <button
+              type="button"
+              onClick={() => {
+                setEditingSubUnitParent(null);
+                setNewSubUnitInput("");
+              }}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-3">
+              <div className="w-10 h-10 rounded-2xl bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
+                <School className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-slate-900 uppercase">
+                  ĐƠN VỊ TRỰC THUỘC (CẤP 3)
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Cấu hình các lớp, chi đoàn, chi hội trực thuộc <strong>{editingSubUnitParent.name}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Breadcrumb trực quan 3 cấp */}
+            <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs text-slate-700 flex items-center gap-1.5 mb-4 flex-wrap">
+              <span className="font-bold text-slate-900">{unitGroupName || "Cấp 1"}</span>
+              <span className="text-slate-400">&gt;</span>
+              <span className="font-bold text-blue-700">{editingSubUnitParent.name}</span>
+              <span className="text-slate-400">&gt;</span>
+              <span className="text-slate-600 font-medium">Danh sách đơn vị con ({editingSubUnitParent.subUnits.length})</span>
+            </div>
+
+            {/* Ô nhập nhanh thêm đơn vị con cấp 3 */}
+            <div className="space-y-3 mb-4">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newSubUnitInput}
+                  onChange={(e) => setNewSubUnitInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      if (newSubUnitInput.trim()) {
+                        handleAddSubUnitsToParent(editingSubUnitParent.name, newSubUnitInput);
+                        setNewSubUnitInput("");
+                      }
+                    }
+                  }}
+                  placeholder="Nhập tên lớp/chi đoàn con (VD: Lớp 10A1, Lớp 10A2)..."
+                  className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 outline-none focus:border-blue-600 font-medium"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (newSubUnitInput.trim()) {
+                      handleAddSubUnitsToParent(editingSubUnitParent.name, newSubUnitInput);
+                      setNewSubUnitInput("");
+                    }
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>Thêm</span>
+                </button>
+              </div>
+
+              {/* Các nút thêm nhanh mẫu lớp */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[11px] text-slate-400">Mẫu nhanh:</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = ["Lớp 10A1", "Lớp 10A2", "Lớp 10A3", "Lớp 11A1", "Lớp 11A2", "Lớp 12A1", "Lớp 12A2"].join("\n");
+                    handleAddSubUnitsToParent(editingSubUnitParent.name, sample);
+                  }}
+                  className="text-[11px] px-2 py-0.5 rounded-lg bg-sky-50 text-sky-700 border border-sky-200 hover:bg-sky-100 cursor-pointer"
+                >
+                  + Khối 10, 11, 12 THPT
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = ["Lớp 9A1", "Lớp 9A2", "Lớp 8A1", "Lớp 8A2", "Lớp 7A1", "Lớp 6A1"].join("\n");
+                    handleAddSubUnitsToParent(editingSubUnitParent.name, sample);
+                  }}
+                  className="text-[11px] px-2 py-0.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 cursor-pointer"
+                >
+                  + Khối 6, 7, 8, 9 THCS
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const sample = ["Tổ 1", "Tổ 2", "Tổ 3", "Tổ 4"].join("\n");
+                    handleAddSubUnitsToParent(editingSubUnitParent.name, sample);
+                  }}
+                  className="text-[11px] px-2 py-0.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100 cursor-pointer"
+                >
+                  + Tổ thanh niên 1..4
+                </button>
+              </div>
+            </div>
+
+            {/* Danh sách thẻ tag đơn vị cấp 3 */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <span>ĐÃ CÓ {editingSubUnitParent.subUnits.length} ĐƠN VỊ TRỰC THUỘC:</span>
+                {editingSubUnitParent.subUnits.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleClearSubUnitsOfParent(editingSubUnitParent.name)}
+                    className="text-[11px] text-slate-400 hover:text-red-600 transition-colors cursor-pointer"
+                  >
+                    Xóa hết
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto p-2.5 bg-slate-50 rounded-xl border border-slate-200">
+                {editingSubUnitParent.subUnits.length === 0 ? (
+                  <div className="w-full text-center py-4 text-xs text-slate-400">
+                    Chưa có đơn vị trực thuộc nào. Nhập tên ở trên để thêm.
+                  </div>
+                ) : (
+                  editingSubUnitParent.subUnits.map((sub, sIdx) => (
+                    <span
+                      key={sIdx}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-slate-800 text-xs font-medium shadow-2xs"
+                    >
+                      <span>{sub}</span>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveSubUnit(editingSubUnitParent.name, sub)}
+                        className="text-slate-400 hover:text-red-600 p-0.5 rounded cursor-pointer"
+                        title={`Xóa ${sub}`}
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+            </div>
+
+            <div className="flex justify-end pt-4 border-t border-slate-100 mt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingSubUnitParent(null);
+                  setNewSubUnitInput("");
+                }}
+                className="px-6 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold cursor-pointer transition-colors shadow-xs"
+              >
+                Xong &amp; Áp dụng
               </button>
             </div>
           </div>

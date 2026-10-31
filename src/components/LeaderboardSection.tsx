@@ -44,6 +44,8 @@ export default function LeaderboardSection({
   // Dữ liệu API trả về
   const [rankings, setRankings] = useState<any[]>([]);
   const [unitsList, setUnitsList] = useState<string[]>(initialUnits);
+  const [unitsHierarchy, setUnitsHierarchy] = useState<Array<{ name: string; subUnits?: string[] }>>([]);
+  const [unitGroupName, setUnitGroupName] = useState<string>("");
   const [periodLabel, setPeriodLabel] = useState<string>("");
   const [totalParticipants, setTotalParticipants] = useState<number>(0);
   const [totalAttempts, setTotalAttempts] = useState<number>(0);
@@ -90,6 +92,12 @@ export default function LeaderboardSection({
         setRankings(data.rankings || []);
         if (data.units && Array.isArray(data.units) && data.units.length > 0) {
           setUnitsList(data.units);
+        }
+        if (data.unitsHierarchy && Array.isArray(data.unitsHierarchy)) {
+          setUnitsHierarchy(data.unitsHierarchy);
+        }
+        if (data.unitGroupName) {
+          setUnitGroupName(data.unitGroupName);
         }
         setPeriodLabel(data.periodLabel || "");
         setTotalParticipants(data.totalParticipants || 0);
@@ -253,20 +261,36 @@ export default function LeaderboardSection({
           )}
         </div>
 
-        {/* Bộ lọc Đơn vị con (ĐỒNG BỘ 2 CHIỀU VỚI CÁC ĐƠN VỊ THIẾT LẬP KHI TẠO CUỘC THI - ẢNH 1) */}
+        {/* Bộ lọc Đơn vị con (ĐỒNG BỘ 2 CHIỀU VỚI CÁC ĐƠN VỊ THIẾT LẬP KHI TẠO CUỘC THI - ẢNH 1 - HỖ TRỢ 3 CẤP) */}
         {scope === "individual" && (
           <div className="relative">
             <select
               value={selectedUnit}
               onChange={(e) => setSelectedUnit(e.target.value)}
-              className="px-4 py-2.5 rounded-2xl border border-slate-300 bg-white text-slate-700 text-xs sm:text-sm font-semibold shadow-xs hover:border-slate-400 focus:border-[#00A9E0] outline-none cursor-pointer pr-9 appearance-none"
+              className="px-4 py-2.5 rounded-2xl border border-slate-300 bg-white text-slate-700 text-xs sm:text-sm font-semibold shadow-xs hover:border-slate-400 focus:border-[#00A9E0] outline-none cursor-pointer pr-9 appearance-none max-w-[280px] truncate"
             >
-              <option value="ALL">-- Tất cả {unitsList.length} Đơn vị --</option>
-              {unitsList.map((u) => (
-                <option key={u} value={u}>
-                  {u}
-                </option>
-              ))}
+              <option value="ALL">
+                -- Tất cả {unitsHierarchy.length > 0 ? unitsHierarchy.length : unitsList.length} Đơn vị --
+              </option>
+              {unitsHierarchy.length > 0
+                ? unitsHierarchy.map((u, i) => (
+                    <React.Fragment key={i}>
+                      <option value={u.name} className="font-bold text-slate-900 bg-slate-100">
+                        {u.name} {u.subUnits && u.subUnits.length > 0 ? `(Toàn đơn vị - ${u.subUnits.length} lớp con)` : ""}
+                      </option>
+                      {u.subUnits &&
+                        u.subUnits.map((sub, sIdx) => (
+                          <option key={`${i}-${sIdx}`} value={sub} className="text-slate-600">
+                            &nbsp;&nbsp;↳ {sub}
+                          </option>
+                        ))}
+                    </React.Fragment>
+                  ))
+                : unitsList.map((u) => (
+                    <option key={u} value={u}>
+                      {u}
+                    </option>
+                  ))}
             </select>
             <ChevronDown className="w-4 h-4 text-slate-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
           </div>
@@ -336,7 +360,9 @@ export default function LeaderboardSection({
                 </div>
                 <div className="text-center mb-2 px-1">
                   <div className="text-xs font-black text-slate-900 uppercase line-clamp-1">{top2.fullName}</div>
-                  <div className="text-[11px] text-slate-500 line-clamp-1">{top2.unitName}</div>
+                  <div className="text-[11px] text-slate-500 line-clamp-1">
+                    {top2.unitName} {top2.subUnitName ? `(${top2.subUnitName})` : ""}
+                  </div>
                   <div className="text-xs font-black text-[#00A9E0]">
                     {top2.score} điểm ({top2.correctCount}/{top2.totalQuestions})
                   </div>
@@ -360,7 +386,9 @@ export default function LeaderboardSection({
                 </div>
                 <div className="text-center mb-2 px-1">
                   <div className="text-xs sm:text-sm font-black text-slate-900 uppercase line-clamp-1">{top1.fullName}</div>
-                  <div className="text-[11px] text-slate-500 line-clamp-1">{top1.unitName}</div>
+                  <div className="text-[11px] text-slate-500 line-clamp-1">
+                    {top1.unitName} {top1.subUnitName ? `(${top1.subUnitName})` : ""}
+                  </div>
                   <div className="text-xs sm:text-sm font-black text-[#00A9E0]">
                     {top1.score} điểm ({top1.correctCount}/{top1.totalQuestions})
                   </div>
@@ -384,7 +412,9 @@ export default function LeaderboardSection({
                 </div>
                 <div className="text-center mb-2 px-1">
                   <div className="text-xs font-black text-slate-900 uppercase line-clamp-1">{top3.fullName}</div>
-                  <div className="text-[11px] text-slate-500 line-clamp-1">{top3.unitName}</div>
+                  <div className="text-[11px] text-slate-500 line-clamp-1">
+                    {top3.unitName} {top3.subUnitName ? `(${top3.subUnitName})` : ""}
+                  </div>
                   <div className="text-xs font-black text-[#00A9E0]">
                     {top3.score} điểm ({top3.correctCount}/{top3.totalQuestions})
                   </div>
@@ -441,7 +471,15 @@ export default function LeaderboardSection({
                           <div className="text-[10px] text-slate-400 font-mono">{item.phoneMasked}</div>
                         )}
                       </td>
-                      <td className="py-3.5 px-3 text-slate-600">{item.unitName}</td>
+                      <td className="py-3.5 px-3 text-slate-600">
+                        <div className="font-semibold text-slate-800">{item.unitName}</div>
+                        {item.subUnitName && (
+                          <div className="text-[11px] font-bold text-blue-700 flex items-center gap-1 mt-0.5">
+                            <span className="text-slate-400">↳</span>
+                            <span>{item.subUnitName}</span>
+                          </div>
+                        )}
+                      </td>
                       <td className="py-3.5 px-3 text-center">
                         <span className="font-bold text-[#00A9E0] text-sm">{item.score}</span>{" "}
                         <span className="text-slate-500 text-[11px]">

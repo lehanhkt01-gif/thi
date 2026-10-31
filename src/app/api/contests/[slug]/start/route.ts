@@ -20,7 +20,7 @@ export async function POST(
     }
 
     const body = await req.json();
-    const { fullName, cccd, phone, unitId, birthYear, birthday, address, email, gender, job, workplace } = body;
+    const { fullName, cccd, phone, unitId, subUnitName, birthYear, birthday, address, email, gender, job, workplace } = body;
 
     const reqKeys: string[] = contest.requiredFieldKeys || [];
     const reqText = (contest.requiredFields || "").toLowerCase();
@@ -68,7 +68,7 @@ export async function POST(
       effectiveUnitId,
       birthYear ? parseInt(String(birthYear), 10) : (birthday ? parseInt(String(birthday).split("-")[0], 10) : undefined),
       address,
-      { email, birthday, gender, job, workplace }
+      { email, birthday, gender, job, workplace, subUnitName }
     );
 
     // Kiểm tra số lượt thi đã nộp bài thành công (chỉ tính lượt đã nộp bài)
