@@ -53,6 +53,7 @@ import {
   Folder,
   Link2,
   QrCode,
+  Mail,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
@@ -1598,180 +1599,190 @@ export default function AdminDashboardPage() {
                   <div className="grid grid-cols-1 gap-4">
                     {filteredContests.map((c) => {
                       const creatorInfo = getContestCreatorInfo(c);
+                      const creatorEmail = creatorInfo.email || c.creatorEmail || "hethong@easupso.com";
                       return (
                       <div
                         key={c.id}
-                        className="bg-white rounded-2xl border border-slate-200 p-4 sm:p-5 shadow-xs hover:border-slate-300 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                        className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-3.5 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all space-y-2.5"
                       >
-                        <div className="flex items-start space-x-4">
-                          {/* Contest Thumbnail */}
-                          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                            <img
-                              src={c.bannerUrl || "/banners/banner-nong-dan-ea-sup.jpg"}
-                              alt={c.title}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.currentTarget.src = "/banners/banner-nong-dan-ea-sup.jpg";
-                              }}
-                            />
+                        {/* HÀNG 1: THUMBNAIL + THÔNG TIN CHÍNH + CỤM NÚT HÀNH ĐỘNG */}
+                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                          {/* Trái: Ảnh và Tiêu đề, Đơn vị, Email người tạo */}
+                          <div className="flex items-start sm:items-center space-x-3 min-w-0 flex-1">
+                            {/* Contest Thumbnail gọn gàng 44x44 */}
+                            <div className="w-11 h-11 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200 shadow-2xs">
+                              <img
+                                src={c.bannerUrl || "/banners/banner-nong-dan-ea-sup.jpg"}
+                                alt={c.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = "/banners/banner-nong-dan-ea-sup.jpg";
+                                }}
+                              />
+                            </div>
+
+                            {/* Contest Info */}
+                            <div className="min-w-0 flex-1">
+                              {/* Meta: Trạng thái • Đơn vị • Email người tạo */}
+                              <div className="flex flex-wrap items-center gap-1.5 text-xs">
+                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                  c.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
+                                }`}>
+                                  {c.status === "PUBLISHED" ? "ĐANG DIỄN RA" : "BẢN NHÁP"}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                <span className="text-xs font-semibold text-slate-600 truncate max-w-[200px]" title={c.organizerName}>
+                                  {c.organizerName || "UBND Xã Ea Súp"}
+                                </span>
+                                <span className="text-slate-300">•</span>
+                                
+                                {/* Rút gọn thông tin người tạo chỉ cần email đăng nhập (bỏ tên đi) */}
+                                <button
+                                  type="button"
+                                  onClick={() => setCreatorFilter(creatorInfo.filterKey)}
+                                  title={`Bấm để lọc cuộc thi do ${creatorEmail} tạo`}
+                                  className="inline-flex items-center text-[11px] font-mono text-slate-600 hover:text-red-700 bg-slate-100 hover:bg-red-50 px-2 py-0.5 rounded-md border border-slate-200 transition-colors cursor-pointer"
+                                >
+                                  <Mail className="w-3 h-3 mr-1 text-slate-400" />
+                                  <span className="truncate max-w-[190px]">{creatorEmail}</span>
+                                </button>
+                              </div>
+
+                              {/* Tiêu đề cuộc thi: Rõ nét, 1 dòng gọn gàng */}
+                              <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-1 mt-0.5" title={c.title}>
+                                {c.title}
+                              </h3>
+                            </div>
                           </div>
 
-                          {/* Contest Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex flex-wrap items-center gap-2 mb-1">
-                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
-                                {c.status === "PUBLISHED" ? "ĐANG DIỄN RA" : "BẢN NHÁP"}
-                              </span>
-                              <span className="text-xs text-slate-400">•</span>
-                              <span className="text-xs text-slate-500 font-medium truncate max-w-[200px]">
-                                {c.organizerName || "UBND Xã Ea Súp"}
-                              </span>
-                            </div>
+                          {/* Phải: Cụm nút hành động chính */}
+                          <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-end lg:self-center">
+                            <Link
+                              href={`/thi/${c.slug}`}
+                              target="_blank"
+                              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
+                              title="Xem giao diện phòng thi"
+                            >
+                              <Eye className="w-3.5 h-3.5 mr-1 text-slate-500" /> Phòng thi
+                            </Link>
 
-                            <h3 className="text-sm sm:text-base font-bold text-slate-900 leading-snug line-clamp-2">
-                              {c.title}
-                            </h3>
+                            <Link
+                              href={`/ket-qua/${c.slug}`}
+                              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
+                              title="Xem bảng xếp hạng kết quả"
+                            >
+                              <BarChart2 className="w-3.5 h-3.5 mr-1 text-slate-500" /> Xếp hạng
+                            </Link>
 
-                            {/* Thông tin tài khoản tạo cuộc thi */}
-                            <div className="flex flex-wrap items-center gap-2 mt-2">
-                              <button
-                                type="button"
-                                onClick={() => setCreatorFilter(creatorInfo.filterKey)}
-                                title={`Bấm để lọc các cuộc thi của: ${creatorInfo.name}`}
-                                className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 transition-colors cursor-pointer group text-left"
+                            {authUser && (
+                              <a
+                                href={`/api/contests/${c.slug}/export`}
+                                download
+                                className="px-2.5 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors inline-flex items-center shadow-2xs"
+                                title="Tải file Excel kết quả"
                               >
-                                <User className="w-3.5 h-3.5 mr-1.5 text-slate-400 group-hover:text-red-600 shrink-0" />
-                                <span className="font-bold text-slate-800 group-hover:text-red-700">
-                                  {creatorInfo.name}
-                                </span>
-                                {creatorInfo.email && (
-                                  <span className="text-slate-400 group-hover:text-red-500/80 text-[11px] ml-1 font-mono">
-                                    ({creatorInfo.email})
-                                  </span>
-                                )}
-                              </button>
-                            </div>
+                                <Download className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Xuất Excel
+                              </a>
+                            )}
 
-                            <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
-                              <span className="flex items-center">
-                                <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                                {c.durationMinutes || 15} phút/lượt
+                            {canUserManageContest(c) ? (
+                              <>
+                                <Link
+                                  href={`/admin/tao-cuoc-thi?edit=${c.slug}&step=1`}
+                                  className="px-3 py-1.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors inline-flex items-center shadow-xs cursor-pointer"
+                                  title={`Chỉnh sửa cuộc thi: ${c.title}`}
+                                >
+                                  <Edit className="w-3.5 h-3.5 mr-1" /> Chỉnh sửa
+                                </Link>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteContest(c.slug, c.title)}
+                                  className="p-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-colors inline-flex items-center cursor-pointer"
+                                  title="Xóa cuộc thi này khỏi hệ thống"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
+                              <span
+                                className="px-2.5 py-1.5 rounded-xl bg-slate-50 text-slate-400 text-xs font-medium border border-slate-200 inline-flex items-center select-none"
+                                title="Cuộc thi này do đơn vị khác tạo"
+                              >
+                                <Lock className="w-3.5 h-3.5 mr-1" /> Đơn vị khác
                               </span>
-                              <span className="flex items-center">
-                                <Users className="w-3.5 h-3.5 mr-1 text-slate-400" />
-                                {c.units?.length || 20} đơn vị tham gia
-                              </span>
-                              <span className="flex items-center font-mono text-[11px] text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md font-bold">
-                                /r/{c.customSlug || c.slug}
-                              </span>
-                              {c.clickCount ? (
-                                <span className="flex items-center text-[11px] text-slate-500 font-semibold" title="Số lượt click qua link rút gọn">
-                                  <Eye className="w-3 h-3 mr-1 text-slate-400" />
-                                  {c.clickCount} lượt truy cập
-                                </span>
-                              ) : null}
-                            </div>
+                            )}
                           </div>
                         </div>
 
-                        {/* Action Buttons */}
-                        <div className="flex flex-wrap items-center gap-1.5 self-end md:self-center shrink-0">
-                          {/* Cụm công cụ Link rút gọn & QR code */}
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedContestForShortlink(c);
-                              setShortlinkModalTab("custom-link");
-                            }}
-                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 text-xs font-bold transition-colors inline-flex items-center cursor-pointer shadow-2xs"
-                            title="Tùy chỉnh link rút gọn /r/{slug}"
-                          >
-                            <Link2 className="w-3.5 h-3.5 mr-1 text-red-600" /> Tùy chỉnh link
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => handleCopyContestShortlink(c)}
-                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center cursor-pointer shadow-2xs"
-                            title="Sao chép link rút gọn 1-chạm"
-                          >
-                            {copiedContestSlug === c.slug ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" />
-                                <span className="text-emerald-700">Đã chép</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5 mr-1 text-slate-500" /> Sao chép
-                              </>
-                            )}
-                          </button>
-
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setSelectedContestForShortlink(c);
-                              setShortlinkModalTab("qr-code");
-                            }}
-                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center cursor-pointer shadow-2xs"
-                            title="Tạo mã QR và tải ảnh PNG độ phân giải cao in ấn"
-                          >
-                            <QrCode className="w-3.5 h-3.5 mr-1 text-slate-700" /> Mã QR
-                          </button>
-
-                          <Link
-                            href={`/thi/${c.slug}`}
-                            target="_blank"
-                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center shadow-2xs"
-                          >
-                            <Eye className="w-3.5 h-3.5 mr-1" /> Phòng thi
-                          </Link>
-
-                          <Link
-                            href={`/ket-qua/${c.slug}`}
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center"
-                          >
-                            <BarChart2 className="w-3.5 h-3.5 mr-1" /> Bảng xếp hạng
-                          </Link>
-
-                          {authUser && (
-                            <a
-                              href={`/api/contests/${c.slug}/export`}
-                              download
-                              className="px-3 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors inline-flex items-center"
-                              title="Tải file Excel kết quả"
-                            >
-                              <Download className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Xuất Excel
-                            </a>
-                          )}
-
-                          {canUserManageContest(c) ? (
-                            <>
-                              <Link
-                                href={`/admin/tao-cuoc-thi?edit=${c.slug}&step=1`}
-                                className="px-3 py-1.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors inline-flex items-center shadow-xs cursor-pointer"
-                                title={`Chỉnh sửa cuộc thi: ${c.title}`}
-                              >
-                                <Edit className="w-3.5 h-3.5 mr-1" /> Chỉnh sửa
-                              </Link>
-
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteContest(c.slug, c.title)}
-                                className="px-3 py-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold transition-colors inline-flex items-center cursor-pointer"
-                                title="Xóa cuộc thi này khỏi hệ thống"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 mr-1 text-red-600" /> Xóa
-                              </button>
-                            </>
-                          ) : (
-                            <span
-                              className="px-3 py-1.5 rounded-xl bg-slate-100 text-slate-500 text-xs font-medium border border-slate-200 inline-flex items-center select-none"
-                              title="Cuộc thi này do đơn vị khác tạo. Bạn có quyền theo dõi phòng thi, bảng xếp hạng và xuất file Excel kết quả."
-                            >
-                              <Lock className="w-3.5 h-3.5 mr-1 text-slate-400" /> Chỉ xem (Đơn vị khác)
+                        {/* HÀNG 2: THÔNG SỐ VÀ CỤM TIỆN ÍCH LINK RÚT GỌN / QR CODE TRÊN CÙNG 1 DÒNG */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                          {/* Thông số cuộc thi */}
+                          <div className="flex items-center gap-3">
+                            <span className="flex items-center">
+                              <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                              {c.durationMinutes || 15} phút/lượt
                             </span>
-                          )}
+                            <span className="flex items-center">
+                              <Users className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                              {c.units?.length || 20} đơn vị tham gia
+                            </span>
+                            {c.clickCount ? (
+                              <span className="flex items-center font-semibold text-slate-600" title="Số lượt click qua link rút gọn">
+                                <Eye className="w-3 h-3 mr-1 text-slate-400" />
+                                {c.clickCount} lượt truy cập
+                              </span>
+                            ) : null}
+                          </div>
+
+                          {/* Cụm Link rút gọn & QR Code nhỏ gọn, liền mạch */}
+                          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 shadow-2xs">
+                            <span className="text-[11px] text-slate-400 font-semibold hidden sm:inline">Link:</span>
+                            <span className="font-mono text-xs font-bold text-red-600 max-w-[200px] truncate" title={`https://thi.easupso.com/r/${c.customSlug || c.slug}`}>
+                              /r/{c.customSlug || c.slug}
+                            </span>
+
+                            {/* Nút Sao chép link 1-chạm */}
+                            <button
+                              type="button"
+                              onClick={() => handleCopyContestShortlink(c)}
+                              className="p-1 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                              title="Sao chép link rút gọn 1-chạm"
+                            >
+                              {copiedContestSlug === c.slug ? (
+                                <Check className="w-3.5 h-3.5 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+
+                            {/* Nút Mã QR */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedContestForShortlink(c);
+                                setShortlinkModalTab("qr-code");
+                              }}
+                              className="p-1 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                              title="Tạo mã QR và tải ảnh PNG in ấn"
+                            >
+                              <QrCode className="w-3.5 h-3.5" />
+                            </button>
+
+                            {/* Nút Tùy chỉnh link */}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedContestForShortlink(c);
+                                setShortlinkModalTab("custom-link");
+                              }}
+                              className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 hover:border-red-300 text-[11px] font-bold text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                              title="Tùy chỉnh link rút gọn"
+                            >
+                              <Link2 className="w-3 h-3 inline mr-1" />
+                              Tùy chỉnh
+                            </button>
+                          </div>
                         </div>
                       </div>
                       );
