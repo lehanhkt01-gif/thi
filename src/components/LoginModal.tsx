@@ -87,9 +87,10 @@ export default function LoginModal({
   const [googleClientId, setGoogleClientId] = useState("");
   const tokenClientRef = React.useRef<any>(null);
 
-  // Khởi tạo SDK Google Identity Services
+  // Khởi tạo SDK Google Identity Services & Đảm bảo luôn mở ở chế độ ĐĂNG NHẬP
   useEffect(() => {
     if (!isOpen) return;
+    setAuthMode("login");
 
     const setupGsi = (clientId: string) => {
       setGoogleClientId(clientId);
@@ -618,20 +619,9 @@ export default function LoginModal({
             )}
           </button>
 
-          {/* Chuyển đổi qua lại giữa Đăng nhập và Đăng ký */}
-          <div className="text-center pt-2">
-            {authMode === "login" ? (
-              <p className="text-xs text-slate-600">
-                Chưa có tài khoản đơn vị?{" "}
-                <button
-                  type="button"
-                  onClick={() => setAuthMode("register")}
-                  className="text-[#DC2626] font-bold hover:underline cursor-pointer"
-                >
-                  Đăng ký ngay
-                </button>
-              </p>
-            ) : (
+          {/* Bỏ nút đăng ký ngay theo yêu cầu người dùng, giữ modal đăng nhập tinh gọn */}
+          {authMode === "register" && (
+            <div className="text-center pt-2">
               <p className="text-xs text-slate-600">
                 Đã có tài khoản?{" "}
                 <button
@@ -642,8 +632,8 @@ export default function LoginModal({
                   Đăng nhập tại đây
                 </button>
               </p>
-            )}
-          </div>
+            </div>
+          )}
         </form>
       </div>
     </div>

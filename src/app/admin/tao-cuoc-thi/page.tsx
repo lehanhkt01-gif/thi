@@ -1957,18 +1957,7 @@ export default function ContestWizardPage() {
                 Đăng nhập ngay
               </button>
 
-              <div className="text-center pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAuthTab("register");
-                    setAuthError("");
-                  }}
-                  className="text-xs text-slate-600 hover:text-red-700 transition-colors cursor-pointer"
-                >
-                  Chưa có tài khoản đơn vị? <strong className="text-[#DC2626] underline">Đăng ký ngay</strong>
-                </button>
-              </div>
+              {/* Đã bỏ nút đăng ký ngay theo yêu cầu */}
             </form>
           </div>
           ) : (
