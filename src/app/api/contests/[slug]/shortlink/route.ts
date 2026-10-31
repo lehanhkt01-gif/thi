@@ -8,6 +8,32 @@ interface RouteParams {
 }
 
 /**
+ * Lấy Base URL chính xác trong môi trường Docker, Nginx Proxy hoặc Localhost
+ * Tuyệt đối không để lọt 0.0.0.0 (non-routable meta-address gây ERR_ADDRESS_INVALID)
+ */
+function resolveBaseUrl(req: NextRequest): string {
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const hostHeader = req.headers.get("host");
+  const forwardedProto = req.headers.get("x-forwarded-proto");
+
+  let host = (forwardedHost || hostHeader || "thi.easupso.com").trim();
+
+  // Nếu host chứa 0.0.0.0 hoặc port nội bộ container 3000/8077
+  if (host.includes("0.0.0.0") || host.includes(":3000") || host.includes(":8077") || !host) {
+    host = (forwardedHost && !forwardedHost.includes("0.0.0.0")) ? forwardedHost : "thi.easupso.com";
+  }
+
+  let protocol = "https";
+  if (forwardedProto) {
+    protocol = forwardedProto.split(",")[0].trim();
+  } else if (host.includes("localhost") || host.startsWith("192.168.")) {
+    protocol = "http";
+  }
+
+  return `${protocol}://${host}`;
+}
+
+/**
  * GET /api/contests/[slug]/shortlink
  * Lấy thông tin link rút gọn, clickCount và URL
  */
@@ -23,10 +49,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const host = req.headers.get("host") || "thi.easupso.com";
-    const protocol = req.headers.get("x-forwarded-proto") || "https";
-    const baseUrl = `${protocol}://${host}`;
-
+    const baseUrl = resolveBaseUrl(req);
     const effectiveSlug = contest.customSlug || contest.slug;
     const shortUrl = `${baseUrl}/r/${effectiveSlug}`;
     const directUrl = `${baseUrl}/thi/${contest.slug}`;
@@ -68,10 +91,8 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     }
 
     const check = store.checkCustomSlugAvailable(customSlug, contest.id);
-
-    const host = req.headers.get("host") || "thi.easupso.com";
-    const protocol = req.headers.get("x-forwarded-proto") || "https";
-    const previewUrl = `${protocol}://${host}/r/${(customSlug || "").trim().toLowerCase()}`;
+    const baseUrl = resolveBaseUrl(req);
+    const previewUrl = `${baseUrl}/r/${(customSlug || "").trim().toLowerCase()}`;
 
     return NextResponse.json({
       success: true,
@@ -113,9 +134,7 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const host = req.headers.get("host") || "thi.easupso.com";
-    const protocol = req.headers.get("x-forwarded-proto") || "https";
-    const baseUrl = `${protocol}://${host}`;
+    const baseUrl = resolveBaseUrl(req);
     const shortUrl = `${baseUrl}/r/${result.contest.customSlug}`;
 
     return NextResponse.json({
