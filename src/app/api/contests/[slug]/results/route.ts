@@ -15,6 +15,9 @@ export async function GET(
     }
 
     const { searchParams } = new URL(req.url);
+    const scope = searchParams.get("scope") === "organization" ? "organization" : "individual";
+    const period = searchParams.get("period") === "week" ? "week" : "contest";
+    const weekOffset = parseInt(searchParams.get("weekOffset") || "0", 10) || 0;
     const search = searchParams.get("search") || undefined;
     const unitName = searchParams.get("unitName") || undefined;
     const fromDate = searchParams.get("fromDate") || undefined;
@@ -23,31 +26,16 @@ export async function GET(
     // Lấy thống kê và biểu đồ sóng (Sparklines)
     const stats = store.getContestStats(contest.id);
 
-    // Lấy bảng xếp hạng theo bộ lọc
-    const leaderboard = store.getLeaderboard(contest.id, {
+    // Lấy bảng xếp hạng đa chiều theo chuẩn quy ước (Cá nhân / Tổ chức x Theo tuần / Toàn cuộc thi)
+    const multiRes = store.getMultiDimensionalLeaderboard(contest.id, {
+      scope,
+      period,
+      weekOffset,
       search,
       unitName,
       fromDate,
       toDate,
     });
-
-    const formattedList = leaderboard.map((item, index) => ({
-      rank: index + 1,
-      id: item.id,
-      fullName: item.participantName,
-      cccd: item.participantCccd ? item.participantCccd.slice(0, 4) + "****" + item.participantCccd.slice(-3) : "",
-      fullCccd: item.participantCccd,
-      unitName: item.unitName,
-      score: item.score,
-      correctCount: item.correctCount,
-      totalQuestions: item.totalQuestions,
-      accuracyPercent: item.accuracyPercent,
-      durationSeconds: item.durationSeconds,
-      tieBreakerPrediction: item.tieBreakerPrediction,
-      submittedAt: item.submittedAt,
-      attemptCount: (item as any).attemptCount || 1,
-      maxAttempts: contest.maxAttempts || 3,
-    }));
 
     return NextResponse.json({
       success: true,
@@ -60,8 +48,14 @@ export async function GET(
       endTime: contest.endTime,
       status: contest.status,
       stats,
-      units: contest.units,
-      leaderboard: formattedList,
+      units: multiRes.units, // Đồng bộ 2 chiều với đơn vị con đã cấu hình (Ảnh 1)
+      scope: multiRes.scope,
+      period: multiRes.period,
+      periodLabel: multiRes.periodLabel,
+      totalParticipants: multiRes.totalParticipants,
+      totalAttempts: multiRes.totalAttempts,
+      leaderboard: multiRes.rankings,
+      rankings: multiRes.rankings,
     });
   } catch (error: any) {
     return NextResponse.json(

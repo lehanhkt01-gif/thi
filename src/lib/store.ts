@@ -2256,6 +2256,371 @@ class DataStore {
     return deduplicatedList;
   }
 
+  // NÂNG CẤP TOÀN DIỆN MODULE BẢNG XẾP HẠNG ĐA CHIỀU (CÁ NHÂN / TỔ CHỨC x THEO TUẦN / TOÀN CUỘC THI)
+  public getMultiDimensionalLeaderboard(
+    contestIdOrSlug?: string,
+    options?: {
+      scope?: "individual" | "organization";
+      period?: "week" | "contest";
+      weekOffset?: number;
+      search?: string;
+      unitName?: string;
+      fromDate?: string;
+      toDate?: string;
+      limit?: number;
+      page?: number;
+    }
+  ) {
+    this.loadFromDisk();
+    const scope = options?.scope || "individual";
+    const period = options?.period || "contest";
+    const weekOffset = options?.weekOffset || 0;
+
+    // 1. Xác định cuộc thi: nếu không có contestIdOrSlug, lấy contest PUBLISHED mới nhất
+    let contest = contestIdOrSlug
+      ? (this.getContestById(contestIdOrSlug) || this.getContestBySlug(contestIdOrSlug))
+      : this.contests.find((c) => c.status === "PUBLISHED") || this.contests[0];
+
+    if (!contest && this.contests.length > 0) {
+      contest = this.contests[0];
+    }
+
+    const validIds = new Set<string>();
+    if (contest) {
+      validIds.add(contest.id);
+      validIds.add(contest.slug);
+    }
+
+    // 2. Danh sách đơn vị đồng bộ 2 chiều từ contest.units (Ảnh 1)
+    const configuredUnits: string[] = (contest?.units && contest.units.length > 0)
+      ? contest.units.map((u: any) => (typeof u === "string" ? u : u.name))
+      : EA_SUP_VILLAGES;
+
+    // 3. Khung thời gian theo period (week / contest) chuẩn giờ Việt Nam UTC+7
+    let periodLabel = "Toàn cuộc thi";
+    let weekStart: Date | null = null;
+    let weekEnd: Date | null = null;
+
+    if (period === "week") {
+      const now = new Date();
+      // Múi giờ Việt Nam UTC+7
+      const utcNow = now.getTime() + now.getTimezoneOffset() * 60000;
+      const vnTime = new Date(utcNow + 7 * 3600000);
+      const day = vnTime.getDay(); // 0: Chủ Nhật, 1: Thứ Hai,...
+      const diffToMonday = day === 0 ? -6 : 1 - day;
+
+      const monday = new Date(vnTime);
+      monday.setDate(vnTime.getDate() + diffToMonday + weekOffset * 7);
+      monday.setHours(0, 0, 0, 0);
+
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      // Quy đổi ngược về UTC timestamp để so sánh với thời gian lưu trên Server
+      weekStart = new Date(monday.getTime() - 7 * 3600000);
+      weekEnd = new Date(sunday.getTime() - 7 * 3600000);
+
+      const pad = (n: number) => n.toString().padStart(2, "0");
+      const dStart = `${pad(monday.getDate())}/${pad(monday.getMonth() + 1)}`;
+      const dEnd = `${pad(sunday.getDate())}/${pad(sunday.getMonth() + 1)}/${sunday.getFullYear()}`;
+      periodLabel = weekOffset === 0 ? `Tuần này (${dStart} - ${dEnd})` : `Tuần (${dStart} - ${dEnd})`;
+    } else {
+      periodLabel = contest ? `Toàn cuộc thi: ${contest.title}` : "Toàn cuộc thi";
+    }
+
+    // 4. Lấy tất cả bài thi hợp lệ đã nộp của cuộc thi
+    let attemptsList = this.attempts.filter((a) => {
+      if (contest && !validIds.has(a.contestId)) return false;
+      if (!a.submittedAt) return false;
+      return true;
+    });
+
+    // Lọc theo khung thời gian period
+    if (period === "week" && weekStart && weekEnd) {
+      const startMs = weekStart.getTime();
+      const endMs = weekEnd.getTime();
+      attemptsList = attemptsList.filter((a) => {
+        const t = new Date(a.submittedAt!).getTime();
+        return t >= startMs && t <= endMs;
+      });
+    }
+
+    // Lọc thêm fromDate / toDate nếu có
+    if (options?.fromDate) {
+      const fromMs = new Date(options.fromDate).getTime();
+      attemptsList = attemptsList.filter((a) => new Date(a.submittedAt!).getTime() >= fromMs);
+    }
+    if (options?.toDate) {
+      const toMs = new Date(options.toDate).getTime() + 86400000;
+      attemptsList = attemptsList.filter((a) => new Date(a.submittedAt!).getTime() <= toMs);
+    }
+
+    // Tổng số người thi thực tế (distinct candidate)
+    const allUniqueParticipantsSet = new Set(
+      attemptsList.map((a) => (a.participantCccd || a.participantId).trim())
+    );
+    const totalParticipants = allUniqueParticipantsSet.size;
+    const totalAttempts = attemptsList.length;
+
+    // 5. XỬ LÝ THEO SCOPE: 'individual' (Cá nhân)
+    if (scope === "individual") {
+      let filtered = [...attemptsList];
+
+      // Lọc theo search
+      if (options?.search) {
+        const q = options.search.toLowerCase().trim();
+        filtered = filtered.filter(
+          (a) =>
+            a.participantName.toLowerCase().includes(q) ||
+            (a.participantCccd && a.participantCccd.includes(q))
+        );
+      }
+
+      // Lọc theo đơn vị con nếu có (Ảnh 1)
+      if (options?.unitName && options.unitName !== "ALL") {
+        filtered = filtered.filter((a) => a.unitName === options.unitName);
+      }
+
+      // Nhóm theo từng cá nhân (Deduplication - Best Attempt Only)
+      const candidateMap = new Map<string, { bestAttempt: ExamAttemptModel; allAttempts: ExamAttemptModel[] }>();
+
+      for (const att of filtered) {
+        const key = (att.participantCccd || att.participantId).trim();
+        const group = candidateMap.get(key);
+        if (!group) {
+          candidateMap.set(key, { bestAttempt: att, allAttempts: [att] });
+        } else {
+          group.allAttempts.push(att);
+          // 5-Tier Tie-Breaking Cascade để tìm Best Attempt của cá nhân đó
+          const curr = att;
+          const best = group.bestAttempt;
+          let isBetter = false;
+
+          // Tier 1: Điểm cao hơn
+          if (curr.score > best.score) {
+            isBetter = true;
+          } else if (curr.score === best.score) {
+            // Tier 2: Thời gian làm bài ngắn hơn
+            if (curr.durationSeconds < best.durationSeconds) {
+              isBetter = true;
+            } else if (curr.durationSeconds === best.durationSeconds) {
+              // Tier 3: Độ lệch câu hỏi phụ nhỏ hơn
+              if (contest?.hasTieBreaker) {
+                const diffCurr = Math.abs((curr.tieBreakerPrediction ?? 999999) - totalParticipants);
+                const diffBest = Math.abs((best.tieBreakerPrediction ?? 999999) - totalParticipants);
+                if (diffCurr < diffBest) {
+                  isBetter = true;
+                } else if (diffCurr === diffBest) {
+                  // Tier 4: Nộp bài sớm hơn
+                  if (new Date(curr.submittedAt!).getTime() < new Date(best.submittedAt!).getTime()) {
+                    isBetter = true;
+                  }
+                }
+              } else {
+                // Tier 4: Nộp bài sớm hơn
+                if (new Date(curr.submittedAt!).getTime() < new Date(best.submittedAt!).getTime()) {
+                  isBetter = true;
+                }
+              }
+            }
+          }
+
+          if (isBetter) {
+            group.bestAttempt = curr;
+          }
+        }
+      }
+
+      // Tạo danh sách thí sinh với lượt thi tốt nhất
+      const rankings = Array.from(candidateMap.values()).map(({ bestAttempt, allAttempts }) => {
+        // Tìm thông tin participant để lấy số điện thoại
+        const pInfo = this.participants.find(
+          (p) => p.id === bestAttempt.participantId || p.cccd === bestAttempt.participantCccd
+        );
+        const rawPhone = pInfo?.phone || "";
+        const phoneMasked = rawPhone.length >= 8
+          ? rawPhone.slice(0, 4) + "***" + rawPhone.slice(-3)
+          : rawPhone;
+        const cccdMasked = bestAttempt.participantCccd && bestAttempt.participantCccd.length >= 6
+          ? bestAttempt.participantCccd.slice(0, 3) + "******" + bestAttempt.participantCccd.slice(-3)
+          : bestAttempt.participantCccd;
+
+        return {
+          id: bestAttempt.id,
+          participantId: bestAttempt.participantId,
+          fullName: bestAttempt.participantName,
+          unitName: bestAttempt.unitName,
+          phoneMasked,
+          cccdMasked,
+          score: bestAttempt.score,
+          correctCount: bestAttempt.correctCount,
+          totalQuestions: bestAttempt.totalQuestions,
+          accuracyPercent: bestAttempt.accuracyPercent,
+          durationSeconds: bestAttempt.durationSeconds,
+          tieBreakerPrediction: bestAttempt.tieBreakerPrediction,
+          attemptCount: allAttempts.length,
+          submittedAt: bestAttempt.submittedAt,
+        };
+      });
+
+      // 5-Tier Tie-Breaking Cascade cho toàn bộ bảng xếp hạng cá nhân
+      rankings.sort((a, b) => {
+        // Tier 1: Điểm cao hơn
+        if (b.score !== a.score) return b.score - a.score;
+        // Tier 2: Thời gian ngắn hơn
+        if (a.durationSeconds !== b.durationSeconds) return a.durationSeconds - b.durationSeconds;
+        // Tier 3: Độ lệch câu hỏi phụ
+        if (contest?.hasTieBreaker) {
+          const diffA = Math.abs((a.tieBreakerPrediction ?? 999999) - totalParticipants);
+          const diffB = Math.abs((b.tieBreakerPrediction ?? 999999) - totalParticipants);
+          if (diffA !== diffB) return diffA - diffB;
+        }
+        // Tier 4: Lượt thi ít hơn (đạt thành tích ở lượt 1 ưu tiên hơn lượt 3)
+        if (a.attemptCount !== b.attemptCount) return a.attemptCount - b.attemptCount;
+        // Tier 5: Thời điểm nộp sớm hơn
+        return new Date(a.submittedAt!).getTime() - new Date(b.submittedAt!).getTime();
+      });
+
+      // Gán rank 1, 2, 3...
+      const rankedList = rankings.map((item, idx) => ({
+        rank: idx + 1,
+        ...item,
+      }));
+
+      return {
+        contest: {
+          id: contest?.id || "",
+          slug: contest?.slug || "",
+          title: contest?.title || "Cuộc thi trực tuyến xã Ea Súp",
+          bannerUrl: contest?.bannerUrl || "",
+          themeColor: contest?.themeColor || "#00A9E0",
+          units: configuredUnits,
+          hasTieBreaker: contest?.hasTieBreaker ?? true,
+        },
+        scope: "individual" as const,
+        period,
+        periodLabel,
+        totalParticipants,
+        totalAttempts,
+        units: configuredUnits,
+        rankings: rankedList,
+      };
+    }
+
+    // 6. XỬ LÝ THEO SCOPE: 'organization' (Tổ chức / Đơn vị)
+    // Lọc bài thi hợp lệ chống spam ảo: durationSeconds >= 10
+    const validQualityAttempts = attemptsList.filter((a) => (a.durationSeconds || 0) >= 10);
+
+    // Khởi tạo map cho tất cả đơn vị cấu hình (để đơn vị 0 lượt vẫn hiển thị đầy đủ)
+    const orgMap = new Map<string, {
+      unitName: string;
+      candidates: Map<string, ExamAttemptModel>;
+      totalAttempts: number;
+    }>();
+
+    for (const u of configuredUnits) {
+      orgMap.set(u, {
+        unitName: u,
+        candidates: new Map(),
+        totalAttempts: 0,
+      });
+    }
+
+    // Gom dữ liệu vào từng tổ chức
+    for (const att of validQualityAttempts) {
+      const uName = att.unitName || "Đơn vị khác";
+      if (!orgMap.has(uName)) {
+        orgMap.set(uName, {
+          unitName: uName,
+          candidates: new Map(),
+          totalAttempts: 0,
+        });
+      }
+      const entry = orgMap.get(uName)!;
+      entry.totalAttempts += 1;
+
+      const candKey = (att.participantCccd || att.participantId).trim();
+      const existingBest = entry.candidates.get(candKey);
+      if (!existingBest || att.score > existingBest.score || (att.score === existingBest.score && att.durationSeconds < existingBest.durationSeconds)) {
+        entry.candidates.set(candKey, att);
+      }
+    }
+
+    // Tính toán số liệu thống kê cho mỗi tổ chức
+    const orgRankings = Array.from(orgMap.values()).map((org) => {
+      const uniqueParticipants = org.candidates.size;
+      const totalAttemptsCount = org.totalAttempts;
+      const bestAttemptsList = Array.from(org.candidates.values());
+
+      // Số thí sinh đạt từ >= 50% điểm trở lên
+      const qualifiedParticipants = bestAttemptsList.filter(
+        (a) => (a.accuracyPercent >= 50) || (a.totalQuestions > 0 && (a.correctCount / a.totalQuestions) >= 0.5)
+      ).length;
+
+      // Điểm trung bình cộng các lượt thi tốt nhất
+      const sumScores = bestAttemptsList.reduce((acc, a) => acc + (a.score || 0), 0);
+      const avgBestScore = uniqueParticipants > 0 ? Number((sumScores / uniqueParticipants).toFixed(1)) : 0;
+
+      // Thời gian trung bình các lượt thi tốt nhất
+      const sumDurations = bestAttemptsList.reduce((acc, a) => acc + (a.durationSeconds || 0), 0);
+      const avgDurationSeconds = uniqueParticipants > 0 ? Math.round(sumDurations / uniqueParticipants) : 0;
+
+      // Tỷ lệ đạt (%)
+      const completionRate = uniqueParticipants > 0 ? Math.round((qualifiedParticipants / uniqueParticipants) * 100) : 0;
+
+      return {
+        unitName: org.unitName,
+        uniqueParticipants,
+        totalAttempts: totalAttemptsCount,
+        qualifiedParticipants,
+        avgBestScore,
+        avgDurationSeconds,
+        completionRate,
+      };
+    });
+
+    // Sắp xếp thứ tự Tổ chức:
+    // 1. uniqueParticipants DESC
+    // 2. qualifiedParticipants DESC
+    // 3. avgBestScore DESC
+    // 4. totalAttempts DESC
+    // 5. avgDurationSeconds ASC
+    orgRankings.sort((a, b) => {
+      if (b.uniqueParticipants !== a.uniqueParticipants) return b.uniqueParticipants - a.uniqueParticipants;
+      if (b.qualifiedParticipants !== a.qualifiedParticipants) return b.qualifiedParticipants - a.qualifiedParticipants;
+      if (b.avgBestScore !== a.avgBestScore) return b.avgBestScore - a.avgBestScore;
+      if (b.totalAttempts !== a.totalAttempts) return b.totalAttempts - a.totalAttempts;
+      if (a.avgDurationSeconds !== b.avgDurationSeconds) return a.avgDurationSeconds - b.avgDurationSeconds;
+      return a.unitName.localeCompare(b.unitName, "vi");
+    });
+
+    // Gán thứ hạng
+    const rankedOrgList = orgRankings.map((item, idx) => ({
+      rank: idx + 1,
+      ...item,
+    }));
+
+    return {
+      contest: {
+        id: contest?.id || "",
+        slug: contest?.slug || "",
+        title: contest?.title || "Cuộc thi trực tuyến xã Ea Súp",
+        bannerUrl: contest?.bannerUrl || "",
+        themeColor: contest?.themeColor || "#00A9E0",
+        units: configuredUnits,
+        hasTieBreaker: contest?.hasTieBreaker ?? true,
+      },
+      scope: "organization" as const,
+      period,
+      periodLabel,
+      totalParticipants,
+      totalAttempts,
+      units: configuredUnits,
+      rankings: rankedOrgList,
+    };
+  }
+
   public getSystemStats() {
     this.loadFromDisk();
     const now = new Date();

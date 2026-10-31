@@ -134,3 +134,39 @@
      cd /var/www/thi && git pull origin main && docker compose up -d --build web
      ```
 
+---
+
+## 7. QUY ƯỚC MODULE BẢNG XẾP HẠNG ĐA CHIỀU (LEADERBOARD MATRIX)
+
+### 7.1. Ma trận 2 Bộ lọc cốt lõi
+- **Bộ lọc 1 (`scope`)**: `individual` (Cá nhân) | `organization` (Tổ chức / Đơn vị - 20 thôn buôn hoặc các đơn vị con của cuộc thi).
+- **Bộ lọc 2 (`period`)**: `week` (Theo tuần: Thứ Hai 00:00:00 - Chủ Nhật 23:59:59.999 UTC+7) | `contest` (Toàn cuộc thi).
+- **Bộ lọc Đơn vị con (`unitName`)**: **Đồng bộ 2 chiều** với các tổ chức/đơn vị con mà người dùng cấu hình ở Bước 3 khi tạo cuộc thi (`contest.units`).
+
+### 7.2. Xếp hạng Cá nhân (`scope = 'individual'`)
+- **Deduplication (Best Attempt Only)**: Mỗi thí sinh (định danh duy nhất qua `participantId` hoặc `cccd`/`phone`) **CHỈ XUẤT HIỆN 01 LẦN DUY NHẤT** trên bảng xếp hạng với lượt thi có thành tích tốt nhất trong kỳ.
+- **5-Tier Tie-Breaking Cascade**:
+  1. `score` DESC (hoặc `correctCount` DESC, `accuracyPercent` DESC): Điểm cao nhất xếp trên.
+  2. `durationSeconds` ASC: Thời gian làm bài ngắn hơn (tính bằng giây) xếp trên.
+  3. `tieBreakerDiff` ASC: Độ lệch câu hỏi phụ nhỏ hơn xếp trên (`|tieBreakerPrediction - actualParticipants|`).
+  4. `attemptNumber` ASC: Đạt điểm số đó ở lượt thi thứ ít hơn (lần 1 < lần 2 < lần 3) xếp trên.
+  5. `submittedAt` ASC: Nộp bài sớm hơn theo giờ Server xếp trên.
+- **Privacy Masking**: Public UI che 3 số giữa của Số điện thoại (`0943***770`) và che CCCD (`066******789`).
+
+### 7.3. Xếp hạng Tổ chức / Đơn vị (`scope = 'organization'`)
+- **Anti-Spam Filter**: Lượt thi hợp lệ khi `submittedAt IS NOT NULL` và `durationSeconds >= 10`.
+- **Chỉ số thống kê mỗi đơn vị**:
+  - `uniqueParticipants`: Số lượng thí sinh thực tế tham gia (`COUNT(DISTINCT)`).
+  - `totalAttempts`: Tổng số lượt thi hợp lệ của đơn vị trong kỳ.
+  - `qualifiedParticipants`: Số thí sinh đạt từ `>= 50%` số điểm trở lên.
+  - `avgBestScore`: Điểm trung bình cộng tính trên lượt thi tốt nhất của các thí sinh trong đơn vị.
+  - `avgDurationSeconds`: Thời gian trung bình của các lượt thi tốt nhất.
+  - `completionRate`: Tỷ lệ đạt (`qualifiedParticipants / uniqueParticipants * 100%`).
+- **Organization Tie-Breaking**:
+  1. `uniqueParticipants` DESC
+  2. `qualifiedParticipants` DESC
+  3. `avgBestScore` DESC
+  4. `totalAttempts` DESC
+  5. `avgDurationSeconds` ASC
+- **Hiển thị đầy đủ đơn vị**: Danh sách tổ chức / thôn buôn hiển thị đầy đủ, đơn vị chưa có bài thi hiển thị `0` ở cuối bảng để BTC dễ đôn đốc.
+

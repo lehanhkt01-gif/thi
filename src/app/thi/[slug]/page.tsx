@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import AudioPlayerAnNhien from "@/components/AudioPlayerAnNhien";
 import LoginModal, { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
+import LeaderboardSection from "@/components/LeaderboardSection";
 
 interface QuestionItem {
   id: string;
@@ -1114,215 +1115,20 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </div>
         </section>
 
-        {/* 7. BẢNG XẾP HẠNG & TOP 3 PODIUM CHUẨN ẢNH 4 */}
-        <section id="bang-xep-hang" className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
-          <h2
-            className="text-2xl sm:text-3xl font-black text-center mb-4"
-            style={{ color: contest?.themeColor || "#DC2626" }}
-          >
-            Bảng xếp hạng
-          </h2>
-
-          {/* Filter Dropdowns (Ảnh 4) */}
-          <div className="flex items-center justify-center space-x-3 mb-8">
-            <button
-              onClick={() => setRankTab(rankTab === "personal" ? "group" : "personal")}
-              style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-              className="inline-flex items-center space-x-1.5 text-white text-xs font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity shadow-xs cursor-pointer"
-            >
-              <span>{rankTab === "personal" ? "Cá nhân" : "Tập thể"}</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-
-            <button
-              onClick={() => setTimeFilter(timeFilter === "week" ? "all" : "week")}
-              style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-              className="inline-flex items-center space-x-1.5 text-white text-xs font-bold px-4 py-2 rounded-lg hover:opacity-90 transition-opacity shadow-xs cursor-pointer"
-            >
-              <span>{timeFilter === "week" ? "Theo tuần" : "Toàn cuộc thi"}</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          {/* Empty state khi chưa có thí sinh */}
-          {leaderboard.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-slate-200 p-8 sm:p-12 text-center max-w-xl mx-auto shadow-xs mb-8">
-              <div className="w-16 h-16 rounded-full bg-red-50 text-[#DC2626] mx-auto flex items-center justify-center mb-4">
-                <Trophy className="w-8 h-8" />
-              </div>
-              <h3 className="text-base font-bold text-slate-800 mb-1">Chưa có kết quả dự thi</h3>
-              <p className="text-xs text-slate-500 mb-5">
-                Chưa có thí sinh nào hoàn thành bài thi. Hãy là người đầu tiên tham gia và ghi danh lên Bảng xếp hạng của xã Ea Súp!
-              </p>
-              <button
-                onClick={() => setShowRegisterModal(true)}
-                style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-                className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-bold text-white shadow-xs hover:opacity-90 transition-opacity cursor-pointer"
-              >
-                Vào phòng thi ➔
-              </button>
-            </div>
-          ) : (
-            <>
-              {/* TOP 3 PODIUM STEPS (Ảnh 4) */}
-              <div className="flex items-end justify-center max-w-2xl mx-auto mb-10 px-4">
-                {/* Hạng 2 */}
-                {top2 && (
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="relative mb-2 flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-full bg-slate-300 border-2 border-white shadow-md flex items-center justify-center text-slate-600 font-bold">
-                        <User className="w-7 h-7" />
-                      </div>
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-slate-600 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
-                        2
-                      </div>
-                    </div>
-                    <div className="text-center mb-2 px-1">
-                      <div className="text-xs font-black text-slate-900 uppercase line-clamp-1">{top2.fullName}</div>
-                      <div className="text-[11px] text-slate-500">{top2.unitName}</div>
-                      <div
-                        className="text-xs font-black"
-                        style={{ color: contest?.themeColor || "#DC2626" }}
-                      >
-                        {top2.correctCount}/{top2.totalQuestions}
-                      </div>
-                    </div>
-                    <div
-                      style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-                      className="w-full rounded-t-xl h-28 flex items-center justify-center text-white font-black text-2xl shadow-md opacity-90"
-                    >
-                      2
-                    </div>
-                  </div>
-                )}
-
-                {/* Hạng 1 */}
-                {top1 && (
-                  <div className="flex-1 flex flex-col items-center -mx-2 z-10">
-                    <div className="relative mb-2 flex flex-col items-center">
-                      <div className="w-14 h-14 rounded-full bg-amber-200 border-2 border-amber-400 shadow-lg flex items-center justify-center text-amber-700 font-bold">
-                        <User className="w-8 h-8" />
-                      </div>
-                      <div className="absolute -top-1 -right-1 w-6 h-6 rounded-full bg-amber-500 text-white text-xs font-black flex items-center justify-center shadow-xs">
-                        1
-                      </div>
-                    </div>
-                    <div className="text-center mb-2 px-1">
-                      <div className="text-xs font-black text-slate-900 uppercase line-clamp-1">{top1.fullName}</div>
-                      <div className="text-[11px] text-slate-500">{top1.unitName}</div>
-                      <div
-                        className="text-xs font-black"
-                        style={{ color: contest?.themeColor || "#DC2626" }}
-                      >
-                        {top1.correctCount}/{top1.totalQuestions}
-                      </div>
-                    </div>
-                    <div
-                      style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-                      className="w-full rounded-t-2xl h-40 flex items-center justify-center text-white font-black text-3xl shadow-lg border-x-2 border-t-2 border-white/20"
-                    >
-                      1
-                    </div>
-                  </div>
-                )}
-
-                {/* Hạng 3 */}
-                {top3 && (
-                  <div className="flex-1 flex flex-col items-center">
-                    <div className="relative mb-2 flex flex-col items-center">
-                      <div className="w-12 h-12 rounded-full bg-orange-200 border-2 border-white shadow-md flex items-center justify-center text-orange-700 font-bold">
-                        <User className="w-7 h-7" />
-                      </div>
-                      <div className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-orange-600 text-white text-[10px] font-bold flex items-center justify-center shadow-xs">
-                        3
-                      </div>
-                    </div>
-                    <div className="text-center mb-2 px-1">
-                      <div className="text-xs font-black text-slate-900 uppercase line-clamp-1">{top3.fullName}</div>
-                      <div className="text-[11px] text-slate-500">{top3.unitName}</div>
-                      <div
-                        className="text-xs font-black"
-                        style={{ color: contest?.themeColor || "#DC2626" }}
-                      >
-                        {top3.correctCount}/{top3.totalQuestions}
-                      </div>
-                    </div>
-                    <div
-                      style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-                      className="w-full rounded-t-xl h-20 flex items-center justify-center text-white font-black text-2xl shadow-md opacity-80"
-                    >
-                      3
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* TABLE RANK 4 TO 8+ */}
-              {restRanks.length > 0 && (
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-xs divide-y divide-slate-100 max-w-4xl mx-auto mb-6">
-                  {restRanks.map((item, idx) => (
-                    <div
-                      key={item.id || idx}
-                      className="flex items-center justify-between p-3.5 sm:px-6 hover:bg-slate-50/80 transition-colors"
-                    >
-                      <div className="flex items-center space-x-3 sm:space-x-4">
-                        <div className="w-7 h-7 rounded-full bg-[#0052CC] text-white font-bold text-xs flex items-center justify-center flex-shrink-0">
-                          {idx + 4}
-                        </div>
-                        <div className="w-8 h-8 rounded-full bg-slate-100 text-slate-500 flex items-center justify-center flex-shrink-0">
-                          <User className="w-4 h-4" />
-                        </div>
-                        <div>
-                          <div className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight">
-                            {item.fullName}
-                          </div>
-                          <div className="text-[11px] text-slate-500">
-                            {item.unitName}
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-xs sm:text-sm font-black text-slate-900 font-mono">
-                        {item.correctCount}/{item.totalQuestions}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* PAGINATION CONTROLS */}
-              {leaderboard.length > 8 && (
-                <div className="flex items-center justify-center space-x-1.5 text-xs font-bold text-slate-700">
-                  <button
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    className="w-7 h-7 rounded flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-[#0052CC]"
-                  >
-                    ◀
-                  </button>
-                  {[1, 2, 3].map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => setCurrentPage(p)}
-                      className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
-                        currentPage === p
-                          ? "bg-[#0052CC] text-white"
-                          : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    className="w-7 h-7 rounded flex items-center justify-center bg-slate-100 hover:bg-slate-200 text-[#0052CC]"
-                  >
-                    ▶
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </section>
+        {/* 7. MODULE BẢNG XẾP HẠNG ĐA CHIỀU CHUẨN ẢNH 1 & ẢNH 2 */}
+        <LeaderboardSection
+          contestSlug={slug}
+          contestTitle={contest?.title}
+          initialUnits={contest?.units?.map((u: any) => (typeof u === "string" ? u : u.name))}
+          themeColor={contest?.themeColor || "#00A9E0"}
+          onEnterExam={() => {
+            if (!authUser) {
+              setShowLoginModal(true);
+            } else {
+              setShowRegisterModal(true);
+            }
+          }}
+        />
 
         {/* 8. TIN TỪ BAN TỔ CHỨC CHUẨN ẢNH 4 */}
         <section className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
