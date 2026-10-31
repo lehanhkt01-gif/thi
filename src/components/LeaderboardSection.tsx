@@ -16,6 +16,8 @@ import {
   Filter,
   Flame,
   ArrowUpDown,
+  Lock,
+  ShieldCheck,
 } from "lucide-react";
 
 interface LeaderboardSectionProps {
@@ -24,6 +26,9 @@ interface LeaderboardSectionProps {
   contestTitle?: string;
   initialUnits?: string[];
   themeColor?: string;
+  isContestEnded?: boolean;
+  canViewHiddenLeaderboard?: boolean;
+  endTime?: string;
   onEnterExam?: () => void;
 }
 
@@ -33,6 +38,9 @@ export default function LeaderboardSection({
   contestTitle,
   initialUnits = [],
   themeColor = "#00A9E0",
+  isContestEnded = true,
+  canViewHiddenLeaderboard = false,
+  endTime,
   onEnterExam,
 }: LeaderboardSectionProps) {
   // Bộ lọc ma trận 2 chiều (Ảnh 2)
@@ -143,9 +151,50 @@ export default function LeaderboardSection({
             <span>{totalAttempts} lượt thi</span>
           </p>
         )}
+
+        {/* Thông báo chế độ xem trước dành cho Quản trị viên / Ban Tổ Chức khi cuộc thi chưa kết thúc */}
+        {!isContestEnded && canViewHiddenLeaderboard && (
+          <div className="max-w-2xl mx-auto mt-3 p-2.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold flex items-center justify-center space-x-2 shadow-2xs">
+            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>⚙️ <strong>Xem trước dành cho Ban Tổ Chức:</strong> Bảng xếp hạng đang được tạm ẩn với thí sinh cho đến khi cuộc thi kết thúc.</span>
+          </div>
+        )}
       </div>
 
-      {/* 2. CỤM 2 NÚT PILL DROPDOWN MÀU XANH CYAN CHUẨN ẢNH 2 & BỘ LỌC ĐƠN VỊ ẢNH 1 */}
+      {/* TRƯỜNG HỢP ẨN BẢNG XẾP HẠNG TRONG THỜI GIAN THI CHO THÍ SINH CÔNG KHAI */}
+      {!isContestEnded && !canViewHiddenLeaderboard ? (
+        <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-xs my-6">
+          <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200 shadow-2xs">
+            <Lock className="w-8 h-8" />
+          </div>
+          <span className="inline-block text-[11px] font-bold uppercase tracking-wider text-amber-700 bg-amber-100/80 px-3 py-1 rounded-full mb-3">
+            BẢO MẬT BẢNG XẾP HẠNG
+          </span>
+          <h3 className="text-xl sm:text-2xl font-black text-slate-800 uppercase tracking-tight mb-2">
+            Bảng Xếp Hạng Đang Được Bảo Mật
+          </h3>
+          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto leading-relaxed mb-5">
+            Trong thời gian cuộc thi đang diễn ra, bảng xếp hạng và điểm số được tạm ẩn để đảm bảo tính công bằng, khách quan và bảo mật tuyệt đối cho mọi thí sinh.
+          </p>
+          <div className="inline-flex items-center space-x-2 px-4 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-700 mb-6">
+            <Clock className="w-4 h-4 text-red-600" />
+            <span>Công bố đầy đủ sau khi kết thúc: <strong>{endTime ? new Date(endTime).toLocaleString("vi-VN") : "khi cuộc thi khép lại"}</strong></span>
+          </div>
+          {onEnterExam && (
+            <div>
+              <button
+                type="button"
+                onClick={onEnterExam}
+                className="inline-flex items-center px-8 py-3 rounded-full text-sm font-bold text-white bg-[#00A9E0] hover:bg-[#0096ca] shadow-md hover:shadow-lg transition-all cursor-pointer"
+              >
+                Vào phòng thi ngay ➔
+              </button>
+            </div>
+          )}
+        </div>
+      ) : (
+        <>
+          {/* 2. CỤM 2 NÚT PILL DROPDOWN MÀU XANH CYAN CHUẨN ẢNH 2 & BỘ LỌC ĐƠN VỊ ẢNH 1 */}
       <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 mb-8">
         {/* Nút 1: [ Cá nhân ⌵ ] / [ Tổ chức ⌵ ] */}
         <div className="relative" ref={scopeRef}>
@@ -605,6 +654,8 @@ export default function LeaderboardSection({
             </table>
           </div>
         </div>
+      )}
+        </>
       )}
     </section>
   );

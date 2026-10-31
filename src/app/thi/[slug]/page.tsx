@@ -15,6 +15,7 @@ import {
   Award,
   Save,
   User,
+  Users,
   Phone,
   Landmark,
   Calendar,
@@ -274,10 +275,16 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
       (contest?.creatorId && authUser.id && contest.creatorId === authUser.id) ||
       (contest?.organizerEmail && authUser.email && contest.organizerEmail.toLowerCase() === authUser.email.toLowerCase())
     );
+  const now = Date.now();
+  const startTimeMs = contest?.startTime && !isNaN(new Date(contest.startTime).getTime()) ? new Date(contest.startTime).getTime() : 0;
+  const endTimeMs = contest?.endTime && !isNaN(new Date(contest.endTime).getTime()) ? new Date(contest.endTime).getTime() : 0;
+
+  const isNotStarted = startTimeMs > 0 && now < startTimeMs;
   const isContestEnded =
     contest?.status === "CLOSED" ||
     contest?.status === "ARCHIVED" ||
-    (contest?.endTime && !isNaN(new Date(contest.endTime).getTime()) && new Date(contest.endTime).getTime() <= Date.now());
+    (endTimeMs > 0 && now >= endTimeMs);
+  const isOngoing = !isNotStarted && !isContestEnded;
 
   const canViewResults = isAdmin || isCreator || isContestEnded;
 
@@ -314,6 +321,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     totalQuestions?: number;
     accuracyPercent?: number;
     durationSeconds: number;
+    tieBreakerPrediction?: number;
     review?: ReviewItem[];
     resultVisibility?: string;
   } | null>(null);
@@ -383,23 +391,43 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
       });
   }, [slug]);
 
-  // 2. Countdown Timer Effect theo contest.endTime thực tế
+  // 2. Countdown Timer Effect đồng bộ 2 chiều theo contest.startTime và contest.endTime thực tế
   useEffect(() => {
     const updateCountdown = () => {
-      if (!contest?.endTime) return;
-      const target = new Date(contest.endTime).getTime();
-      const diff = Math.max(0, target - Date.now());
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
-      const minutes = Math.floor((diff / 1000 / 60) % 60);
-      const seconds = Math.floor((diff / 1000) % 60);
-      setCountdown({ days, hours, minutes, seconds });
+      const currentTime = Date.now();
+      const startMs = contest?.startTime && !isNaN(new Date(contest.startTime).getTime()) ? new Date(contest.startTime).getTime() : 0;
+      const endMs = contest?.endTime && !isNaN(new Date(contest.endTime).getTime()) ? new Date(contest.endTime).getTime() : 0;
+
+      // TH1: Khi chưa đến thời gian bắt đầu: Đếm lùi thời gian đến khi bắt đầu cuộc thi (ảnh 2)
+      if (startMs > 0 && currentTime < startMs) {
+        const diff = Math.max(0, startMs - currentTime);
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / 1000 / 60) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+        setCountdown({ days, hours, minutes, seconds });
+        return;
+      }
+
+      // TH2: Trong thời gian thi: Đếm lùi thời gian còn lại đến khi kết thúc cuộc thi
+      if (endMs > 0 && currentTime < endMs) {
+        const diff = Math.max(0, endMs - currentTime);
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+        const minutes = Math.floor((diff / 1000 / 60) % 60);
+        const seconds = Math.floor((diff / 1000) % 60);
+        setCountdown({ days, hours, minutes, seconds });
+        return;
+      }
+
+      // TH3: Cuộc thi đã kết thúc
+      setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
     };
 
     updateCountdown();
     const timer = setInterval(updateCountdown, 1000);
     return () => clearInterval(timer);
-  }, [contest?.endTime]);
+  }, [contest?.startTime, contest?.endTime]);
 
   // 3. Chống gian lận: Bắt sự kiện chuyển tab / rời màn hình thi
   useEffect(() => {
@@ -961,7 +989,11 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             className="text-xs sm:text-sm font-bold uppercase tracking-widest mb-3"
             style={{ color: contest?.themeColor || "#DC2626" }}
           >
-            THỜI GIAN CÒN LẠI
+            {isNotStarted
+              ? "CUỘC THI BẮT ĐẦU SAU"
+              : isContestEnded
+              ? "CUỘC THI ĐÃ KẾT THÚC"
+              : "THỜI GIAN CÒN LẠI"}
           </h2>
 
           {/* Digital Timer Numbers (Ảnh 2 & 3) */}
@@ -989,48 +1021,90 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
             <span className="w-16 sm:w-24 text-center">Giây</span>
           </div>
 
-          {/* Big Pill Button "THAM GIA" & Nút Đăng nhập Google (Ảnh 1 chuẩn) */}
+          {/* Big Pill Button "THAM GIA" & Nút Đăng nhập Google (Ảnh 1 & 2 chuẩn) */}
           <div className="space-y-3">
-            <button
-              onClick={() => {
-                if (!authUser) {
-                  setShowLoginModal(true);
-                } else {
-                  setShowRegisterModal(true);
-                }
-              }}
-              style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-              className="inline-flex items-center justify-center px-12 py-3.5 rounded-full text-base sm:text-lg font-black text-white transition-all shadow-md hover:shadow-xl hover:scale-105 active:scale-95 uppercase tracking-wide cursor-pointer hover:opacity-95"
-            >
-              THAM GIA
-            </button>
-
-            {authUser ? (
-              <div className="flex items-center justify-center space-x-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-4 rounded-full max-w-md mx-auto shadow-2xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span>Đã đăng nhập: <strong>{authUser.name}</strong> • Sẵn sàng tham gia</span>
-              </div>
-            ) : (
+            {isNotStarted ? (
+              /* TRƯỜNG HỢP CHƯA ĐẾN THỜI GIAN BẮT ĐẦU: NÚT "THAM GIA" MỜ ĐI (ẢNH 2) */
               <div className="flex flex-col items-center space-y-2">
                 <button
                   type="button"
-                  onClick={() => setShowLoginModal(true)}
-                  style={{ color: contest?.themeColor || "#DC2626" }}
-                  className="text-xs hover:underline font-semibold cursor-pointer"
+                  disabled
+                  style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
+                  className="inline-flex items-center justify-center px-12 py-3.5 rounded-full text-base sm:text-lg font-black text-white uppercase tracking-wide opacity-35 cursor-not-allowed select-none shadow-none pointer-events-none"
+                  title="Cuộc thi chưa đến thời gian mở thi"
                 >
-                  Bạn cần đăng nhập để dự thi
+                  THAM GIA
                 </button>
-
-                {/* Nút Đăng nhập bằng Google tại vị trí thời gian đếm ngược */}
+                <div className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 text-xs font-semibold shadow-2xs">
+                  <Clock className="w-3.5 h-3.5 text-amber-600" />
+                  <span>
+                    Cuộc thi chính thức mở lúc:{" "}
+                    <strong>{contest.startTime ? new Date(contest.startTime).toLocaleString("vi-VN") : "Sắp diễn ra"}</strong>
+                  </span>
+                </div>
+              </div>
+            ) : isContestEnded ? (
+              /* TRƯỜNG HỢP CUỘC THI ĐÃ KẾT THÚC */
+              <div className="flex flex-col items-center space-y-2">
                 <button
                   type="button"
-                  onClick={() => setShowLoginModal(true)}
-                  className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-slate-50 active:bg-slate-100 border border-slate-300 rounded-full text-xs font-bold text-slate-700 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+                  disabled
+                  className="inline-flex items-center justify-center px-12 py-3.5 rounded-full text-base sm:text-lg font-black text-white uppercase tracking-wide bg-slate-400 opacity-60 cursor-not-allowed select-none shadow-none pointer-events-none"
                 >
-                  <GoogleIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
-                  <span>Đăng nhập bằng Google</span>
+                  ĐÃ KẾT THÚC
                 </button>
+                <div className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200 text-xs font-medium">
+                  <Clock className="w-3.5 h-3.5 text-slate-400" />
+                  <span>
+                    Cuộc thi đã khép lại vào lúc {contest.endTime ? new Date(contest.endTime).toLocaleString("vi-VN") : "Hết hạn"}
+                  </span>
+                </div>
               </div>
+            ) : (
+              /* TRƯỜNG HỢP ĐANG TRONG THỜI GIAN THI: NÚT THAM GIA HOẠT ĐỘNG BÌNH THƯỜNG */
+              <>
+                <button
+                  onClick={() => {
+                    if (!authUser) {
+                      setShowLoginModal(true);
+                    } else {
+                      setShowRegisterModal(true);
+                    }
+                  }}
+                  style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
+                  className="inline-flex items-center justify-center px-12 py-3.5 rounded-full text-base sm:text-lg font-black text-white transition-all shadow-md hover:shadow-xl hover:scale-105 active:scale-95 uppercase tracking-wide cursor-pointer hover:opacity-95"
+                >
+                  THAM GIA
+                </button>
+
+                {authUser ? (
+                  <div className="flex items-center justify-center space-x-2 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 py-1.5 px-4 rounded-full max-w-md mx-auto shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    <span>Đã đăng nhập: <strong>{authUser.name}</strong> • Sẵn sàng tham gia</span>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginModal(true)}
+                      style={{ color: contest?.themeColor || "#DC2626" }}
+                      className="text-xs hover:underline font-semibold cursor-pointer"
+                    >
+                      Bạn cần đăng nhập để dự thi
+                    </button>
+
+                    {/* Nút Đăng nhập bằng Google tại vị trí thời gian đếm ngược */}
+                    <button
+                      type="button"
+                      onClick={() => setShowLoginModal(true)}
+                      className="inline-flex items-center space-x-2 px-4 py-2 bg-white hover:bg-slate-50 active:bg-slate-100 border border-slate-300 rounded-full text-xs font-bold text-slate-700 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+                    >
+                      <GoogleIcon className="w-4 h-4 group-hover:scale-110 transition-transform" />
+                      <span>Đăng nhập bằng Google</span>
+                    </button>
+                  </div>
+                )}
+              </>
             )}
           </div>
 
@@ -1124,6 +1198,9 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           contestTitle={contest?.title}
           initialUnits={contest?.units?.map((u: any) => (typeof u === "string" ? u : u.name))}
           themeColor={contest?.themeColor || "#00A9E0"}
+          isContestEnded={isContestEnded}
+          canViewHiddenLeaderboard={canViewResults}
+          endTime={contest?.endTime}
           onEnterExam={() => {
             if (!authUser) {
               setShowLoginModal(true);
@@ -1921,24 +1998,66 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
         )}
         </div>
 
-        {/* Confirm Submit Modal */}
+        {/* Confirm Submit Modal với Bảng câu hỏi phụ Dự đoán số người tham dự */}
         {showConfirmModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
-            <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-dialog border border-slate-200 text-center">
-              <HelpCircle className="w-12 h-12 text-[#0052CC] mx-auto mb-3" />
-              <h3 className="text-base font-bold text-slate-900 mb-2">
-                Bạn có chắc chắn muốn nộp bài?
+            <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-7 shadow-dialog border border-slate-200 text-center animate-scale-up">
+              <div className="w-14 h-14 rounded-2xl bg-blue-50 text-[#0052CC] flex items-center justify-center mx-auto mb-3 border border-blue-200 shadow-2xs">
+                <HelpCircle className="w-8 h-8" />
+              </div>
+              <h3 className="text-lg font-black text-slate-900 mb-1 uppercase tracking-tight">
+                Xác Nhận Nộp Bài Thi
               </h3>
-              <p className="text-xs text-slate-600 mb-4">
-                Bạn đã trả lời {Object.keys(answers).length}/{questions.length} câu hỏi. Sau khi nộp, hệ thống máy chủ sẽ tự động chấm điểm và công bố kết quả tức thì.
-              </p>
-              <div className="grid grid-cols-2 gap-2">
+              
+              {/* Tình trạng làm bài */}
+              <div className="mb-4">
+                <p className="text-xs text-slate-600 font-medium">
+                  Bạn đã trả lời <strong className="text-blue-600 font-bold">{Object.keys(answers).length}/{questions.length}</strong> câu hỏi.
+                </p>
+                {Object.keys(answers).length < questions.length && (
+                  <div className="mt-1.5 text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 py-1 px-3 rounded-lg inline-block">
+                    ⚠️ Bạn vẫn còn {questions.length - Object.keys(answers).length} câu hỏi chưa chọn đáp án!
+                  </div>
+                )}
+              </div>
+
+              {/* BẢNG CÂU HỎI PHỤ: DỰ ĐOÁN SỐ NGƯỜI THAM DỰ */}
+              <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-4 text-left mb-5 shadow-2xs">
+                <div className="flex items-center space-x-1.5 text-[11px] font-bold uppercase tracking-wider text-blue-800 mb-1">
+                  <Trophy className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>Câu hỏi phụ (Tiêu chí phụ xếp hạng khi bằng điểm)</span>
+                </div>
+                <label className="block text-xs font-semibold text-slate-700 mb-2">
+                  Theo bạn, có bao nhiêu người tham gia cuộc thi này? <span className="text-red-600">*</span>
+                </label>
+                
+                <div className="relative">
+                  <Users className="w-4 h-4 text-blue-500 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Nhập số người dự đoán (Ví dụ: 1500)..."
+                    value={tieBreaker}
+                    onChange={(e) => {
+                      setTieBreaker(e.target.value);
+                      saveDraftToLocal(answers, e.target.value);
+                    }}
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-blue-300 text-sm font-bold text-slate-900 focus:border-blue-600 focus:ring-2 focus:ring-blue-100 outline-none bg-white shadow-2xs"
+                    autoFocus
+                  />
+                </div>
+                <p className="text-[11px] text-slate-500 mt-2 leading-relaxed italic">
+                  💡 Số dự đoán của bạn sẽ được hệ thống tự động ghi nhận vào kết quả thi và làm tiêu chí phụ phân định giải thưởng khi các thí sinh có cùng điểm số và thời gian làm bài.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => setShowConfirmModal(false)}
-                  className="btn-admin-secondary text-xs py-2.5 cursor-pointer"
+                  className="btn-admin-secondary text-xs py-2.5 font-bold cursor-pointer rounded-xl"
                 >
-                  Kiểm tra lại
+                  Kiểm tra lại bài
                 </button>
                 <button
                   type="button"
@@ -1946,7 +2065,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                   onClick={() => handleFinalSubmit(false)}
                   className="bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs py-2.5 font-bold rounded-xl shadow-xs transition-colors cursor-pointer disabled:opacity-50"
                 >
-                  {submitting ? "Đang chấm..." : "Xác nhận nộp"}
+                  {submitting ? "Đang chấm..." : "Xác nhận nộp bài"}
                 </button>
               </div>
             </div>
@@ -1983,13 +2102,19 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 Theo thể lệ của Ban tổ chức, kết quả bài thi được bảo mật tuyệt đối và sẽ được công bố chính thức sau khi cuộc thi kết thúc. Cảm ơn bạn đã tích cực tham gia!
               </div>
 
-              <div className="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between text-xs text-slate-600">
-                <span>Thời gian làm bài: <strong>{Math.floor(resultData.durationSeconds / 60)} phút {resultData.durationSeconds % 60} giây</strong></span>
+              <div className="px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
+                <span>Thời gian: <strong>{Math.floor(resultData.durationSeconds / 60)}p {resultData.durationSeconds % 60}s</strong></span>
+                {tieBreaker && (
+                  <span className="text-blue-700 font-semibold flex items-center bg-blue-50/70 border border-blue-200 px-2 py-0.5 rounded-lg">
+                    <Users className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                    Dự đoán: {Number(tieBreaker).toLocaleString("vi-VN")} người
+                  </span>
+                )}
                 {tabSwitchCount > 0 ? (
-                  <span className="text-amber-700 font-semibold">Số lần rời màn hình: {tabSwitchCount}</span>
+                  <span className="text-amber-700 font-semibold">Rời màn hình: {tabSwitchCount}</span>
                 ) : (
                   <span className="text-emerald-700 font-semibold flex items-center">
-                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Kỷ luật thi tốt
+                    <CheckCircle2 className="w-3.5 h-3.5 mr-1" /> Kỷ luật tốt
                   </span>
                 )}
               </div>
@@ -2051,8 +2176,14 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           </div>
 
           {/* Duration & Tab switches summary */}
-          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between text-xs text-slate-600">
+          <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-600">
             <span>Thời gian làm bài: <strong>{Math.floor(resultData.durationSeconds / 60)} phút {resultData.durationSeconds % 60} giây</strong></span>
+            {tieBreaker && (
+              <span className="text-blue-700 font-semibold flex items-center bg-blue-50 border border-blue-200 px-2.5 py-1 rounded-lg">
+                <Users className="w-3.5 h-3.5 mr-1 text-blue-600" />
+                Dự đoán: <strong className="ml-1 text-blue-900">{Number(tieBreaker).toLocaleString("vi-VN")} người</strong>
+              </span>
+            )}
             {tabSwitchCount > 0 ? (
               <span className="text-amber-700 font-semibold">Số lần rời màn hình: {tabSwitchCount}</span>
             ) : (

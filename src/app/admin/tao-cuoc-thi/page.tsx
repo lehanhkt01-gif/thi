@@ -2577,40 +2577,54 @@ export default function ContestWizardPage() {
                     </h4>
                   </div>
 
-                  {/* Countdown Block with Lotus Decoration (Ảnh 2) */}
+                  {/* Countdown Block with Lotus Decoration (Ảnh 2) - Đồng bộ 2 chiều thời gian Bắt đầu & Kết thúc */}
                   <div className="mt-4 pt-3 border-t border-white/20">
-                    <p className="text-[11px] font-bold text-amber-300 tracking-wider uppercase mb-2">
-                      THỜI GIAN CÒN LẠI
-                    </p>
                     {(() => {
-                      const target = endTime ? new Date(endTime).getTime() : Date.now() + 30 * 86400000;
-                      const diff = Math.max(0, target - Date.now());
+                      const currentTime = Date.now();
+                      const startMs = startTime && !isNaN(new Date(startTime).getTime()) ? new Date(startTime).getTime() : 0;
+                      const endMs = endTime ? new Date(endTime).getTime() : Date.now() + 30 * 86400000;
+                      
+                      const isNotStartedPreview = startMs > 0 && currentTime < startMs;
+                      const isEndedPreview = endMs > 0 && currentTime >= endMs;
+                      
+                      const target = isNotStartedPreview ? startMs : endMs;
+                      const diff = Math.max(0, target - currentTime);
                       const days = Math.floor(diff / (1000 * 60 * 60 * 24));
                       const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
                       const minutes = Math.floor((diff / 1000 / 60) % 60);
                       const seconds = Math.floor((diff / 1000) % 60);
+
                       return (
-                        <div className="flex items-center justify-center space-x-2 sm:space-x-3 text-slate-900">
-                          <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
-                            <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(days).padStart(2, "0")}</span>
-                            <span className="text-[9px] text-slate-500 font-semibold uppercase">Ngày</span>
+                        <>
+                          <p className="text-[11px] font-bold text-amber-300 tracking-wider uppercase mb-2">
+                            {isNotStartedPreview
+                              ? "CUỘC THI BẮT ĐẦU SAU"
+                              : isEndedPreview
+                              ? "CUỘC THI ĐÃ KẾT THÚC"
+                              : "THỜI GIAN CÒN LẠI"}
+                          </p>
+                          <div className="flex items-center justify-center space-x-2 sm:space-x-3 text-slate-900">
+                            <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
+                              <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(days).padStart(2, "0")}</span>
+                              <span className="text-[9px] text-slate-500 font-semibold uppercase">Ngày</span>
+                            </div>
+                            <span className="text-white font-bold text-base">:</span>
+                            <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
+                              <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(hours).padStart(2, "0")}</span>
+                              <span className="text-[9px] text-slate-500 font-semibold uppercase">Giờ</span>
+                            </div>
+                            <span className="text-white font-bold text-base">:</span>
+                            <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
+                              <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(minutes).padStart(2, "0")}</span>
+                              <span className="text-[9px] text-slate-500 font-semibold uppercase">Phút</span>
+                            </div>
+                            <span className="text-white font-bold text-base">:</span>
+                            <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
+                              <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(seconds).padStart(2, "0")}</span>
+                              <span className="text-[9px] text-slate-500 font-semibold uppercase">Giây</span>
+                            </div>
                           </div>
-                          <span className="text-white font-bold text-base">:</span>
-                          <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
-                            <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(hours).padStart(2, "0")}</span>
-                            <span className="text-[9px] text-slate-500 font-semibold uppercase">Giờ</span>
-                          </div>
-                          <span className="text-white font-bold text-base">:</span>
-                          <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
-                            <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(minutes).padStart(2, "0")}</span>
-                            <span className="text-[9px] text-slate-500 font-semibold uppercase">Phút</span>
-                          </div>
-                          <span className="text-white font-bold text-base">:</span>
-                          <div className="bg-white rounded-lg px-2.5 py-1.5 shadow-sm text-center min-w-[42px]">
-                            <span className="block text-sm sm:text-base font-black leading-none text-red-600">{String(seconds).padStart(2, "0")}</span>
-                            <span className="text-[9px] text-slate-500 font-semibold uppercase">Giây</span>
-                          </div>
-                        </div>
+                        </>
                       );
                     })()}
 

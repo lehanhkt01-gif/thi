@@ -2144,6 +2144,7 @@ class DataStore {
     totalQuestions: number;
     accuracyPercent: number;
     durationSeconds: number;
+    tieBreakerPrediction?: number;
     review: {
       questionId: string;
       category: string;
@@ -2230,6 +2231,7 @@ class DataStore {
       totalQuestions,
       accuracyPercent,
       durationSeconds,
+      tieBreakerPrediction,
       review,
     };
   }

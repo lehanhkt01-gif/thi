@@ -44,6 +44,7 @@ export async function POST(
         message: "Nộp bài thi thành công! Kết quả đã được ghi nhận trên hệ thống.",
         resultVisibility: "HIDDEN",
         durationSeconds: result.durationSeconds,
+        tieBreakerPrediction: result.tieBreakerPrediction,
         tabSwitchCount,
         review: [],
       });
@@ -60,6 +61,7 @@ export async function POST(
         totalQuestions: result.totalQuestions,
         accuracyPercent: result.accuracyPercent,
         durationSeconds: result.durationSeconds,
+        tieBreakerPrediction: result.tieBreakerPrediction,
         tabSwitchCount,
         review: [],
       });
@@ -75,6 +77,7 @@ export async function POST(
       totalQuestions: result.totalQuestions,
       accuracyPercent: result.accuracyPercent,
       durationSeconds: result.durationSeconds,
+      tieBreakerPrediction: result.tieBreakerPrediction,
       tabSwitchCount,
       review: result.review, // Trả về chi tiết bài làm & căn cứ pháp lý
     });
