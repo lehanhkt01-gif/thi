@@ -51,11 +51,14 @@ import {
   Upload,
   FolderPlus,
   Folder,
+  Link2,
+  QrCode,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import LoginModal from "@/components/LoginModal";
+import ShortlinkQrModal from "@/components/ShortlinkQrModal";
 
 export default function AdminDashboardPage() {
   // Navigation State
@@ -72,6 +75,24 @@ export default function AdminDashboardPage() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PUBLISHED" | "DRAFT">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [creatorFilter, setCreatorFilter] = useState<string>("ALL");
+
+  // Shortlink & QR Modal State
+  const [selectedContestForShortlink, setSelectedContestForShortlink] = useState<any>(null);
+  const [shortlinkModalTab, setShortlinkModalTab] = useState<"custom-link" | "qr-code">("custom-link");
+  const [copiedContestSlug, setCopiedContestSlug] = useState<string | null>(null);
+
+  const handleCopyContestShortlink = async (c: any) => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://thi.easupso.com";
+    const effectiveSlug = c.customSlug || c.slug;
+    const shortUrl = `${origin}/r/${effectiveSlug}`;
+    try {
+      await navigator.clipboard.writeText(shortUrl);
+      setCopiedContestSlug(c.slug);
+      setTimeout(() => setCopiedContestSlug(null), 2500);
+    } catch {
+      prompt("Sao chép link rút gọn:", shortUrl);
+    }
+  };
 
   // Question Bank State (Kho đề thi & Phân loại Bộ đề)
   const [questions, setQuestions] = useState<any[]>([]);
@@ -1640,21 +1661,70 @@ export default function AdminDashboardPage() {
                                 <Users className="w-3.5 h-3.5 mr-1 text-slate-400" />
                                 {c.units?.length || 20} đơn vị tham gia
                               </span>
-                              <span className="flex items-center font-mono text-[11px] text-slate-400">
-                                /thi/{c.slug}
+                              <span className="flex items-center font-mono text-[11px] text-red-600 bg-red-50 border border-red-100 px-2 py-0.5 rounded-md font-bold">
+                                /r/{c.customSlug || c.slug}
                               </span>
+                              {c.clickCount ? (
+                                <span className="flex items-center text-[11px] text-slate-500 font-semibold" title="Số lượt click qua link rút gọn">
+                                  <Eye className="w-3 h-3 mr-1 text-slate-400" />
+                                  {c.clickCount} lượt truy cập
+                                </span>
+                              ) : null}
                             </div>
                           </div>
                         </div>
 
                         {/* Action Buttons */}
-                        <div className="flex flex-wrap items-center gap-2 self-end md:self-center shrink-0">
+                        <div className="flex flex-wrap items-center gap-1.5 self-end md:self-center shrink-0">
+                          {/* Cụm công cụ Link rút gọn & QR code */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedContestForShortlink(c);
+                              setShortlinkModalTab("custom-link");
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-red-50 hover:text-red-600 hover:border-red-200 text-slate-700 text-xs font-bold transition-colors inline-flex items-center cursor-pointer shadow-2xs"
+                            title="Tùy chỉnh link rút gọn /r/{slug}"
+                          >
+                            <Link2 className="w-3.5 h-3.5 mr-1 text-red-600" /> Tùy chỉnh link
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleCopyContestShortlink(c)}
+                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center cursor-pointer shadow-2xs"
+                            title="Sao chép link rút gọn 1-chạm"
+                          >
+                            {copiedContestSlug === c.slug ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 mr-1 text-emerald-600" />
+                                <span className="text-emerald-700">Đã chép</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5 mr-1 text-slate-500" /> Sao chép
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedContestForShortlink(c);
+                              setShortlinkModalTab("qr-code");
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center cursor-pointer shadow-2xs"
+                            title="Tạo mã QR và tải ảnh PNG độ phân giải cao in ấn"
+                          >
+                            <QrCode className="w-3.5 h-3.5 mr-1 text-slate-700" /> Mã QR
+                          </button>
+
                           <Link
                             href={`/thi/${c.slug}`}
                             target="_blank"
-                            className="px-3 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center"
+                            className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-bold transition-colors inline-flex items-center shadow-2xs"
                           >
-                            <Eye className="w-3.5 h-3.5 mr-1" /> Xem phòng thi
+                            <Eye className="w-3.5 h-3.5 mr-1" /> Phòng thi
                           </Link>
 
                           <Link
@@ -3661,6 +3731,26 @@ export default function AdminDashboardPage() {
         onClose={() => setShowChangePasswordModal(false)}
         user={authUser}
       />
+
+      {/* MODAL QUẢN LÝ LINK RÚT GỌN & QR CODE IN ẤN CHO CUỘC THI */}
+      {selectedContestForShortlink && (
+        <ShortlinkQrModal
+          isOpen={!!selectedContestForShortlink}
+          onClose={() => setSelectedContestForShortlink(null)}
+          contestSlug={selectedContestForShortlink.slug}
+          contestTitle={selectedContestForShortlink.title}
+          initialCustomSlug={selectedContestForShortlink.customSlug}
+          initialClickCount={selectedContestForShortlink.clickCount || 0}
+          initialTab={shortlinkModalTab}
+          onSuccess={(newSlug) => {
+            setContests((prev) =>
+              prev.map((c) =>
+                c.slug === selectedContestForShortlink.slug ? { ...c, customSlug: newSlug } : c
+              )
+            );
+          }}
+        />
+      )}
     </div>
   );
 }

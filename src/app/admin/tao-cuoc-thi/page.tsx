@@ -53,9 +53,11 @@ import {
   Navigation,
   Compass,
   School,
+  Link2,
 } from "lucide-react";
 import FloatingActionBar from "@/components/FloatingActionBar";
 import SparklineChart from "@/components/SparklineChart";
+import ShortlinkQrModal from "@/components/ShortlinkQrModal";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
 import { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
 import ExamSettingsDrawer, { ExamMixPackageItem } from "@/components/ExamSettingsDrawer";
@@ -220,6 +222,13 @@ export default function ContestWizardPage() {
   const [prize4Count, setPrize4Count] = useState("05");
   const [requiredFields, setRequiredFields] = useState("Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh, Thôn/Buôn/Đơn vị");
   const [customLeaderboard, setCustomLeaderboard] = useState("Lượt thi, lượt đăng ký, Xếp hạng...");
+
+  // Tính năng Link rút gọn tùy chỉnh & Mã QR (Ảnh 3)
+  const [customSlug, setCustomSlug] = useState("");
+  const [clickCount, setClickCount] = useState(0);
+  const [showShortlinkModal, setShowShortlinkModal] = useState(false);
+  const [shortlinkModalTab, setShortlinkModalTab] = useState<"custom-link" | "qr-code">("custom-link");
+  const [copiedShortlinkToast, setCopiedShortlinkToast] = useState(false);
 
   // Modal trạng thái Quick-Action (Ảnh 2, 3, 4, 5)
   const [showMobileModal, setShowMobileModal] = useState(false);
@@ -413,6 +422,20 @@ export default function ContestWizardPage() {
     }
   };
 
+  // Sao chép nhanh link rút gọn 1-chạm kèm toast
+  const handleCopyShortlinkFast = async () => {
+    const origin = typeof window !== "undefined" ? window.location.origin : "https://thi.easupso.com";
+    const effectiveSlug = customSlug || slug;
+    const shortUrl = `${origin}/r/${effectiveSlug}`;
+    try {
+      await navigator.clipboard.writeText(shortUrl);
+      setCopiedShortlinkToast(true);
+      setTimeout(() => setCopiedShortlinkToast(false), 2500);
+    } catch {
+      prompt("Sao chép link rút gọn:", shortUrl);
+    }
+  };
+
   // Hàm Lưu thông tin hiện tại tại bất kỳ bước nào (Yêu cầu 3: không chuyển bước)
   const handleSaveCurrentStep = async () => {
     if (!title.trim()) {
@@ -476,6 +499,7 @@ export default function ContestWizardPage() {
         prize4Count,
         unitGroupId: selectedGroupId,
         unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
+        customSlug: customSlug || undefined,
         units: unitsPayload,
         questions: questionsList,
         updatedAt: new Date().toISOString(),
@@ -1679,6 +1703,7 @@ export default function ContestWizardPage() {
           prize4Count,
           unitGroupId: selectedGroupId,
           unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
+          customSlug: customSlug || undefined,
           units: unitsPayload,
           questions: questionsList,
         }),
@@ -1814,6 +1839,8 @@ export default function ContestWizardPage() {
                 }
               }
               if (c.customLeaderboard) setCustomLeaderboard(c.customLeaderboard);
+              if (c.customSlug) setCustomSlug(c.customSlug);
+              if (c.clickCount !== undefined) setClickCount(c.clickCount);
               if (c.prize1) setPrize1(c.prize1);
               if (c.prize2) setPrize2(c.prize2);
               if (c.prize3) setPrize3(c.prize3);
@@ -3950,6 +3977,86 @@ export default function ContestWizardPage() {
                 </div>
               </div>
 
+              {/* ========================================================= */}
+              {/* KHỐI TIỆN ÍCH: LINK RÚT GỌN TÙY CHỈNH & MÃ QR TUYÊN TRUYỀN (Ảnh 3) */}
+              {/* ========================================================= */}
+              <div className="bg-gradient-to-r from-red-50/90 via-white to-sky-50/60 rounded-2xl border border-red-200 p-4 sm:p-5 shadow-xs transition-all hover:shadow-md">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  {/* Cột trái: Thông tin Link rút gọn */}
+                  <div className="space-y-1.5 flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#DC2626] text-white shadow-2xs">
+                        <Link2 className="w-3 h-3 mr-1" /> LINK RÚT GỌN &amp; MÃ QR TUYÊN TRUYỀN
+                      </span>
+                      <span className="text-xs text-slate-600 font-semibold flex items-center bg-white px-2.5 py-0.5 rounded-full border border-slate-200 shadow-2xs">
+                        <Eye className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                        {clickCount} lượt truy cập qua link
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-1 max-w-xl">
+                      <div className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 font-mono text-xs sm:text-sm font-bold text-slate-800 shadow-inner truncate select-all flex items-center justify-between">
+                        <span className="text-slate-400 font-normal mr-0.5">https://thi.easupso.com/r/</span>
+                        <span className="text-red-600 font-bold truncate">
+                          {customSlug || slug || "dangbo-2026"}
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-500">
+                      Link ngắn gọn, dễ nhớ, tự động chuyển tiếp 302 vào phòng thi. Thích hợp dán bài viết Zalo, Facebook hoặc in ấn truyền thông.
+                    </p>
+                  </div>
+
+                  {/* Cột phải: Cụm 3 nút công cụ theo đúng prompt */}
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {/* Nút [ 🔗 Tùy chỉnh link ] */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShortlinkModalTab("custom-link");
+                        setShowShortlinkModal(true);
+                      }}
+                      className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-red-50 text-slate-800 hover:text-red-700 hover:border-red-300 text-xs font-bold transition-all inline-flex items-center shadow-2xs cursor-pointer active:scale-95"
+                      title="Mở hộp thoại đặt tên đường dẫn rút gọn tùy chỉnh"
+                    >
+                      <Link2 className="w-3.5 h-3.5 mr-1.5 text-red-600" /> Tùy chỉnh link
+                    </button>
+
+                    {/* Nút [ 📋 Sao chép ] */}
+                    <button
+                      type="button"
+                      onClick={handleCopyShortlinkFast}
+                      className="px-3.5 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-100 text-slate-800 text-xs font-bold transition-all inline-flex items-center shadow-2xs cursor-pointer active:scale-95"
+                      title="Sao chép liên kết rút gọn 1-chạm"
+                    >
+                      {copiedShortlinkToast ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 mr-1.5 text-emerald-600" />
+                          <span className="text-emerald-700">Đã sao chép!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3.5 h-3.5 mr-1.5 text-slate-600" /> Sao chép
+                        </>
+                      )}
+                    </button>
+
+                    {/* Nút [ 📱 Tạo mã QR ] */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShortlinkModalTab("qr-code");
+                        setShowShortlinkModal(true);
+                      }}
+                      className="px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold transition-all inline-flex items-center shadow-xs cursor-pointer active:scale-95"
+                      title="Xem mã QR và tải ảnh PNG độ phân giải cao in ấn"
+                    >
+                      <QrCode className="w-3.5 h-3.5 mr-1.5" /> Tạo mã QR
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* Phần KẾT QUẢ THI */}
               <div className="pt-2">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-3">
@@ -4936,6 +5043,20 @@ export default function ContestWizardPage() {
           </div>
         </div>
       )}
+
+      {/* Modal Quản lý Link rút gọn & QR Code in ấn */}
+      <ShortlinkQrModal
+        isOpen={showShortlinkModal}
+        onClose={() => setShowShortlinkModal(false)}
+        contestSlug={slug || "tim-hieu-phap-luat-ea-sup-2026"}
+        contestTitle={title || "Cuộc thi trực tuyến xã Ea Súp"}
+        initialCustomSlug={customSlug}
+        initialClickCount={clickCount}
+        initialTab={shortlinkModalTab}
+        onSuccess={(newSlug) => {
+          setCustomSlug(newSlug);
+        }}
+      />
     </div>
   );
 }

@@ -198,3 +198,21 @@
   - Bộ lọc Dropdown đơn vị hiển thị phân cấp 3 tầng với thụt dòng `↳` trực quan.
   - Cho phép xem kết quả chung của toàn trường hoặc lọc chi tiết theo từng lớp con.
 
+---
+
+## 9. QUY ƯỚC LINK RÚT GỌN TÙY CHỈNH & MÃ QR TUYÊN TRUYỀN (CUSTOM SHORTLINK & QR)
+
+### 9.1. Định danh & Cơ sở dữ liệu
+- Trường `customSlug` / `custom_slug`: Chuỗi duy nhất, không dấu tiếng Việt, viết liền có gạch nối (Ví dụ: `dangbo-2026`, `phapluat`). Độ dài 2 - 50 ký tự.
+- Trường `clickCount` / `click_count`: Biến đếm số lượt click chuyển tiếp qua link rút gọn để đo lường hiệu quả truyền thông.
+
+### 9.2. Logic Chuyển hướng 302
+- Route chuyển tiếp: `/r/[slug]` nhận diện `customSlug` hoặc `slug` gốc hoặc `id` cuộc thi.
+- Tự động tăng `clickCount` lên 1 và thực hiện HTTP 302 chuyển hướng về `/thi/[slug]`.
+
+### 9.3. Giao diện Quản trị & In ấn
+- Nút `[ 🔗 Tùy chỉnh link ]`: Modal kiểm tra realtime trùng lặp, xem trước URL `https://thi.easupso.com/r/{slug}`.
+- Nút `[ 📋 Sao chép ]`: Copy 1-chạm vào clipboard kèm toast.
+- Nút `[ 📱 Tạo mã QR ]`: Sử dụng thư viện `qrcode`, hỗ trợ xem trước và xuất ảnh PNG độ phân giải cao (1000x1280px) có sẵn tiêu đề, khung viền hành chính phục vụ in ấn tờ rơi tại 20 thôn buôn.
+
+

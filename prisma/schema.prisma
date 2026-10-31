@@ -65,6 +65,8 @@ model Contest {
   organization     Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   title            String
   slug             String        @unique
+  customSlug       String?       @unique
+  clickCount       Int           @default(0)
   bannerUrl        String?
   rulesHtml        String        @db.Text
   organizerName    String

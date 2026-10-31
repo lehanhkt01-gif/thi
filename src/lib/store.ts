@@ -82,6 +82,8 @@ export interface ContestModel {
   organizationName: string;
   title: string;
   slug: string;
+  customSlug?: string; // Link rút gọn tùy chỉnh duy nhất (ví dụ: 'dangbo-2026', 'phapluat')
+  clickCount?: number; // Số lượt click chuyển hướng qua link rút gọn /r/[slug]
   bannerUrl: string;
   rulesHtml: string;
   organizerName: string;
@@ -480,6 +482,8 @@ class DataStore {
       organizationName: "Ủy ban Nhân dân xã Ea Súp",
       title: "Cuộc thi TÌM HIỂU NGHỊ QUYẾT HỘI NÔNG DÂN XÃ EA SÚP",
       slug: "cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup",
+      customSlug: "nong-dan-ea-sup",
+      clickCount: 24,
       bannerUrl: "/banners/banner-nong-dan-ea-sup.jpg",
       rulesHtml: `
         <h3 class="text-lg font-bold text-slate-900 mb-2">I. MỤC ĐÍCH & Ý NGHĨA</h3>
@@ -517,6 +521,8 @@ class DataStore {
       organizationName: "Ủy ban MTTQ Việt Nam xã Ea Súp",
       title: "Cuộc thi trực tuyến tìm hiểu pháp luật năm 2026 trên địa bàn xã Ea Súp",
       slug: "tim-hieu-phap-luat-ea-sup-2026",
+      customSlug: "phap-luat-2026",
+      clickCount: 42,
       bannerUrl: "/banners/cuocthi-phapluat-2026.png",
       rulesHtml: `
         <h3 class="text-lg font-bold text-slate-900 mb-2">I. MỤC ĐÍCH & Ý NGHĨA</h3>
@@ -1204,6 +1210,8 @@ class DataStore {
         prize4Count: contestData.prize4Count !== undefined ? contestData.prize4Count : existing.prize4Count,
         unitGroupId: contestData.unitGroupId !== undefined ? contestData.unitGroupId : existing.unitGroupId,
         unitGroupName: contestData.unitGroupName !== undefined ? contestData.unitGroupName : existing.unitGroupName,
+        customSlug: contestData.customSlug !== undefined ? contestData.customSlug : existing.customSlug,
+        clickCount: contestData.clickCount !== undefined ? contestData.clickCount : (existing.clickCount || 0),
         questions,
         // Giữ nguyên người khởi tạo ban đầu, không bị ghi đè kể cả tài khoản admin chỉnh sửa
         creatorEmail: existing.creatorEmail || contestData.creatorEmail,
@@ -1250,6 +1258,8 @@ class DataStore {
         fullScreenExam: contestData.fullScreenExam ?? true,
         unitGroupId: contestData.unitGroupId,
         unitGroupName: contestData.unitGroupName,
+        customSlug: contestData.customSlug || undefined,
+        clickCount: contestData.clickCount || 0,
         prize1: contestData.prize1 || "5.000.000 đồng/giải",
         prize2: contestData.prize2 || "3.000.000 đồng/giải",
         prize3: contestData.prize3 || "1.000.000 đồng/giải",
@@ -1268,6 +1278,94 @@ class DataStore {
       this.saveToDisk();
       return newContest;
     }
+  }
+
+  public getContestByCustomSlug(customSlug: string): ContestModel | undefined {
+    if (!customSlug) return undefined;
+    const clean = customSlug.trim().toLowerCase();
+    return this.contests.find((c) => c.customSlug?.toLowerCase() === clean);
+  }
+
+  public getContestByAnySlug(identifier: string): ContestModel | undefined {
+    if (!identifier) return undefined;
+    const clean = identifier.trim().toLowerCase();
+    return this.contests.find((c) =>
+      c.customSlug?.toLowerCase() === clean ||
+      c.slug.toLowerCase() === clean ||
+      c.id.toLowerCase() === clean
+    );
+  }
+
+  public checkCustomSlugAvailable(customSlug: string, currentContestIdOrSlug?: string): { available: boolean; reason?: string } {
+    if (!customSlug) {
+      return { available: false, reason: "Đường dẫn rút gọn không được để trống" };
+    }
+    const clean = customSlug.trim().toLowerCase();
+
+    // Chuẩn format: không dấu, viết liền có gạch nối, ví dụ: 'dangbo-2026', 'phapluat'
+    const slugRegex = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+    if (!slugRegex.test(clean)) {
+      return {
+        available: false,
+        reason: "Link rút gọn chỉ gồm chữ thường không dấu (a-z), số (0-9) và dấu gạch nối (-), không có khoảng trắng hoặc ký tự đặc biệt.",
+      };
+    }
+    if (clean.length < 2 || clean.length > 50) {
+      return { available: false, reason: "Độ dài link rút gọn phải từ 2 đến 50 ký tự." };
+    }
+
+    const reservedWords = [
+      "admin", "api", "thi", "r", "ket-qua", "binh-chon", "login", "register",
+      "uploads", "images", "banners", "favicon", "robots", "sitemap", "dashboard"
+    ];
+    if (reservedWords.includes(clean)) {
+      return { available: false, reason: `Từ khóa "${clean}" là từ khóa hệ thống, vui lòng chọn tên khác.` };
+    }
+
+    // Check collision with other contests
+    const conflict = this.contests.find((c) => {
+      if (currentContestIdOrSlug && (c.id === currentContestIdOrSlug || c.slug === currentContestIdOrSlug)) {
+        return false;
+      }
+      return c.customSlug?.toLowerCase() === clean || c.slug.toLowerCase() === clean;
+    });
+
+    if (conflict) {
+      return {
+        available: false,
+        reason: `Link rút gọn "${clean}" đã được sử dụng bởi cuộc thi "${conflict.title}". Vui lòng chọn tên khác.`,
+      };
+    }
+
+    return { available: true };
+  }
+
+  public updateContestCustomSlug(contestIdOrSlug: string, customSlug: string): { success: boolean; contest?: ContestModel; error?: string } {
+    const check = this.checkCustomSlugAvailable(customSlug, contestIdOrSlug);
+    if (!check.available) {
+      return { success: false, error: check.reason };
+    }
+
+    const contest = this.contests.find((c) => c.id === contestIdOrSlug || c.slug === contestIdOrSlug);
+    if (!contest) {
+      return { success: false, error: "Không tìm thấy cuộc thi cần cập nhật link rút gọn." };
+    }
+
+    contest.customSlug = customSlug.trim().toLowerCase();
+    this.saveToDisk();
+    return { success: true, contest };
+  }
+
+  public incrementContestClickCount(contestIdOrSlug: string): number {
+    const contest = this.contests.find((c) =>
+      c.id === contestIdOrSlug ||
+      c.slug === contestIdOrSlug ||
+      c.customSlug?.toLowerCase() === contestIdOrSlug.toLowerCase()
+    );
+    if (!contest) return 0;
+    contest.clickCount = (contest.clickCount || 0) + 1;
+    this.saveToDisk();
+    return contest.clickCount;
   }
 
   public deleteContest(slugOrId: string, user?: { email?: string; role?: string; id?: string }): { success: boolean; error?: string } {

@@ -8,7 +8,6 @@ import {
   Sparkles,
   ArrowRight,
 } from "lucide-react";
-import FloatingActionBar from "@/components/FloatingActionBar";
 import HeroContestCarousel from "@/components/HeroContestCarousel";
 import HomeStatsCards from "@/components/HomeStatsCards";
 import { store } from "@/lib/store";
@@ -235,9 +234,6 @@ export default function HomePage() {
         </div>
 
       </div>
-
-      {/* Floating Action Bar */}
-      <FloatingActionBar contestSlug={featuredContest?.slug || "cuoc-thi-tim-hieu-nghi-quyet-hoi-nong-dan-xa-ea-sup"} />
     </div>
   );
 }
