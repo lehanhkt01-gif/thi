@@ -1904,41 +1904,17 @@ class DataStore {
     const cleanCccd = cccd ? cccd.trim() : (phone ? `TEL_${phone.trim()}` : `AUTO_${Date.now()}`);
     const cleanPhone = phone ? phone.trim() : "";
 
-    // 1. Đồng bộ 2 chiều: tìm trong contest hiện tại (bằng CCCD hoặc SĐT)
-    let existing = this.participants.find(
-      (p) => p.contestId === contestId && ((cleanCccd && p.cccd === cleanCccd) || (cleanPhone && p.phone === cleanPhone))
-    );
-
-    // 2. Nếu chưa có trong contest hiện tại, tìm trong hồ sơ thí sinh toàn hệ thống
-    if (!existing) {
-      const systemCandidate = this.participants.find(
-        (p) => (cleanCccd && p.cccd === cleanCccd) || (cleanPhone && p.phone === cleanPhone)
-      );
-      if (systemCandidate) {
-        existing = {
-          id: `p-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
-          contestId,
-          unitId: unit.id,
-          unitName: unit.name,
-          subUnitName: extra?.subUnitName || systemCandidate.subUnitName,
-          fullName: (fullName && fullName.trim()) || systemCandidate.fullName,
-          cccd: cleanCccd,
-          phone: cleanPhone || systemCandidate.phone,
-          birthYear: birthYear || systemCandidate.birthYear || 2000,
-          email: extra?.email || systemCandidate.email,
-          birthday: extra?.birthday || systemCandidate.birthday,
-          gender: extra?.gender || systemCandidate.gender,
-          job: extra?.job || systemCandidate.job,
-          workplace: extra?.workplace || systemCandidate.workplace,
-          address: address || systemCandidate.address,
-          createdAt: new Date().toISOString(),
-        };
-        this.participants.push(existing);
+    // 1. Tìm trong cuộc thi hiện tại (theo CCCD hoặc Số điện thoại)
+    let existing = this.participants.find((p) => {
+      if (p.contestId !== contestId) return false;
+      if (cleanCccd && !cleanCccd.startsWith("TEL_") && !p.cccd.startsWith("TEL_")) {
+        return p.cccd === cleanCccd;
       }
-    }
+      return cleanPhone ? p.phone === cleanPhone : false;
+    });
 
     if (existing) {
-      // Đồng bộ 2 chiều: cập nhật lại nếu thí sinh sửa thông tin khi đăng ký
+      // Cập nhật lại thông tin của thí sinh trong cuộc thi này theo dữ liệu mới nhập
       if (fullName && fullName.trim()) existing.fullName = fullName.trim();
       if (cleanPhone) existing.phone = cleanPhone;
       if (cleanCccd && !existing.cccd.startsWith("TEL_")) existing.cccd = cleanCccd;
@@ -1955,9 +1931,9 @@ class DataStore {
       if (extra?.job) existing.job = extra.job;
       if (extra?.workplace) existing.workplace = extra.workplace;
 
-      // Đồng bộ 2 chiều sang các lượt thi (attempts) đã có của thí sinh này
+      // CHỈ đồng bộ sang các lượt thi (attempts) CỦA CHÍNH CUỘC THI NÀY (Không ghi đè cuộc thi khác có cùng SĐT)
       for (const a of this.attempts) {
-        if (a.participantId === existing.id || a.participantCccd === cleanCccd) {
+        if (a.contestId === contestId && a.participantId === existing.id) {
           a.participantName = existing.fullName;
           a.unitName = existing.unitName;
           if (existing.subUnitName) a.subUnitName = existing.subUnitName;
@@ -1968,13 +1944,14 @@ class DataStore {
       return existing;
     }
 
+    // 2. Nếu chưa có trong cuộc thi này: TẠO HỒ SƠ ĐỘC LẬP CHO CUỘC THI NÀY (Giữ nguyên tên người thi nhập)
     const newParticipant: ParticipantModel = {
       id: `p-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       contestId,
       unitId: unit.id,
       unitName: unit.name,
       subUnitName: extra?.subUnitName,
-      fullName: fullName.trim(),
+      fullName: fullName.trim(), // Giữ nguyên chính xác tên người thi nhập cho cuộc thi này
       cccd: cleanCccd,
       phone: cleanPhone,
       birthYear: birthYear || 2000,
@@ -2010,12 +1987,14 @@ class DataStore {
       return { participant: null, submittedAttemptsCount: 0, maxAttempts: 3, highestScoreAttempt: null };
     }
 
+    // Nếu có contestId: Chỉ tìm hồ sơ thí sinh TRONG CHÍNH CUỘC THI ĐÓ (giữ nguyên tên riêng biệt ở mỗi cuộc thi)
     let p = contestId
       ? this.participants.find(
           (item) => item.contestId === contestId && (item.cccd === clean || item.phone === clean)
-        )
+        ) || null
       : null;
-    if (!p) {
+
+    if (!contestId && !p) {
       p = this.participants.find((item) => item.cccd === clean || item.phone === clean) || null;
     }
 
@@ -2555,10 +2534,14 @@ class DataStore {
 
       // Tạo danh sách thí sinh với lượt thi tốt nhất
       const rankings = Array.from(candidateMap.values()).map(({ bestAttempt, allAttempts }) => {
-        // Tìm thông tin participant để lấy số điện thoại
-        const pInfo = this.participants.find(
-          (p) => p.id === bestAttempt.participantId || p.cccd === bestAttempt.participantCccd
-        );
+        // Tìm thông tin participant của chính cuộc thi này để lấy số điện thoại
+        const pInfo =
+          this.participants.find(
+            (p) => p.contestId === contest?.id && (p.id === bestAttempt.participantId || p.cccd === bestAttempt.participantCccd)
+          ) ||
+          this.participants.find(
+            (p) => p.id === bestAttempt.participantId || p.cccd === bestAttempt.participantCccd
+          );
         const rawPhone = pInfo?.phone || "";
         const phoneMasked = rawPhone.length >= 8
           ? rawPhone.slice(0, 4) + "***" + rawPhone.slice(-3)

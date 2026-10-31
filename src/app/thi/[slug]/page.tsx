@@ -521,20 +521,22 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           highestScore: data.highestScore,
         });
 
-        // Tự động điền thông tin (đồng bộ 2 chiều từ danh sách vào form) nếu chưa nhập hoặc cần đồng bộ
+        // Tự động gợi ý thông tin nếu ô đang trống (GIỮ NGUYÊN TÊN NGƯỜI THI ĐÃ NHẬP, KHÔNG ĐÈ TÊN)
         if (data.participant) {
-          if (data.participant.fullName) setFullName(data.participant.fullName);
-          if (data.participant.phone) setPhone(data.participant.phone);
-          if (data.participant.unitId) setUnitId(data.participant.unitId);
-          if (data.participant.email) setEmail(data.participant.email);
-          if (data.participant.gender) setGender(data.participant.gender);
-          if (data.participant.job) setJob(data.participant.job);
-          if (data.participant.workplace) setWorkplace(data.participant.workplace);
-          if (data.participant.birthday) {
-            setBirthday(data.participant.birthday);
-          } else if (data.participant.birthYear) {
-            setBirthday(String(data.participant.birthYear));
-          }
+          // Chỉ điền họ tên nếu người dùng chưa nhập tên vào ô
+          setFullName((prev) => (prev && prev.trim() ? prev : data.participant.fullName || ""));
+          setPhone((prev) => (prev && prev.trim() ? prev : data.participant.phone || ""));
+          setUnitId((prev) => (prev && prev !== "u-1" ? prev : data.participant.unitId || prev));
+          setEmail((prev) => (prev && prev.trim() ? prev : data.participant.email || ""));
+          setGender((prev) => (prev ? prev : data.participant.gender || ""));
+          setJob((prev) => (prev && prev.trim() ? prev : data.participant.job || ""));
+          setWorkplace((prev) => (prev && prev.trim() ? prev : data.participant.workplace || ""));
+          setBirthday((prev) => {
+            if (prev && prev.trim()) return prev;
+            if (data.participant.birthday) return data.participant.birthday;
+            if (data.participant.birthYear) return String(data.participant.birthYear);
+            return "";
+          });
         }
 
         if (data.hasReachedMaxAttempts) {
