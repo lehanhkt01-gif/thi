@@ -4099,24 +4099,32 @@ export default function ContestWizardPage() {
 
                   <div>
                     {(() => {
-                      const displayUnits = (contestUnits && contestUnits.length > 0)
-                        ? contestUnits
+                      const normalizedUnits: Array<{ name: string; subUnits?: string[] }> = (contestUnits && contestUnits.length > 0)
+                        ? contestUnits.map(normalizeUnitItem)
                         : (statsData?.units && statsData.units.length > 0)
-                          ? statsData.units.map((u: any) => typeof u === "string" ? u : u.name)
-                          : EA_SUP_VILLAGES;
+                          ? statsData.units.map(normalizeUnitItem)
+                          : EA_SUP_VILLAGES.map((v) => ({ name: v, subUnits: [] }));
+
                       return (
                         <select
                           value={filterUnit}
                           onChange={(e) => setFilterUnit(e.target.value)}
-                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white font-medium"
+                          className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs bg-white font-medium outline-none focus:border-red-600"
                         >
                           <option value="ALL">
-                            -- Tất cả {displayUnits.length} Đơn vị đã cấu hình --
+                            -- Tất cả {normalizedUnits.length} Đơn vị đã cấu hình --
                           </option>
-                          {displayUnits.map((v: string) => (
-                            <option key={v} value={v}>
-                              {v}
-                            </option>
+                          {normalizedUnits.map((u) => (
+                            <React.Fragment key={u.name}>
+                              <option value={u.name} className="font-bold">
+                                {u.name}
+                              </option>
+                              {u.subUnits && u.subUnits.map((sub) => (
+                                <option key={`${u.name} - ${sub}`} value={`${u.name} - ${sub}`}>
+                                  &nbsp;&nbsp;↳ {sub}
+                                </option>
+                              ))}
+                            </React.Fragment>
                           ))}
                         </select>
                       );

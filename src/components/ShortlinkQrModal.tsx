@@ -288,7 +288,11 @@ export default function ShortlinkQrModal({
       ctx.strokeStyle = "#E2E8F0";
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 24);
+      if (typeof (ctx as any).roundRect === "function") {
+        (ctx as any).roundRect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, 24);
+      } else {
+        ctx.rect(qrBoxX, qrBoxY, qrBoxSize, qrBoxSize);
+      }
       ctx.fill();
       ctx.stroke();
 
