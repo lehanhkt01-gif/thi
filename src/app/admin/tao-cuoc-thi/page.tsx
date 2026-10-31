@@ -23,6 +23,7 @@ import {
   Filter,
   BarChart3,
   ExternalLink,
+  Save,
   ChevronRight,
   ChevronLeft,
   Sparkles,
@@ -240,6 +241,12 @@ export default function ContestWizardPage() {
   // Chế độ Tạo mới hay Chỉnh sửa cuộc thi (Yêu cầu 4)
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSavingStep1, setIsSavingStep1] = useState(false);
+  const [isSavingCurrentStep, setIsSavingCurrentStep] = useState(false);
+  const [originalCreator, setOriginalCreator] = useState<{
+    email?: string;
+    id?: string;
+    name?: string;
+  }>({});
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [saveToastMessage, setSaveToastMessage] = useState("");
 
@@ -351,8 +358,9 @@ export default function ContestWizardPage() {
         prize2Count,
         prize3Count,
         prize4Count,
-        creatorEmail: authUser?.email,
-        creatorId: authUser?.id,
+        creatorEmail: originalCreator.email || authUser?.email,
+        creatorId: originalCreator.id || authUser?.id,
+        creatorName: originalCreator.name || authUser?.name,
         unitGroupId: selectedGroupId,
         unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
         updatedAt: new Date().toISOString(),
@@ -401,6 +409,114 @@ export default function ContestWizardPage() {
       console.error("Lỗi khi lưu cuộc thi:", err);
     } finally {
       setIsSavingStep1(false);
+    }
+  };
+
+  // Hàm Lưu thông tin hiện tại tại bất kỳ bước nào (Yêu cầu 3: không chuyển bước)
+  const handleSaveCurrentStep = async () => {
+    if (!title.trim()) {
+      alert("Vui lòng nhập tên cuộc thi trước khi lưu!");
+      return;
+    }
+    setIsSavingCurrentStep(true);
+    try {
+      const unitsPayload = contestUnits.map((name, idx) => ({
+        id: `unit-${idx + 1}`,
+        name,
+        groupType: "AGENCY",
+      }));
+
+      const resolvedQuestionCount = (() => {
+        const sumMCQ = examMixPackages.reduce((sum, p) => sum + (Number(p.mcqCount) || 0), 0);
+        if (sumMCQ > 0) return sumMCQ;
+        if (questionsList.length > 0) return questionsList.length;
+        return questionCount || 10;
+      })();
+
+      const draftPayload = {
+        title,
+        slug,
+        bannerUrl,
+        shortDesc,
+        rulesHtml,
+        organizerName,
+        organizerAddress,
+        organizerEmail,
+        organizerPhone,
+        announcement,
+        creatorEmail: originalCreator.email || authUser?.email,
+        creatorId: originalCreator.id || authUser?.id,
+        creatorName: originalCreator.name || authUser?.name,
+        startTime,
+        endTime,
+        durationMinutes,
+        questionCount: resolvedQuestionCount,
+        maxAttempts,
+        resultVisibility: showResultMode,
+        attemptCalculation,
+        shuffleMode,
+        examMixPackages,
+        hasTieBreaker,
+        themeColor,
+        examPassword,
+        requirePortrait,
+        fullScreenExam,
+        requiredFields,
+        requiredFieldKeys: selectedRequiredFields,
+        customLeaderboard,
+        prize1,
+        prize2,
+        prize3,
+        prize4,
+        prize1Count,
+        prize2Count,
+        prize3Count,
+        prize4Count,
+        unitGroupId: selectedGroupId,
+        unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
+        units: unitsPayload,
+        questions: questionsList,
+        updatedAt: new Date().toISOString(),
+      };
+
+      localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draftPayload));
+      localStorage.setItem("easup_last_edited_slug", slug);
+      localStorage.setItem("easup_contest_draft_last", JSON.stringify(draftPayload));
+
+      // Giữ nguyên bước hiện tại trên URL
+      if (typeof window !== "undefined") {
+        const currentUrl = new URL(window.location.href);
+        currentUrl.searchParams.set("edit", slug);
+        currentUrl.searchParams.set("step", String(currentStep));
+        window.history.replaceState({}, "", currentUrl.toString());
+      }
+
+      const res = await fetch(`/api/contests/${slug}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
+        body: JSON.stringify(draftPayload),
+      });
+
+      const resData = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        alert(resData.error || "Không thể lưu thông tin cuộc thi!");
+        return;
+      }
+
+      setIsEditMode(true);
+      setSaveToastMessage(`Đã lưu thông tin Bước ${currentStep} thành công!`);
+      setShowSaveToast(true);
+      setTimeout(() => setShowSaveToast(false), 3000);
+    } catch (err: any) {
+      console.error("Lỗi khi lưu thông tin:", err);
+      alert("Lỗi khi lưu: " + err.message);
+    } finally {
+      setIsSavingCurrentStep(false);
     }
   };
 
@@ -1362,9 +1478,9 @@ export default function ContestWizardPage() {
           organizerEmail,
           organizerPhone,
           announcement,
-          creatorEmail: authUser?.email,
-          creatorId: authUser?.id,
-          creatorName: authUser?.name,
+          creatorEmail: originalCreator.email || authUser?.email,
+          creatorId: originalCreator.id || authUser?.id,
+          creatorName: originalCreator.name || authUser?.name,
           startTime,
           endTime,
           durationMinutes,
@@ -1479,6 +1595,14 @@ export default function ContestWizardPage() {
                 }
               } catch (authErr) {
                 console.error("Lỗi kiểm tra quyền sửa:", authErr);
+              }
+
+              if (c.creatorEmail || c.creatorId || c.creatorName) {
+                setOriginalCreator({
+                  email: c.creatorEmail,
+                  id: c.creatorId,
+                  name: c.creatorName,
+                });
               }
 
               if (c.title) setTitle(c.title);
@@ -3761,28 +3885,49 @@ export default function ContestWizardPage() {
             type="button"
             disabled={currentStep === 1}
             onClick={() => handleNavigateStep(currentStep - 1)}
-            className="btn-admin-secondary text-xs sm:text-sm px-4 py-2 cursor-pointer"
+            className="btn-admin-secondary text-xs sm:text-sm px-4 py-2 cursor-pointer flex items-center"
           >
-            <ChevronLeft className="w-4 h-4 mr-1" /> Bước trước
+            <ChevronLeft className="w-4 h-4 mr-1" /> Trước
           </button>
 
           <div className="flex items-center space-x-3">
+            {/* Nút LƯU THÔNG TIN HIỆN TẠI TẠI MỖI BƯỚC (Yêu cầu 3 - Ảnh 2: không chuyển bước) */}
+            <button
+              type="button"
+              disabled={isSavingCurrentStep || isSavingStep1 || isSubmitting}
+              onClick={handleSaveCurrentStep}
+              className="inline-flex items-center px-4 py-2 sm:py-2.5 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 hover:text-slate-900 text-xs sm:text-sm font-semibold shadow-xs transition-colors cursor-pointer active:scale-95 disabled:opacity-50"
+              title="Ghi nhận và lưu lại toàn bộ thông tin hiện tại (ở lại bước này)"
+            >
+              {isSavingCurrentStep ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-transparent rounded-full animate-spin mr-1.5" />
+                  Đang lưu...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-1.5 text-slate-600" />
+                  Lưu
+                </>
+              )}
+            </button>
+
             {currentStep === 1 ? (
               <button
                 type="button"
                 disabled={isSavingStep1}
                 onClick={handleSaveStep1AndNext}
-                className="btn-admin-primary text-xs sm:text-sm px-6 py-2.5 font-bold cursor-pointer flex items-center shadow-sm"
-                title={isEditMode ? "Lưu thay đổi thông tin cuộc thi và sang bước tiếp theo" : "Lưu thông tin cuộc thi và sang bước tiếp theo"}
+                className="btn-admin-primary text-xs sm:text-sm px-5 py-2.5 font-bold cursor-pointer flex items-center shadow-sm"
+                title="Lưu thông tin và sang bước tiếp theo"
               >
-                {isSavingStep1 ? "Đang lưu..." : isEditMode ? "Lưu thay đổi" : "Lưu"}
+                {isSavingStep1 ? "Đang lưu..." : "Tiếp tục"}
                 <ChevronRight className="w-4 h-4 ml-1.5" />
               </button>
             ) : currentStep < 4 ? (
               <button
                 type="button"
                 onClick={() => handleNavigateStep(currentStep + 1)}
-                className="btn-admin-primary text-xs sm:text-sm px-5 py-2 font-bold cursor-pointer"
+                className="btn-admin-primary text-xs sm:text-sm px-5 py-2 font-bold cursor-pointer flex items-center"
               >
                 Tiếp tục <ChevronRight className="w-4 h-4 ml-1" />
               </button>
@@ -3791,7 +3936,7 @@ export default function ContestWizardPage() {
                 type="button"
                 disabled={isSubmitting}
                 onClick={handlePublishContest}
-                className="btn-admin-primary text-xs sm:text-sm px-6 py-2.5 font-bold bg-emerald-600 hover:bg-emerald-700 border-emerald-700 shadow-md cursor-pointer"
+                className="btn-admin-primary text-xs sm:text-sm px-6 py-2.5 font-bold bg-[#DC2626] hover:bg-[#B91C1C] border-[#B91C1C] text-white shadow-md cursor-pointer flex items-center"
               >
                 {isSubmitting ? "Đang xuất bản..." : "Xuất bản cuộc thi (Hoàn tất)"}
               </button>

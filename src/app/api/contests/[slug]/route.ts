@@ -87,11 +87,15 @@ export async function PUT(
     const existing = store.getContestBySlug(slug);
     const userRole = req.headers.get("x-user-role") || body.userRole;
     const userEmail = req.headers.get("x-user-email") || body.userEmail;
+    const userId = req.headers.get("x-user-id") || body.userId;
 
     if (existing && userRole && userRole !== "ADMIN") {
       const emailA = (userEmail || "").toLowerCase().trim();
       const creatorA = (existing.creatorEmail || existing.organizerEmail || "").toLowerCase().trim();
-      if (creatorA && emailA && creatorA !== emailA) {
+      const isOwner =
+        (creatorA && emailA && creatorA === emailA) ||
+        (existing.creatorId && userId && existing.creatorId === userId);
+      if (!isOwner) {
         return NextResponse.json(
           { error: "Bạn không có quyền chỉnh sửa cuộc thi do người khác tạo!" },
           { status: 403 }
@@ -99,9 +103,13 @@ export async function PUT(
       }
     }
 
+    // Bảo lưu thông tin người tạo ban đầu của cuộc thi, không bị ghi đè khi admin hoặc ai khác cập nhật
     const updated = store.upsertContest({
       ...body,
       slug,
+      creatorEmail: existing?.creatorEmail || body.creatorEmail,
+      creatorId: existing?.creatorId || body.creatorId,
+      creatorName: existing?.creatorName || body.creatorName,
     });
     return NextResponse.json({ success: true, contest: updated });
   } catch (error: any) {

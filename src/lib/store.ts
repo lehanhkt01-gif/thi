@@ -1202,9 +1202,10 @@ class DataStore {
         unitGroupId: contestData.unitGroupId !== undefined ? contestData.unitGroupId : existing.unitGroupId,
         unitGroupName: contestData.unitGroupName !== undefined ? contestData.unitGroupName : existing.unitGroupName,
         questions,
-        creatorEmail: contestData.creatorEmail || existing.creatorEmail,
-        creatorId: contestData.creatorId || existing.creatorId,
-        creatorName: contestData.creatorName || existing.creatorName,
+        // Giữ nguyên người khởi tạo ban đầu, không bị ghi đè kể cả tài khoản admin chỉnh sửa
+        creatorEmail: existing.creatorEmail || contestData.creatorEmail,
+        creatorId: existing.creatorId || contestData.creatorId,
+        creatorName: existing.creatorName || contestData.creatorName,
       };
       this.saveToDisk();
       return this.contests[index];
@@ -1454,7 +1455,16 @@ class DataStore {
   public updateMediaContest(id: string, updateData: Partial<MediaContestModel>): MediaContestModel | null {
     const idx = this.mediaContests.findIndex((c) => c.id === id);
     if (idx === -1) return null;
-    this.mediaContests[idx] = { ...this.mediaContests[idx], ...updateData };
+    const existing = this.mediaContests[idx];
+    const { creatorEmail, creatorId, creatorName, ...rest } = updateData;
+    this.mediaContests[idx] = {
+      ...existing,
+      ...rest,
+      // Giữ nguyên người khởi tạo ban đầu
+      creatorEmail: existing.creatorEmail || creatorEmail,
+      creatorId: existing.creatorId || creatorId,
+      creatorName: existing.creatorName || creatorName,
+    };
     this.saveToDisk();
     return this.mediaContests[idx];
   }

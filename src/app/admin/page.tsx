@@ -1620,7 +1620,6 @@ export default function AdminDashboardPage() {
                                 className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs bg-slate-50 hover:bg-red-50 text-slate-700 hover:text-red-700 border border-slate-200 hover:border-red-200 transition-colors cursor-pointer group text-left"
                               >
                                 <User className="w-3.5 h-3.5 mr-1.5 text-slate-400 group-hover:text-red-600 shrink-0" />
-                                <span className="text-slate-500 mr-1">Tài khoản tạo:</span>
                                 <span className="font-bold text-slate-800 group-hover:text-red-700">
                                   {creatorInfo.name}
                                 </span>
@@ -1860,7 +1859,7 @@ export default function AdminDashboardPage() {
                           </th>
                           <th className="py-3 px-2 w-12 text-slate-700"># ⇅</th>
                           <th className="py-3 px-3 text-slate-700">Tên cuộc thi ⇅</th>
-                          <th className="py-3 px-3 text-slate-700">Tài khoản tạo ⇅</th>
+                          <th className="py-3 px-3 text-slate-700">Người tạo ⇅</th>
                           <th className="py-3 px-3 text-slate-700">Ngày bắt đầu ⇅</th>
                           <th className="py-3 px-3 text-slate-700">Ngày kết thúc ⇅</th>
                           <th className="py-3 px-3 text-center text-slate-700">Tổng số tác phẩm ⇅</th>
