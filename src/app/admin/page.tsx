@@ -1617,21 +1617,21 @@ export default function AdminDashboardPage() {
                       : "Bạn chưa tạo cuộc thi nào. Hãy bấm nút Tạo mới để bắt đầu khởi tạo cuộc thi của đơn vị mình!"}
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 gap-4">
+                  <div className="grid grid-cols-1 gap-2.5">
                     {filteredContests.map((c) => {
                       const creatorInfo = getContestCreatorInfo(c);
                       const creatorEmail = creatorInfo.email || c.creatorEmail || "hethong@easupso.com";
                       return (
                       <div
                         key={c.id}
-                        className="bg-white rounded-2xl border border-slate-200 p-3 sm:p-3.5 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all space-y-2.5"
+                        className="bg-white rounded-xl border border-slate-200 p-2.5 sm:p-3 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all space-y-2"
                       >
-                        {/* HÀNG 1: THUMBNAIL + THÔNG TIN CHÍNH + CỤM NÚT HÀNH ĐỘNG */}
-                        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                        {/* HÀNG 1: THUMBNAIL + THÔNG TIN CHÍNH + CỤM NÚT HÀNH ĐỘNG GỌN GÀNG */}
+                        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2">
                           {/* Trái: Ảnh và Tiêu đề, Đơn vị, Email người tạo */}
-                          <div className="flex items-start sm:items-center space-x-3 min-w-0 flex-1">
-                            {/* Contest Thumbnail gọn gàng 44x44 */}
-                            <div className="w-11 h-11 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200 shadow-2xs">
+                          <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                            {/* Contest Thumbnail gọn gàng 40x40 */}
+                            <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200 shadow-2xs">
                               <img
                                 src={c.bannerUrl || "/banners/banner-nong-dan-ea-sup.jpg"}
                                 alt={c.title}
@@ -1644,47 +1644,34 @@ export default function AdminDashboardPage() {
 
                             {/* Contest Info */}
                             <div className="min-w-0 flex-1">
-                              {/* Meta: Trạng thái • Đơn vị • Email người tạo */}
-                              <div className="flex flex-wrap items-center gap-1.5 text-xs">
-                                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              {/* Meta: Trạng thái • Đơn vị • Email người tạo (1 dòng flex-nowrap thẳng hàng, không xuống dòng) */}
+                              <div className="flex items-center gap-1.5 text-xs overflow-hidden whitespace-nowrap">
+                                <span className={`shrink-0 text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
                                   c.status === "PUBLISHED" ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"
                                 }`}>
                                   {c.status === "PUBLISHED" ? "ĐANG DIỄN RA" : "BẢN NHÁP"}
                                 </span>
-                                <span className="text-slate-300">•</span>
-                                <span className="text-xs font-semibold text-slate-600 truncate max-w-[200px]" title={c.organizerName}>
+                                <span className="shrink-0 text-slate-300">•</span>
+                                <span className="font-semibold text-slate-700 truncate max-w-[130px] sm:max-w-[200px]" title={c.organizerName}>
                                   {c.organizerName || "UBND Xã Ea Súp"}
                                 </span>
-                                <span className="text-slate-300">•</span>
+                                <span className="shrink-0 text-slate-300">•</span>
                                 
-                                {/* Rút gọn thông tin người tạo chỉ cần email đăng nhập (bỏ tên đi) */}
+                                {/* Rút gọn thông tin người tạo chỉ cần email đăng nhập */}
                                 <button
                                   type="button"
                                   onClick={() => setCreatorFilter(creatorInfo.filterKey)}
                                   title={`Bấm để lọc cuộc thi do ${creatorEmail} tạo`}
-                                  className="inline-flex items-center text-[11px] font-mono text-slate-600 hover:text-red-700 bg-slate-100 hover:bg-red-50 px-2 py-0.5 rounded-md border border-slate-200 transition-colors cursor-pointer"
+                                  className="inline-flex items-center text-[11px] font-mono text-slate-600 hover:text-red-700 bg-slate-100 hover:bg-red-50 px-1.5 py-0.2 rounded border border-slate-200 transition-colors cursor-pointer shrink-0 truncate max-w-[150px] sm:max-w-[190px]"
                                 >
-                                  <Mail className="w-3 h-3 mr-1 text-slate-400" />
-                                  <span className="truncate max-w-[190px]">{creatorEmail}</span>
+                                  <Mail className="w-3 h-3 mr-1 text-slate-400 shrink-0" />
+                                  <span className="truncate">{creatorEmail}</span>
                                 </button>
-
-                                {/* Badge hiển thị số lượng đồng quản lý hoặc bấm để quản lý chia sẻ */}
-                                {Array.isArray(c.sharedEmails) && c.sharedEmails.length > 0 && (
-                                  <button
-                                    type="button"
-                                    onClick={() => canUserShareContest(c) ? setSelectedContestForShare(c) : null}
-                                    title={`Cuộc thi đang được chia sẻ cho: ${c.sharedEmails.join(", ")}`}
-                                    className="inline-flex items-center text-[10px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200 transition-colors cursor-pointer"
-                                  >
-                                    <Share2 className="w-3 h-3 mr-1 text-indigo-600" />
-                                    <span>+{c.sharedEmails.length} đồng quản lý</span>
-                                  </button>
-                                )}
 
                                 {/* Badge thông báo nếu user hiện tại là người được chia sẻ quyền */}
                                 {authUser && Array.isArray(c.sharedEmails) && c.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === (authUser.email || "").toLowerCase().trim()) && (
                                   <span
-                                    className="inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 select-none"
+                                    className="shrink-0 inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 select-none"
                                     title="Bạn được chia sẻ quyền quản lý, chỉnh sửa cuộc thi này"
                                   >
                                     🤝 Được chia sẻ
@@ -1693,39 +1680,42 @@ export default function AdminDashboardPage() {
                               </div>
 
                               {/* Tiêu đề cuộc thi: Rõ nét, 1 dòng gọn gàng */}
-                              <h3 className="text-sm font-bold text-slate-900 leading-snug line-clamp-1 mt-0.5" title={c.title}>
+                              <h3 className="text-sm font-bold text-slate-900 leading-snug truncate mt-0.5" title={c.title}>
                                 {c.title}
                               </h3>
                             </div>
                           </div>
 
-                          {/* Phải: Cụm nút hành động chính */}
-                          <div className="flex flex-wrap items-center gap-1.5 shrink-0 self-end lg:self-center">
+                          {/* Phải: Cụm nút hành động tinh gọn, tiết kiệm không gian */}
+                          <div className="flex items-center gap-1 shrink-0 self-end xl:self-center">
                             <Link
                               href={`/thi/${c.slug}`}
                               target="_blank"
-                              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
+                              className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
                               title="Xem giao diện phòng thi"
                             >
-                              <Eye className="w-3.5 h-3.5 mr-1 text-slate-500" /> Phòng thi
+                              <Eye className="w-3.5 h-3.5 sm:mr-1 text-slate-500" />
+                              <span className="hidden sm:inline">Phòng thi</span>
                             </Link>
 
                             <Link
                               href={`/ket-qua/${c.slug}`}
-                              className="px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
+                              className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
                               title="Xem bảng xếp hạng kết quả"
                             >
-                              <BarChart2 className="w-3.5 h-3.5 mr-1 text-slate-500" /> Xếp hạng
+                              <BarChart2 className="w-3.5 h-3.5 sm:mr-1 text-slate-500" />
+                              <span className="hidden sm:inline">Xếp hạng</span>
                             </Link>
 
                             {authUser && (
                               <a
                                 href={`/api/contests/${c.slug}/export`}
                                 download
-                                className="px-2.5 py-1.5 rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-bold transition-colors inline-flex items-center shadow-2xs"
+                                className="px-2 py-1 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
                                 title="Tải file Excel kết quả"
                               >
-                                <Download className="w-3.5 h-3.5 mr-1 text-emerald-600" /> Xuất Excel
+                                <Download className="w-3.5 h-3.5 sm:mr-1 text-emerald-600" />
+                                <span className="hidden sm:inline">Xuất Excel</span>
                               </a>
                             )}
 
@@ -1734,12 +1724,13 @@ export default function AdminDashboardPage() {
                               <button
                                 type="button"
                                 onClick={() => setSelectedContestForShare(c)}
-                                className="px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors inline-flex items-center shadow-2xs cursor-pointer"
+                                className="px-2 py-1 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs cursor-pointer"
                                 title="Thiết lập chia sẻ quyền quản lý, chỉnh sửa cuộc thi cho người khác"
                               >
-                                <Share2 className="w-3.5 h-3.5 mr-1 text-indigo-600" /> Chia sẻ
+                                <Share2 className="w-3.5 h-3.5 sm:mr-1 text-indigo-600" />
+                                <span className="hidden sm:inline">Chia sẻ</span>
                                 {Array.isArray(c.sharedEmails) && c.sharedEmails.length > 0 && (
-                                  <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-indigo-600 text-white font-mono">
+                                  <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-indigo-600 text-white font-mono font-bold">
                                     {c.sharedEmails.length}
                                   </span>
                                 )}
@@ -1750,17 +1741,17 @@ export default function AdminDashboardPage() {
                               <>
                                 <Link
                                   href={`/admin/tao-cuoc-thi?edit=${c.slug}&step=1`}
-                                  className="px-3 py-1.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors inline-flex items-center shadow-xs cursor-pointer"
+                                  className="px-2.5 py-1 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors inline-flex items-center shadow-xs cursor-pointer"
                                   title={`Chỉnh sửa cuộc thi: ${c.title}`}
                                 >
-                                  <Edit className="w-3.5 h-3.5 mr-1" /> Chỉnh sửa
+                                  <Edit className="w-3.5 h-3.5 mr-1" /> Sửa
                                 </Link>
 
                                 {canUserShareContest(c) && (
                                   <button
                                     type="button"
                                     onClick={() => handleDeleteContest(c.slug, c.title)}
-                                    className="p-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-colors inline-flex items-center cursor-pointer"
+                                    className="p-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-colors inline-flex items-center cursor-pointer"
                                     title="Xóa cuộc thi này khỏi hệ thống"
                                   >
                                     <Trash2 className="w-3.5 h-3.5" />
@@ -1769,17 +1760,17 @@ export default function AdminDashboardPage() {
                               </>
                             ) : (
                               <span
-                                className="px-2.5 py-1.5 rounded-xl bg-slate-50 text-slate-400 text-xs font-medium border border-slate-200 inline-flex items-center select-none"
+                                className="px-2 py-1 rounded-lg bg-slate-50 text-slate-400 text-xs font-medium border border-slate-200 inline-flex items-center select-none"
                                 title="Cuộc thi này do đơn vị khác tạo"
                               >
-                                <Lock className="w-3.5 h-3.5 mr-1" /> Đơn vị khác
+                                <Lock className="w-3.5 h-3.5 mr-1" /> Khóa
                               </span>
                             )}
                           </div>
                         </div>
 
                         {/* HÀNG 2: THÔNG SỐ VÀ CỤM TIỆN ÍCH LINK RÚT GỌN / QR CODE TRÊN CÙNG 1 DÒNG */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-xs text-slate-500">
+                        <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100 text-xs text-slate-500">
                           {/* Thông số cuộc thi */}
                           <div className="flex items-center gap-3">
                             <span className="flex items-center">
