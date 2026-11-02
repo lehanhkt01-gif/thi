@@ -266,14 +266,18 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     };
   }, []);
 
-  // Phân quyền xem ô công bố kết quả (Ảnh 3): chỉ admin, người tạo cuộc thi hoặc khi cuộc thi kết thúc
+  // Phân quyền: Tài khoản admin và tài khoản người tạo có TOÀN QUYỀN xem bảng xếp hạng
   const isAdmin = authUser?.role === "ADMIN";
+  const userEmail = (authUser?.email || "").toLowerCase().trim();
+  const creatorEmail = (contest?.creatorEmail || contest?.organizerEmail || "").toLowerCase().trim();
+  const creatorId = contest?.creatorId;
+  const isShared = Array.isArray(contest?.sharedEmails) && contest.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === userEmail);
   const isCreator =
     !!authUser &&
     Boolean(
-      (contest?.creatorEmail && authUser.email && contest.creatorEmail.toLowerCase() === authUser.email.toLowerCase()) ||
-      (contest?.creatorId && authUser.id && contest.creatorId === authUser.id) ||
-      (contest?.organizerEmail && authUser.email && contest.organizerEmail.toLowerCase() === authUser.email.toLowerCase())
+      (creatorEmail && userEmail && creatorEmail === userEmail) ||
+      (creatorId && authUser?.id && creatorId === authUser.id) ||
+      isShared
     );
   const now = Date.now();
   const startTimeMs = contest?.startTime && !isNaN(new Date(contest.startTime).getTime()) ? new Date(contest.startTime).getTime() : 0;

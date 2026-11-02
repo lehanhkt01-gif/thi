@@ -18,6 +18,7 @@ import {
   ArrowUpDown,
   Lock,
   ShieldCheck,
+  Download,
 } from "lucide-react";
 
 interface LeaderboardSectionProps {
@@ -43,11 +44,40 @@ export default function LeaderboardSection({
   endTime,
   onEnterExam,
 }: LeaderboardSectionProps) {
-  // Bộ lọc ma trận 2 chiều (Ảnh 2)
+  // Bộ lọc ma trận 2 chiều (Mặc định: Toàn cuộc thi để Admin & Ban Tổ Chức xem được đầy đủ toàn bộ thí sinh)
   const [scope, setScope] = useState<"individual" | "organization">("individual");
-  const [period, setPeriod] = useState<"week" | "contest">("week");
+  const [period, setPeriod] = useState<"week" | "contest">("contest");
   const [selectedUnit, setSelectedUnit] = useState<string>("ALL");
   const [searchQuery, setSearchQuery] = useState<string>("");
+
+  // Kiểm tra tài khoản đăng nhập để cấp toàn quyền cho Admin và Người tạo cuộc thi
+  const [localAuth, setLocalAuth] = useState<any>(null);
+  const [contestInfo, setContestInfo] = useState<any>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("cuocthi_admin_auth");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.status === "APPROVED") {
+          setLocalAuth(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  const isUserAdmin = localAuth?.role === "ADMIN";
+  const userEmail = (localAuth?.email || "").toLowerCase().trim();
+  const creatorEmail = (contestInfo?.creatorEmail || contestInfo?.organizerEmail || "").toLowerCase().trim();
+  const creatorId = contestInfo?.creatorId;
+  const isUserCreator = Boolean(
+    localAuth && (
+      (creatorEmail && userEmail && creatorEmail === userEmail) ||
+      (creatorId && localAuth?.id && creatorId === localAuth.id) ||
+      (Array.isArray(contestInfo?.sharedEmails) && contestInfo.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === userEmail))
+    )
+  );
+  const hasFullAccess = canViewHiddenLeaderboard || isUserAdmin || isUserCreator;
 
   // Dữ liệu API trả về
   const [rankings, setRankings] = useState<any[]>([]);
@@ -97,6 +127,9 @@ export default function LeaderboardSection({
       const data = await res.json();
 
       if (data.success) {
+        if (data.contest) {
+          setContestInfo(data.contest);
+        }
         setRankings(data.rankings || []);
         if (data.units && Array.isArray(data.units) && data.units.length > 0) {
           setUnitsList(data.units);
@@ -152,17 +185,32 @@ export default function LeaderboardSection({
           </p>
         )}
 
-        {/* Thông báo chế độ xem trước dành cho Quản trị viên / Ban Tổ Chức khi cuộc thi chưa kết thúc */}
-        {!isContestEnded && canViewHiddenLeaderboard && (
-          <div className="max-w-2xl mx-auto mt-3 p-2.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 text-xs font-semibold flex items-center justify-center space-x-2 shadow-2xs">
-            <ShieldCheck className="w-4 h-4 text-amber-600 shrink-0" />
-            <span>⚙️ <strong>Xem trước dành cho Ban Tổ Chức:</strong> Bảng xếp hạng đang được tạm ẩn với thí sinh cho đến khi cuộc thi kết thúc.</span>
+        {/* Thông báo quyền hạn dành cho Quản trị viên & Người tạo cuộc thi */}
+        {hasFullAccess && (
+          <div className="max-w-3xl mx-auto mt-3 p-3 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 text-xs font-semibold flex flex-wrap items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center space-x-2">
+              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>
+                🛡️ <strong>Chế độ Quản trị viên &amp; Ban Tổ Chức:</strong> Bạn có toàn quyền theo dõi bảng xếp hạng và số liệu chi tiết của cuộc thi {!isContestEnded ? "(Đang mở chế độ xem trước dành riêng cho BTC)" : ""}.
+              </span>
+            </div>
+            {contestSlug && (
+              <a
+                href={`/api/contests/${contestSlug}/export`}
+                download
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer"
+                title="Tải toàn bộ kết quả thi dạng file Excel (.xlsx)"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Xuất Excel kết quả</span>
+              </a>
+            )}
           </div>
         )}
       </div>
 
-      {/* TRƯỜNG HỢP ẨN BẢNG XẾP HẠNG TRONG THỜI GIAN THI CHO THÍ SINH CÔNG KHAI */}
-      {!isContestEnded && !canViewHiddenLeaderboard ? (
+      {/* TRƯỜNG HỢP ẨN BẢNG XẾP HẠNG TRONG THỜI GIAN THI CHO THÍ SINH CÔNG KHAI (CHỈ ADMIN VÀ NGƯỜI TẠO ĐƯỢC XEM) */}
+      {!isContestEnded && !hasFullAccess ? (
         <div className="bg-white rounded-3xl border border-slate-200 p-8 sm:p-12 text-center max-w-2xl mx-auto shadow-xs my-6">
           <div className="w-16 h-16 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mx-auto mb-4 border border-amber-200 shadow-2xs">
             <Lock className="w-8 h-8" />
@@ -375,19 +423,32 @@ export default function LeaderboardSection({
           <h3 className="text-base font-bold text-slate-800 mb-1">
             Chưa có kết quả xếp hạng trong kỳ này
           </h3>
-          <p className="text-xs text-slate-500 mb-5">
+          <p className="text-xs text-slate-500 mb-5 leading-relaxed">
             {period === "week"
-              ? "Tuần này chưa ghi nhận lượt nộp bài nào. Hãy là người đầu tiên tham gia và ghi danh lên Bảng xếp hạng của xã Ea Súp!"
+              ? "Tuần này chưa ghi nhận lượt nộp bài mới nào. Bạn có thể chuyển sang xem xếp hạng 'Toàn cuộc thi' để xem toàn bộ danh sách thí sinh đã tham gia từ trước đến nay!"
               : "Cuộc thi chưa có lượt thi nào hoàn tất. Hãy tham gia thi ngay!"}
           </p>
-          {onEnterExam && (
-            <button
-              onClick={onEnterExam}
-              className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-bold text-white bg-[#00A9E0] hover:bg-[#0096ca] shadow-xs transition-opacity cursor-pointer"
-            >
-              Vào phòng thi ngay ➔
-            </button>
-          )}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {period === "week" && (
+              <button
+                type="button"
+                onClick={() => setPeriod("contest")}
+                className="inline-flex items-center space-x-2 px-6 py-2.5 rounded-full text-xs font-bold text-white bg-[#00A9E0] hover:bg-[#0096ca] shadow-xs hover:shadow-md transition-all cursor-pointer"
+              >
+                <Trophy className="w-4 h-4" />
+                <span>Xem xếp hạng Toàn cuộc thi ➔</span>
+              </button>
+            )}
+            {onEnterExam && (
+              <button
+                type="button"
+                onClick={onEnterExam}
+                className="inline-flex items-center px-6 py-2.5 rounded-full text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-colors cursor-pointer"
+              >
+                Vào phòng thi ngay ➔
+              </button>
+            )}
+          </div>
         </div>
       ) : scope === "individual" ? (
         /* ========================================================= */

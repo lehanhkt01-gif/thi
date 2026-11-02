@@ -44,6 +44,7 @@ export async function GET(
       creatorEmail: contest.creatorEmail,
       creatorId: contest.creatorId,
       organizerEmail: contest.organizerEmail,
+      sharedEmails: contest.sharedEmails || [],
       startTime: contest.startTime,
       endTime: contest.endTime,
       status: contest.status,

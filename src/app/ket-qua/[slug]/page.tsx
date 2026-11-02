@@ -63,12 +63,16 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
   }, []);
 
   const isAdmin = authUser?.role === "ADMIN";
+  const userEmail = (authUser?.email || "").toLowerCase().trim();
+  const creatorEmail = (data?.creatorEmail || data?.organizerEmail || "").toLowerCase().trim();
+  const creatorId = data?.creatorId;
+  const isShared = Array.isArray(data?.sharedEmails) && data.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === userEmail);
   const isCreator =
     !!authUser &&
     Boolean(
-      (data?.creatorEmail && authUser.email && data.creatorEmail.toLowerCase() === authUser.email.toLowerCase()) ||
-      (data?.creatorId && authUser.id && data.creatorId === authUser.id) ||
-      (data?.organizerEmail && authUser.email && data.organizerEmail.toLowerCase() === authUser.email.toLowerCase())
+      (creatorEmail && userEmail && creatorEmail === userEmail) ||
+      (creatorId && authUser?.id && creatorId === authUser.id) ||
+      isShared
     );
   const isContestEnded =
     data?.status === "CLOSED" ||
@@ -136,9 +140,9 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
           </p>
         </div>
 
-        {/* Action Buttons: Nút Xuất file Excel chỉ hiển thị cho Quản trị viên (ADMIN) */}
+        {/* Action Buttons: Nút Xuất file Excel hiển thị cho Quản trị viên (ADMIN) và Người tạo cuộc thi */}
         <div className="flex items-center space-x-3">
-          {isAdmin && (
+          {(isAdmin || isCreator) && (
             <a
               href={`/api/contests/${slug}/export?${new URLSearchParams({
                 search,
