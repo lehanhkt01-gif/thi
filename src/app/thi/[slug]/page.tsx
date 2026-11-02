@@ -38,6 +38,7 @@ import {
   Trash2,
   Eye,
   FileCheck,
+  Lock,
 } from "lucide-react";
 import AudioPlayerAnNhien from "@/components/AudioPlayerAnNhien";
 import LoginModal, { GoogleIcon, syncAuthSession } from "@/components/LoginModal";
@@ -98,6 +99,13 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
   const [regError, setRegError] = useState("");
   const [starting, setStarting] = useState(false);
   const [checkingCccd, setCheckingCccd] = useState(false);
+  const [lockedProfile, setLockedProfile] = useState<{
+    fullName: string;
+    unitId: string;
+    unitName: string;
+    subUnitName?: string;
+    submittedAttemptsCount: number;
+  } | null>(null);
   const [cccdSyncStatus, setCccdSyncStatus] = useState<{
     exists: boolean;
     submittedAttemptsCount: number;
@@ -109,6 +117,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
   // Helper kiểm tra trường thông tin nào bắt buộc dựa theo thiết lập cuộc thi (Đồng bộ 2 chiều với Ảnh 3)
   const isFieldRequired = (fieldKey: string): boolean => {
     if (fieldKey === "fullName") return true;
+    if (fieldKey === "phone") return true; // Số điện thoại là thông tin cứng định danh thí sinh
 
     const reqKeys: string[] = contest?.requiredFieldKeys || [];
     if (reqKeys.length > 0) {
@@ -525,22 +534,42 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           highestScore: data.highestScore,
         });
 
-        // Tự động gợi ý thông tin nếu ô đang trống (GIỮ NGUYÊN TÊN NGƯỜI THI ĐÃ NHẬP, KHÔNG ĐÈ TÊN)
-        if (data.participant) {
-          // Chỉ điền họ tên nếu người dùng chưa nhập tên vào ô
-          setFullName((prev) => (prev && prev.trim() ? prev : data.participant.fullName || ""));
-          setPhone((prev) => (prev && prev.trim() ? prev : data.participant.phone || ""));
-          setUnitId((prev) => (prev && prev !== "u-1" ? prev : data.participant.unitId || prev));
-          setEmail((prev) => (prev && prev.trim() ? prev : data.participant.email || ""));
-          setGender((prev) => (prev ? prev : data.participant.gender || ""));
-          setJob((prev) => (prev && prev.trim() ? prev : data.participant.job || ""));
-          setWorkplace((prev) => (prev && prev.trim() ? prev : data.participant.workplace || ""));
-          setBirthday((prev) => {
-            if (prev && prev.trim()) return prev;
-            if (data.participant.birthday) return data.participant.birthday;
-            if (data.participant.birthYear) return String(data.participant.birthYear);
-            return "";
+        // Tự động kiểm tra thí sinh đã thi lượt 1 hay chưa
+        if (data.participant && (data.submittedAttemptsCount || 0) > 0) {
+          // LƯỢT THI 2 VÀ 3: KHÓA CỐ ĐỊNH THEO THÔNG TIN LẦN 1
+          setLockedProfile({
+            fullName: data.participant.fullName || "",
+            unitId: data.participant.unitId || "",
+            unitName: data.participant.unitName || "",
+            subUnitName: data.participant.subUnitName || "",
+            submittedAttemptsCount: data.submittedAttemptsCount,
           });
+          setFullName(data.participant.fullName || "");
+          if (data.participant.unitId) setUnitId(data.participant.unitId);
+          if (data.participant.subUnitName) setSubUnitName(data.participant.subUnitName);
+          if (data.participant.email) setEmail(data.participant.email);
+          if (data.participant.gender) setGender(data.participant.gender);
+          if (data.participant.job) setJob(data.participant.job);
+          if (data.participant.workplace) setWorkplace(data.participant.workplace);
+          if (data.participant.birthday) setBirthday(data.participant.birthday);
+        } else {
+          setLockedProfile(null);
+          if (data.participant) {
+            setFullName((prev) => (prev && prev.trim() ? prev : data.participant.fullName || ""));
+            setPhone((prev) => (prev && prev.trim() ? prev : data.participant.phone || ""));
+            setUnitId((prev) => (prev && prev !== "u-1" ? prev : data.participant.unitId || prev));
+            if (data.participant.subUnitName) setSubUnitName((prev) => (prev ? prev : data.participant.subUnitName));
+            setEmail((prev) => (prev && prev.trim() ? prev : data.participant.email || ""));
+            setGender((prev) => (prev ? prev : data.participant.gender || ""));
+            setJob((prev) => (prev && prev.trim() ? prev : data.participant.job || ""));
+            setWorkplace((prev) => (prev && prev.trim() ? prev : data.participant.workplace || ""));
+            setBirthday((prev) => {
+              if (prev && prev.trim()) return prev;
+              if (data.participant.birthday) return data.participant.birthday;
+              if (data.participant.birthYear) return String(data.participant.birthYear);
+              return "";
+            });
+          }
         }
 
         if (data.hasReachedMaxAttempts) {
@@ -563,24 +592,30 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     setCccd(clean);
     if (clean.length >= 9) {
       verifyParticipant({ cccdVal: clean });
-    } else if (!phone || phone.length < 9) {
-      setCccdSyncStatus(null);
-      setRegError("");
     }
   };
 
   const handlePhoneChange = (val: string) => {
     const clean = val.replace(/\D/g, "");
     setPhone(clean);
-    if (!cccd || cccd.length < 9) {
-      if (clean.length >= 9) {
-        verifyParticipant({ phoneVal: clean });
-      } else {
-        setCccdSyncStatus(null);
-        setRegError("");
-      }
+    if (clean.length >= 9) {
+      verifyParticipant({ phoneVal: clean });
+    } else {
+      setLockedProfile(null);
+      setCccdSyncStatus(null);
+      setRegError("");
     }
   };
+
+  // Tự động kiểm tra đồng bộ khi mở modal đăng ký nếu đã có SĐT
+  useEffect(() => {
+    if (showRegisterModal) {
+      const cleanP = phone.replace(/\D/g, "");
+      if (cleanP.length >= 9) {
+        verifyParticipant({ phoneVal: cleanP });
+      }
+    }
+  }, [showRegisterModal]);
 
   // 6. Bắt đầu thi (Gọi API /start an toàn - Zero Answer Leakage)
   const handleStartExam = async (e?: React.FormEvent) => {
@@ -592,18 +627,37 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
       return;
     }
 
+    if (!phone.trim() || phone.trim().length < 9) {
+      setRegError("Vui lòng nhập Số điện thoại liên hệ hợp lệ (từ 9 đến 11 chữ số)!");
+      return;
+    }
+
     if (!fullName.trim()) {
       setRegError("Vui lòng nhập Họ tên thí sinh!");
       return;
     }
 
-    if (isFieldRequired("cccd") && (!cccd.trim() || cccd.trim().length < 9)) {
-      setRegError("Vui lòng nhập đúng số CCCD/Mã định danh (từ 9 đến 12 chữ số)!");
-      return;
+    // QUY TẮC CỐT LÕI: Lượt thi lần 2 và lần 3 buộc phải trùng khớp Họ tên & Đơn vị lần 1
+    if (lockedProfile) {
+      const normInputName = fullName.trim().toLowerCase().replace(/\s+/g, " ");
+      const normLockedName = (lockedProfile.fullName || "").trim().toLowerCase().replace(/\s+/g, " ");
+      if (normInputName !== normLockedName) {
+        setRegError(
+          `Số điện thoại ${phone} đã đăng ký lượt 1 với Họ tên: "${lockedProfile.fullName}". Lượt thi ${lockedProfile.submittedAttemptsCount + 1} buộc phải trùng khớp Họ tên lần 1 để tiếp tục thi!`
+        );
+        return;
+      }
+
+      if (lockedProfile.unitId && unitId !== lockedProfile.unitId) {
+        setRegError(
+          `Số điện thoại ${phone} đã đăng ký lượt 1 thuộc Đơn vị: "${lockedProfile.unitName || "Đơn vị ban đầu"}". Lượt thi ${lockedProfile.submittedAttemptsCount + 1} buộc phải trùng khớp Đơn vị tham gia lần 1 để tiếp tục thi!`
+        );
+        return;
+      }
     }
 
-    if (isFieldRequired("phone") && (!phone.trim() || phone.trim().length < 9)) {
-      setRegError("Vui lòng nhập Số điện thoại liên hệ hợp lệ!");
+    if (isFieldRequired("cccd") && (!cccd.trim() || cccd.trim().length < 9)) {
+      setRegError("Vui lòng nhập đúng số CCCD/Mã định danh (từ 9 đến 12 chữ số)!");
       return;
     }
 
@@ -1383,18 +1437,26 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
               {/* Status Badge khi đồng bộ thí sinh 2 chiều thành công */}
               {cccdSyncStatus && !regError && (
-                <div className="mb-4 p-2.5 rounded-xl bg-blue-50/80 border border-blue-200 text-xs text-blue-800 flex items-center justify-between">
-                  <div className="flex items-center space-x-1.5 font-medium">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-                    <span>
-                      {cccdSyncStatus.exists
-                        ? `Đã đồng bộ • Lượt thi ${cccdSyncStatus.submittedAttemptsCount + 1}/${cccdSyncStatus.maxAttempts}`
-                        : `Thí sinh mới • Lượt thi 1/${cccdSyncStatus.maxAttempts}`}
+                <div className="mb-4 p-3 rounded-2xl bg-blue-50/80 border border-blue-200 text-xs text-blue-900 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-1.5 font-bold">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                      <span>
+                        {cccdSyncStatus.exists
+                          ? `Đã đồng bộ • Lượt thi ${cccdSyncStatus.submittedAttemptsCount + 1}/${cccdSyncStatus.maxAttempts}`
+                          : `Thí sinh mới • Lượt thi 1/${cccdSyncStatus.maxAttempts}`}
+                      </span>
+                    </div>
+                    <span className="text-[11px] text-blue-600 font-bold bg-blue-100/80 px-2.5 py-0.5 rounded-full">
+                      Lưu điểm cao nhất
                     </span>
                   </div>
-                  <span className="text-[11px] text-blue-600 font-semibold bg-blue-100/80 px-2 py-0.5 rounded-full">
-                    Lưu điểm cao nhất
-                  </span>
+                  {lockedProfile && (
+                    <div className="text-[11px] text-amber-800 font-medium flex items-center space-x-1 pt-1 border-t border-blue-100">
+                      <Lock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>Thông tin cứng: Họ tên &amp; Đơn vị được giữ cố định theo lượt thi lần 1 của Số điện thoại.</span>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1424,33 +1486,46 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                   </div>
                 )}
 
-                {/* Additional Profile Fields (Đồng bộ 2 chiều với Cài đặt đề thi Ảnh 3) */}
+                {/* Additional Profile Fields: SỐ ĐIỆN THOẠI NẰM TRÊN HỌ VÀ TÊN */}
                 <div className="space-y-3 pt-1">
-                  {/* Họ và tên (Bắt buộc khóa) */}
-                  <div>
+                  {/* 1. SỐ ĐIỆN THOẠI LIÊN HỆ (Thông tin cứng định danh thí sinh) */}
+                  <div className="relative">
                     <input
-                      type="text"
+                      type="tel"
                       required
-                      placeholder="Họ và Tên thí sinh *"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
+                      placeholder="Số điện thoại liên hệ *"
+                      value={phone}
+                      onChange={(e) => handlePhoneChange(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900 pr-9"
                     />
+                    {checkingCccd && (
+                      <div className="absolute right-3 top-3 w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+                    )}
                   </div>
 
-                  {/* Số điện thoại */}
-                  {isFieldRequired("phone") && (
-                    <div>
+                  {/* 2. HỌ VÀ TÊN THÍ SINH (Khóa cố định ở lần 2, 3 nếu đã thi lần 1) */}
+                  <div>
+                    <div className="relative">
                       <input
-                        type="tel"
+                        type="text"
                         required
-                        placeholder="Số điện thoại liên hệ *"
-                        value={phone}
-                        onChange={(e) => handlePhoneChange(e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none font-medium text-slate-900"
+                        placeholder="Họ và Tên thí sinh *"
+                        value={fullName}
+                        readOnly={!!lockedProfile}
+                        onChange={(e) => setFullName(e.target.value)}
+                        className={`w-full px-3.5 py-2.5 rounded-xl border ${
+                          lockedProfile
+                            ? "bg-slate-50 border-slate-200 text-slate-700 font-bold cursor-not-allowed pr-9"
+                            : "border-slate-300 text-slate-900 focus:border-blue-600 outline-none font-medium"
+                        } text-xs sm:text-sm`}
                       />
+                      {lockedProfile && (
+                        <div className="absolute right-3 top-2.5 text-amber-600" title="Họ tên được giữ cố định theo lượt thi lần 1">
+                          <Lock className="w-4 h-4" />
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
 
                   {/* Email */}
                   {isFieldRequired("email") && (
@@ -1525,20 +1600,33 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                     </div>
                   )}
 
-                  {/* Đơn vị tham gia (Cấp 2: Trường THPT, Chi đoàn, Thôn buôn) */}
+                  {/* Đơn vị tham gia (Sửa nhãn theo yêu cầu: Bỏ chữ Cấp 2) */}
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-700 mb-1">
-                      Đơn vị tham gia (Cấp 2) <span className="text-red-600">*</span>
-                    </label>
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-[11px] font-bold text-slate-700">
+                        Đơn vị tham gia <span className="text-red-600">*</span>
+                      </label>
+                      {lockedProfile && (
+                        <span className="text-[10px] text-amber-700 font-bold flex items-center space-x-1">
+                          <Lock className="w-3 h-3 inline" />
+                          <span>Cố định lần 1</span>
+                        </span>
+                      )}
+                    </div>
                     <select
                       value={unitId}
+                      disabled={!!lockedProfile}
                       onChange={(e) => {
                         setUnitId(e.target.value);
                         setSubUnitName("");
                         setCustomSubUnit("");
                       }}
                       required
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm focus:border-blue-600 outline-none bg-white font-medium text-slate-800"
+                      className={`w-full px-3.5 py-2.5 rounded-xl border ${
+                        lockedProfile
+                          ? "bg-slate-50 border-slate-200 text-slate-700 font-bold cursor-not-allowed"
+                          : "border-slate-300 text-slate-800 focus:border-blue-600 outline-none bg-white font-medium"
+                      } text-xs sm:text-sm`}
                     >
                       <option value="">-- Chọn đơn vị tham gia * --</option>
                       {(contest.units || []).map((u: any) => (

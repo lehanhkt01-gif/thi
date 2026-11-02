@@ -1944,24 +1944,36 @@ class DataStore {
     const cleanPhone = phone ? phone.trim() : "";
 
     // 1. Tìm trong cuộc thi hiện tại (theo CCCD hoặc Số điện thoại)
+    const cleanPhoneDigits = cleanPhone.replace(/\D/g, "");
     let existing = this.participants.find((p) => {
       if (p.contestId !== contestId) return false;
       if (cleanCccd && !cleanCccd.startsWith("TEL_") && !p.cccd.startsWith("TEL_")) {
         return p.cccd === cleanCccd;
       }
+      if (cleanPhoneDigits.length >= 9 && p.phone) {
+        return p.phone.replace(/\D/g, "") === cleanPhoneDigits;
+      }
       return cleanPhone ? p.phone === cleanPhone : false;
     });
 
     if (existing) {
-      // Cập nhật lại thông tin của thí sinh trong cuộc thi này theo dữ liệu mới nhập
-      if (fullName && fullName.trim()) existing.fullName = fullName.trim();
+      // Kiểm tra xem thí sinh này đã có bài thi nộp thành công trong cuộc thi này chưa
+      const hasSubmitted = this.attempts.some(
+        (a) => a.contestId === contestId && a.participantId === existing!.id && !!a.submittedAt
+      );
+
+      // QUY TẮC CỐT LÕI: Lượt 2 và 3 buộc phải giữ nguyên thông tin lần 1 (Họ tên, Đơn vị tham gia)
+      if (!hasSubmitted) {
+        // Chưa có bài thi nộp: cho phép cập nhật thông tin
+        if (fullName && fullName.trim()) existing.fullName = fullName.trim();
+        if (unit && unit.id) {
+          existing.unitId = unit.id;
+          existing.unitName = unit.name;
+        }
+        if (extra?.subUnitName) existing.subUnitName = extra.subUnitName;
+      }
       if (cleanPhone) existing.phone = cleanPhone;
       if (cleanCccd && !existing.cccd.startsWith("TEL_")) existing.cccd = cleanCccd;
-      if (unit && unit.id) {
-        existing.unitId = unit.id;
-        existing.unitName = unit.name;
-      }
-      if (extra?.subUnitName) existing.subUnitName = extra.subUnitName;
       if (birthYear) existing.birthYear = birthYear;
       if (address) existing.address = address;
       if (extra?.email) existing.email = extra.email;
@@ -1970,7 +1982,7 @@ class DataStore {
       if (extra?.job) existing.job = extra.job;
       if (extra?.workplace) existing.workplace = extra.workplace;
 
-      // CHỈ đồng bộ sang các lượt thi (attempts) CỦA CHÍNH CUỘC THI NÀY (Không ghi đè cuộc thi khác có cùng SĐT)
+      // Đồng bộ sang các lượt thi CỦA CHÍNH CUỘC THI NÀY
       for (const a of this.attempts) {
         if (a.contestId === contestId && a.participantId === existing.id) {
           a.participantName = existing.fullName;
@@ -2027,14 +2039,25 @@ class DataStore {
     }
 
     // Nếu có contestId: Chỉ tìm hồ sơ thí sinh TRONG CHÍNH CUỘC THI ĐÓ (giữ nguyên tên riêng biệt ở mỗi cuộc thi)
+    const cleanDigits = clean.replace(/\D/g, "");
     let p = contestId
       ? this.participants.find(
-          (item) => item.contestId === contestId && (item.cccd === clean || item.phone === clean)
+          (item) =>
+            item.contestId === contestId &&
+            ((cleanDigits.length >= 9 && item.phone && item.phone.replace(/\D/g, "") === cleanDigits) ||
+              item.cccd === clean ||
+              item.phone === clean)
         ) || null
       : null;
 
     if (!contestId && !p) {
-      p = this.participants.find((item) => item.cccd === clean || item.phone === clean) || null;
+      p =
+        this.participants.find(
+          (item) =>
+            (cleanDigits.length >= 9 && item.phone && item.phone.replace(/\D/g, "") === cleanDigits) ||
+            item.cccd === clean ||
+            item.phone === clean
+        ) || null;
     }
 
     let submittedAttemptsCount = 0;
@@ -2048,7 +2071,10 @@ class DataStore {
       const userAttempts = this.attempts.filter(
         (a) =>
           a.contestId === contestId &&
-          (a.participantCccd === clean || (p && (a.participantId === p.id || a.participantCccd === p.cccd))) &&
+          (a.participantCccd === clean ||
+            a.participantCccd === `TEL_${clean}` ||
+            (cleanDigits.length >= 9 && a.participantCccd === `TEL_${cleanDigits}`) ||
+            (p && (a.participantId === p.id || a.participantCccd === p.cccd))) &&
           !!a.submittedAt
       );
       submittedAttemptsCount = userAttempts.length;

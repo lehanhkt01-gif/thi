@@ -58,6 +58,45 @@ export async function POST(
       return NextResponse.json({ error: "Vui lòng nhập nơi công tác / trường lớp!" }, { status: 400 });
     }
 
+    // QUY TẮC BẮT BUỘC: SỐ ĐIỆN THOẠI LÀ THÔNG TIN CỨNG ĐỊNH DANH THÍ SINH
+    // Lượt thi lần 2 và lần 3 buộc phải trùng với thông tin cuộc thi lần 1 (Họ tên, Đơn vị tham gia)
+    const cleanPhoneDigits = (phone || "").replace(/\D/g, "");
+    if (cleanPhoneDigits && cleanPhoneDigits.length >= 9) {
+      const existingLookup = store.getParticipantByCccd(cleanPhoneDigits, contest.id);
+      if (existingLookup.participant && existingLookup.submittedAttemptsCount > 0) {
+        const originP = existingLookup.participant;
+        const normInputName = fullName.trim().toLowerCase().replace(/\s+/g, " ");
+        const normOriginName = originP.fullName.trim().toLowerCase().replace(/\s+/g, " ");
+
+        if (normInputName !== normOriginName) {
+          return NextResponse.json(
+            {
+              error: `Số điện thoại ${phone} đã đăng ký lượt 1 với Họ tên: "${originP.fullName}". Lượt thi ${existingLookup.submittedAttemptsCount + 1} bắt buộc phải trùng khớp Họ tên lần 1 để tiếp tục thi!`,
+            },
+            { status: 400 }
+          );
+        }
+
+        const selectedUnit = contest.units.find((u) => u.id === unitId || u.name === unitId);
+        const selectedUnitName = selectedUnit ? selectedUnit.name : (unitId || "");
+        const originUnitName = originP.unitName || "";
+
+        if (
+          originP.unitId &&
+          unitId &&
+          originP.unitId !== unitId &&
+          selectedUnitName.trim().toLowerCase() !== originUnitName.trim().toLowerCase()
+        ) {
+          return NextResponse.json(
+            {
+              error: `Số điện thoại ${phone} đã đăng ký lượt 1 thuộc Đơn vị: "${originUnitName}". Lượt thi ${existingLookup.submittedAttemptsCount + 1} bắt buộc phải trùng khớp Đơn vị tham gia lần 1 để tiếp tục thi!`,
+            },
+            { status: 400 }
+          );
+        }
+      }
+    }
+
     // Đăng ký hoặc lấy thông tin thí sinh (Đồng bộ 2 chiều toàn diện)
     const effectiveUnitId = unitId || (contest.units && contest.units[0]?.id) || "u-1";
     const participant = store.registerOrGetParticipant(
@@ -165,6 +204,7 @@ export async function GET(
             phone: lookup.participant.phone,
             unitId: lookup.participant.unitId,
             unitName: lookup.participant.unitName,
+            subUnitName: lookup.participant.subUnitName || "",
             birthYear: lookup.participant.birthYear,
             email: lookup.participant.email,
             birthday: lookup.participant.birthday,
