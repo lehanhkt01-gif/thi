@@ -1773,10 +1773,12 @@ export default function ContestWizardPage() {
                 if (currentAuth && currentAuth.role !== "ADMIN") {
                   const userEmail = (currentAuth.email || "").toLowerCase().trim();
                   const creatorEmail = (c.creatorEmail || c.organizerEmail || "").toLowerCase().trim();
+                  const isShared = Array.isArray(c.sharedEmails) && c.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === userEmail);
                   const isOwner =
                     (!creatorEmail && !c.creatorId) ||
                     (creatorEmail && creatorEmail === userEmail) ||
-                    (c.creatorId && c.creatorId === currentAuth.id);
+                    (c.creatorId && c.creatorId === currentAuth.id) ||
+                    isShared;
                   if (!isOwner) {
                     alert("Bạn không có quyền chỉnh sửa cuộc thi do đơn vị khác tạo! Hệ thống sẽ đưa bạn về Bảng điều khiển.");
                     window.location.href = "/admin";

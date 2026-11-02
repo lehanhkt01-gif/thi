@@ -58,6 +58,9 @@ export async function GET(
         prize2Count: contest.prize2Count || "02",
         prize3Count: contest.prize3Count || "03",
         prize4Count: contest.prize4Count || "05",
+        customSlug: contest.customSlug,
+        clickCount: contest.clickCount || 0,
+        sharedEmails: contest.sharedEmails || [],
         status: contest.status,
         audioUrl: contest.audioUrl,
         resultVisibility: contest.resultVisibility || "SCORE_ONLY",
@@ -92,9 +95,11 @@ export async function PUT(
     if (existing && userRole && userRole !== "ADMIN") {
       const emailA = (userEmail || "").toLowerCase().trim();
       const creatorA = (existing.creatorEmail || existing.organizerEmail || "").toLowerCase().trim();
+      const isShared = Array.isArray(existing.sharedEmails) && existing.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === emailA);
       const isOwner =
         (creatorA && emailA && creatorA === emailA) ||
-        (existing.creatorId && userId && existing.creatorId === userId);
+        (existing.creatorId && userId && existing.creatorId === userId) ||
+        isShared;
       if (!isOwner) {
         return NextResponse.json(
           { error: "Bạn không có quyền chỉnh sửa cuộc thi do người khác tạo!" },

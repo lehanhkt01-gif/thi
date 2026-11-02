@@ -94,6 +94,7 @@ export interface ContestModel {
   creatorEmail?: string;
   creatorId?: string;
   creatorName?: string;
+  sharedEmails?: string[]; // Danh sách email được chia sẻ quyền quản lý, chỉnh sửa cuộc thi
   startTime: string;
   endTime: string;
   durationMinutes: number;
@@ -1212,6 +1213,7 @@ class DataStore {
         unitGroupName: contestData.unitGroupName !== undefined ? contestData.unitGroupName : existing.unitGroupName,
         customSlug: contestData.customSlug !== undefined ? contestData.customSlug : existing.customSlug,
         clickCount: contestData.clickCount !== undefined ? contestData.clickCount : (existing.clickCount || 0),
+        sharedEmails: contestData.sharedEmails !== undefined ? contestData.sharedEmails : (existing.sharedEmails || []),
         questions,
         // Giữ nguyên người khởi tạo ban đầu, không bị ghi đè kể cả tài khoản admin chỉnh sửa
         creatorEmail: existing.creatorEmail || contestData.creatorEmail,
@@ -1238,6 +1240,7 @@ class DataStore {
         creatorEmail: contestData.creatorEmail,
         creatorId: contestData.creatorId,
         creatorName: contestData.creatorName,
+        sharedEmails: contestData.sharedEmails || [],
         startTime: contestData.startTime || new Date().toISOString(),
         endTime: contestData.endTime || new Date(Date.now() + 30 * 86400000).toISOString(),
         durationMinutes: contestData.durationMinutes || 15,
@@ -1278,6 +1281,42 @@ class DataStore {
       this.saveToDisk();
       return newContest;
     }
+  }
+
+  // Chia sẻ quyền quản lý, chỉnh sửa cuộc thi cho người khác
+  public shareContest(
+    slugOrId: string,
+    sharedEmails: string[],
+    user?: { email?: string; role?: string; id?: string }
+  ): { success: boolean; error?: string; contest?: ContestModel } {
+    this.loadFromDisk();
+    const contest = this.contests.find((c) => c.slug === slugOrId || c.id === slugOrId);
+    if (!contest) {
+      return { success: false, error: "Không tìm thấy cuộc thi!" };
+    }
+    if (user && user.role !== "ADMIN") {
+      const userEmail = (user.email || "").toLowerCase().trim();
+      const creatorEmail = (contest.creatorEmail || contest.organizerEmail || "").toLowerCase().trim();
+      const creatorId = contest.creatorId;
+      const isOwner = (creatorEmail && creatorEmail === userEmail) || (creatorId && creatorId === user.id);
+      if (!isOwner) {
+        return { success: false, error: "Chỉ người tạo hoặc Quản trị viên mới có quyền chia sẻ cuộc thi!" };
+      }
+    }
+
+    const cleanCreator = (contest.creatorEmail || contest.organizerEmail || "").toLowerCase().trim();
+    // Làm sạch và khử trùng danh sách email được chia sẻ
+    const cleanList = Array.from(
+      new Set(
+        sharedEmails
+          .map((e) => (e || "").toLowerCase().trim())
+          .filter((e) => e && e !== cleanCreator && e.includes("@"))
+      )
+    );
+
+    contest.sharedEmails = cleanList;
+    this.saveToDisk();
+    return { success: true, contest };
   }
 
   public getContestByCustomSlug(customSlug: string): ContestModel | undefined {

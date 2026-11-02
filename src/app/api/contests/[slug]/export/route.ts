@@ -34,6 +34,7 @@ export async function GET(
       "Họ và Tên": item.participantName,
       "Số CCCD/Định danh": item.participantCccd,
       "Đơn vị (Thôn/Buôn/Cơ quan)": item.unitName,
+      "Đơn vị con (Cấp 3/Lớp)": item.subUnitName || "",
       "Điểm số (Cao nhất)": item.score,
       "Số câu đúng": `${item.correctCount}/${item.totalQuestions}`,
       "Độ chính xác (%)": `${item.accuracyPercent}%`,
@@ -57,6 +58,7 @@ export async function GET(
       { wch: 25 }, // Họ tên
       { wch: 18 }, // CCCD
       { wch: 25 }, // Đơn vị
+      { wch: 20 }, // Đơn vị con
       { wch: 18 }, // Điểm
       { wch: 14 }, // Số câu đúng
       { wch: 16 }, // Độ chính xác

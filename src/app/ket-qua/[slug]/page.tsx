@@ -375,6 +375,7 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
                   <th className="py-3 px-4">Hạng</th>
                   <th className="py-3 px-4">Họ và Tên</th>
                   <th className="py-3 px-4">Đơn vị</th>
+                  <th className="py-3 px-4">Đơn vị con</th>
                   <th className="py-3 px-4">Ngày dự thi</th>
                   <th className="py-3 px-4">Kết quả (Cao nhất)</th>
                   <th className="py-3 px-4">Độ chính xác</th>
@@ -412,6 +413,9 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
                       </div>
                     </td>
                     <td className="py-3.5 px-4 font-semibold text-slate-700">{row.unitName}</td>
+                    <td className="py-3.5 px-4 text-slate-600 font-medium">
+                      {row.subUnitName || ""}
+                    </td>
                     <td className="py-3.5 px-4 text-slate-500">
                       {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString("vi-VN") : "Hôm nay"}
                     </td>

@@ -60,6 +60,7 @@ import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
 import ChangePasswordModal from "@/components/ChangePasswordModal";
 import LoginModal from "@/components/LoginModal";
 import ShortlinkQrModal from "@/components/ShortlinkQrModal";
+import ShareContestModal from "@/components/ShareContestModal";
 
 export default function AdminDashboardPage() {
   // Navigation State
@@ -76,6 +77,9 @@ export default function AdminDashboardPage() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PUBLISHED" | "DRAFT">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [creatorFilter, setCreatorFilter] = useState<string>("ALL");
+
+  // Share Contest State (Ảnh 1)
+  const [selectedContestForShare, setSelectedContestForShare] = useState<any>(null);
 
   // Shortlink & QR Modal State
   const [selectedContestForShortlink, setSelectedContestForShortlink] = useState<any>(null);
@@ -243,9 +247,26 @@ export default function AdminDashboardPage() {
     loadUsers();
   }, []);
 
-  // Helper kiểm tra quyền sở hữu cuộc thi:
-  // Admin toàn quyền; Người dùng (USER) chỉ có quyền Sửa/Xóa các cuộc thi do chính mình tạo
+  // Helper kiểm tra quyền sở hữu và quản lý cuộc thi:
+  // Admin toàn quyền; Người dùng (USER) có quyền Quản lý/Chỉnh sửa các cuộc thi do chính mình tạo HOẶC được chia sẻ quyền
   const canUserManageContest = (c: any) => {
+    if (!authUser) return false;
+    if (authUser.role === "ADMIN") return true;
+    const userEmail = (authUser.email || "").toLowerCase().trim();
+    const creatorEmail = (c?.creatorEmail || c?.organizerEmail || "").toLowerCase().trim();
+    const creatorId = c?.creatorId || c?.userId;
+    if (creatorEmail && creatorEmail === userEmail) return true;
+    if (creatorId && creatorId === authUser.id) return true;
+    // Kiểm tra danh sách được chia sẻ quyền quản lý, chỉnh sửa
+    if (Array.isArray(c?.sharedEmails) && c.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === userEmail)) {
+      return true;
+    }
+    return false;
+  };
+
+  // Helper kiểm tra quyền chia sẻ cuộc thi:
+  // Chỉ Chủ sở hữu cuộc thi (người tạo) hoặc Admin toàn quyền mới có thể thêm/bớt người đồng quản lý hoặc xóa cuộc thi
+  const canUserShareContest = (c: any) => {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     const userEmail = (authUser.email || "").toLowerCase().trim();
@@ -505,8 +526,8 @@ export default function AdminDashboardPage() {
 
   const handleDeleteContest = async (slug: string, title: string) => {
     const target = contests.find((c) => c.slug === slug || c.id === slug);
-    if (target && !canUserManageContest(target)) {
-      alert("Bạn không có quyền xóa cuộc thi này vì do người khác tạo!");
+    if (target && !canUserShareContest(target)) {
+      alert("Bạn không có quyền xóa cuộc thi này! Chỉ Chủ cuộc thi hoặc Quản trị viên cấp cao mới có thể xóa.");
       return;
     }
     if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn cuộc thi "${title}" khỏi hệ thống?`)) {
@@ -1646,6 +1667,29 @@ export default function AdminDashboardPage() {
                                   <Mail className="w-3 h-3 mr-1 text-slate-400" />
                                   <span className="truncate max-w-[190px]">{creatorEmail}</span>
                                 </button>
+
+                                {/* Badge hiển thị số lượng đồng quản lý hoặc bấm để quản lý chia sẻ */}
+                                {Array.isArray(c.sharedEmails) && c.sharedEmails.length > 0 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => canUserShareContest(c) ? setSelectedContestForShare(c) : null}
+                                    title={`Cuộc thi đang được chia sẻ cho: ${c.sharedEmails.join(", ")}`}
+                                    className="inline-flex items-center text-[10px] font-semibold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 px-2 py-0.5 rounded-md border border-indigo-200 transition-colors cursor-pointer"
+                                  >
+                                    <Share2 className="w-3 h-3 mr-1 text-indigo-600" />
+                                    <span>+{c.sharedEmails.length} đồng quản lý</span>
+                                  </button>
+                                )}
+
+                                {/* Badge thông báo nếu user hiện tại là người được chia sẻ quyền */}
+                                {authUser && Array.isArray(c.sharedEmails) && c.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === (authUser.email || "").toLowerCase().trim()) && (
+                                  <span
+                                    className="inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200 select-none"
+                                    title="Bạn được chia sẻ quyền quản lý, chỉnh sửa cuộc thi này"
+                                  >
+                                    🤝 Được chia sẻ
+                                  </span>
+                                )}
                               </div>
 
                               {/* Tiêu đề cuộc thi: Rõ nét, 1 dòng gọn gàng */}
@@ -1685,6 +1729,23 @@ export default function AdminDashboardPage() {
                               </a>
                             )}
 
+                            {/* NÚT CHIA SẺ QUYỀN QUẢN LÝ / CHỈNH SỬA CUỘC THI CHO NGƯỜI KHÁC (ẢNH 1) */}
+                            {canUserShareContest(c) && (
+                              <button
+                                type="button"
+                                onClick={() => setSelectedContestForShare(c)}
+                                className="px-2.5 py-1.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold transition-colors inline-flex items-center shadow-2xs cursor-pointer"
+                                title="Thiết lập chia sẻ quyền quản lý, chỉnh sửa cuộc thi cho người khác"
+                              >
+                                <Share2 className="w-3.5 h-3.5 mr-1 text-indigo-600" /> Chia sẻ
+                                {Array.isArray(c.sharedEmails) && c.sharedEmails.length > 0 && (
+                                  <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-indigo-600 text-white font-mono">
+                                    {c.sharedEmails.length}
+                                  </span>
+                                )}
+                              </button>
+                            )}
+
                             {canUserManageContest(c) ? (
                               <>
                                 <Link
@@ -1695,14 +1756,16 @@ export default function AdminDashboardPage() {
                                   <Edit className="w-3.5 h-3.5 mr-1" /> Chỉnh sửa
                                 </Link>
 
-                                <button
-                                  type="button"
-                                  onClick={() => handleDeleteContest(c.slug, c.title)}
-                                  className="p-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-colors inline-flex items-center cursor-pointer"
-                                  title="Xóa cuộc thi này khỏi hệ thống"
-                                >
-                                  <Trash2 className="w-3.5 h-3.5" />
-                                </button>
+                                {canUserShareContest(c) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteContest(c.slug, c.title)}
+                                    className="p-1.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-colors inline-flex items-center cursor-pointer"
+                                    title="Xóa cuộc thi này khỏi hệ thống"
+                                  >
+                                    <Trash2 className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
                               </>
                             ) : (
                               <span
@@ -3757,6 +3820,26 @@ export default function AdminDashboardPage() {
             setContests((prev) =>
               prev.map((c) =>
                 c.slug === selectedContestForShortlink.slug ? { ...c, customSlug: newSlug } : c
+              )
+            );
+          }}
+        />
+      )}
+
+      {/* MODAL CHIA SẺ QUYỀN QUẢN LÝ & CHỈNH SỬA CUỘC THI CHO NGƯỜI KHÁC (ẢNH 1) */}
+      {selectedContestForShare && (
+        <ShareContestModal
+          isOpen={!!selectedContestForShare}
+          onClose={() => setSelectedContestForShare(null)}
+          contest={selectedContestForShare}
+          currentUser={authUser}
+          usersList={usersList}
+          onSuccess={(newSharedEmails) => {
+            setContests((prev) =>
+              prev.map((c) =>
+                c.slug === selectedContestForShare.slug || c.id === selectedContestForShare.id
+                  ? { ...c, sharedEmails: newSharedEmails }
+                  : c
               )
             );
           }}

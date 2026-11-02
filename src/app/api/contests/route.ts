@@ -38,6 +38,9 @@ export async function GET() {
       prize4Count: c.prize4Count,
       unitGroupId: c.unitGroupId,
       unitGroupName: c.unitGroupName,
+      customSlug: c.customSlug,
+      clickCount: c.clickCount || 0,
+      sharedEmails: c.sharedEmails || [],
       createdAt: c.createdAt,
     }));
 
