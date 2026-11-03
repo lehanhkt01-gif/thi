@@ -65,6 +65,7 @@ export async function GET(
         clickCount: contest.clickCount || 0,
         sharedEmails: contest.sharedEmails || [],
         status: contest.status,
+        createdAt: contest.createdAt,
         audioUrl: contest.audioUrl,
         resultVisibility: contest.resultVisibility || "SCORE_ONLY",
         attemptCalculation: contest.attemptCalculation || "ENTIRE_CONTEST",

@@ -961,6 +961,25 @@ export default function AdminDashboardPage() {
     setNewAnnContent("");
   };
 
+  // Định dạng thời điểm tạo cuộc thi (HH:mm - DD/MM/YYYY)
+  const formatContestCreatedAt = (c: any) => {
+    let rawDate = c?.createdAt;
+    if (!rawDate && typeof c?.id === "string") {
+      const match = c.id.match(/(?:contest|media)-(\d{10,14})/);
+      if (match) {
+        rawDate = Number(match[1]);
+      }
+    }
+    if (!rawDate) {
+      rawDate = c?.startTime || c?.startDate;
+    }
+    if (!rawDate) return "Chưa rõ";
+    const d = new Date(rawDate);
+    if (isNaN(d.getTime())) return String(rawDate);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${pad(d.getHours())}:${pad(d.getMinutes())} - ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+  };
+
   // Helper lấy thông tin chi tiết tài khoản tạo cuộc thi trắc nghiệm
   const getContestCreatorInfo = (c: any) => {
     const rawEmail = (c?.creatorEmail || "").trim();
@@ -1781,7 +1800,16 @@ export default function AdminDashboardPage() {
                         {/* HÀNG 2: THÔNG SỐ VÀ CỤM TIỆN ÍCH LINK RÚT GỌN / QR CODE TRÊN CÙNG 1 DÒNG */}
                         <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100 text-xs text-slate-500">
                           {/* Thông số cuộc thi */}
-                          <div className="flex items-center gap-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <span
+                              className="inline-flex items-center text-slate-600 bg-slate-100/80 px-2 py-0.5 rounded-md border border-slate-200/80"
+                              title="Thời điểm khởi tạo cuộc thi"
+                            >
+                              <Calendar className="w-3.5 h-3.5 mr-1 text-[#DC2626] shrink-0" />
+                              <span>
+                                Tạo lúc: <strong className="font-semibold text-slate-800">{formatContestCreatedAt(c)}</strong>
+                              </span>
+                            </span>
                             <span className="flex items-center">
                               <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
                               {c.durationMinutes || 15} phút/lượt
@@ -2065,9 +2093,14 @@ export default function AdminDashboardPage() {
                                       >
                                         {c.title}
                                       </Link>
-                                      <span className="text-[10px] text-slate-400 font-mono">
-                                        /binh-chon/{c.slug}
-                                      </span>
+                                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                        <span className="text-[10px] text-slate-400 font-mono">
+                                          /binh-chon/{c.slug}
+                                        </span>
+                                        <span className="text-[10px] text-slate-500 inline-flex items-center">
+                                          • Tạo lúc: <strong className="ml-0.5 text-slate-700">{formatContestCreatedAt(c)}</strong>
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
                                 </td>

@@ -200,6 +200,7 @@ export default function ContestWizardPage() {
   `.trim());
   const [startTime, setStartTime] = useState("2026-03-01T00:00");
   const [endTime, setEndTime] = useState("2026-12-31T23:59");
+  const [createdAt, setCreatedAt] = useState<string>(() => new Date().toISOString());
   const [durationMinutes, setDurationMinutes] = useState(15);
   const [questionCount, setQuestionCount] = useState(5);
   const [maxAttempts, setMaxAttempts] = useState(3);
@@ -1863,6 +1864,12 @@ export default function ContestWizardPage() {
               if (c.announcement) setAnnouncement(c.announcement);
               if (c.startTime) setStartTime(c.startTime.slice(0, 16));
               if (c.endTime) setEndTime(c.endTime.slice(0, 16));
+              if (c.createdAt) {
+                setCreatedAt(c.createdAt);
+              } else if (typeof c.id === "string") {
+                const match = c.id.match(/contest-(\d{10,14})/);
+                if (match) setCreatedAt(new Date(Number(match[1])).toISOString());
+              }
               if (c.durationMinutes !== undefined) setDurationMinutes(c.durationMinutes);
               if (c.questionCount) setQuestionCount(c.questionCount);
               if (c.maxAttempts !== undefined) setMaxAttempts(c.maxAttempts);
@@ -2925,6 +2932,27 @@ export default function ContestWizardPage() {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Thời điểm tạo cuộc thi */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center">
+                  <Calendar className="w-3.5 h-3.5 mr-1 text-[#DC2626]" />
+                  Thời điểm tạo cuộc thi
+                </label>
+                <div className="w-full px-3 py-2 text-xs rounded-lg border border-slate-200 bg-slate-50 font-semibold text-slate-700 flex items-center justify-between">
+                  <span>
+                    {(() => {
+                      const d = createdAt ? new Date(createdAt) : new Date();
+                      if (isNaN(d.getTime())) return createdAt;
+                      const pad = (n: number) => String(n).padStart(2, "0");
+                      return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())} - Ngày ${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
+                    })()}
+                  </span>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                    {isEditMode ? "Đã ghi nhận" : "Mới khởi tạo"}
+                  </span>
                 </div>
               </div>
 
