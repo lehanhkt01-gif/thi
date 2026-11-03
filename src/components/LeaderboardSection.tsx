@@ -184,29 +184,6 @@ export default function LeaderboardSection({
             <span>{totalAttempts} lượt thi</span>
           </p>
         )}
-
-        {/* Thông báo quyền hạn dành cho Quản trị viên & Người tạo cuộc thi */}
-        {hasFullAccess && (
-          <div className="max-w-3xl mx-auto mt-3 p-3 rounded-2xl bg-amber-50/90 border border-amber-300 text-amber-950 text-xs font-semibold flex flex-wrap items-center justify-between gap-3 shadow-2xs">
-            <div className="flex items-center space-x-2">
-              <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
-              <span>
-                🛡️ <strong>Chế độ Quản trị viên &amp; Ban Tổ Chức:</strong> Bạn có toàn quyền theo dõi bảng xếp hạng và số liệu chi tiết của cuộc thi {!isContestEnded ? "(Đang mở chế độ xem trước dành riêng cho BTC)" : ""}.
-              </span>
-            </div>
-            {contestSlug && (
-              <a
-                href={`/api/contests/${contestSlug}/export`}
-                download
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white rounded-xl text-xs font-bold shadow-xs transition-all shrink-0 cursor-pointer"
-                title="Tải toàn bộ kết quả thi dạng file Excel (.xlsx)"
-              >
-                <Download className="w-3.5 h-3.5" />
-                <span>Xuất Excel kết quả</span>
-              </a>
-            )}
-          </div>
-        )}
       </div>
 
       {/* TRƯỜNG HỢP ẨN BẢNG XẾP HẠNG TRONG THỜI GIAN THI CHO THÍ SINH CÔNG KHAI (CHỈ ADMIN VÀ NGƯỜI TẠO ĐƯỢC XEM) */}
