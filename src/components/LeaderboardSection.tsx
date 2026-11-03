@@ -171,19 +171,9 @@ export default function LeaderboardSection({
     <section id="bang-xep-hang" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
       {/* 1. TIÊU ĐỀ CHUẨN ẢNH 2: "Bảng xếp hạng" MÀU XANH CYAN SÁNG */}
       <div className="text-center mb-6">
-        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#00A9E0] tracking-tight mb-3">
+        <h2 className="text-3xl sm:text-4xl md:text-5xl font-black text-[#00A9E0] tracking-tight">
           Bảng xếp hạng
         </h2>
-        {periodLabel && (
-          <p className="text-xs sm:text-sm font-semibold text-slate-500 flex items-center justify-center space-x-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-[#00A9E0] animate-pulse"></span>
-            <span>{periodLabel}</span>
-            <span>•</span>
-            <span>{totalParticipants} người tham gia</span>
-            <span>•</span>
-            <span>{totalAttempts} lượt thi</span>
-          </p>
-        )}
       </div>
 
       {/* TRƯỜNG HỢP ẨN BẢNG XẾP HẠNG TRONG THỜI GIAN THI CHO THÍ SINH CÔNG KHAI (CHỈ ADMIN VÀ NGƯỜI TẠO ĐƯỢC XEM) */}
