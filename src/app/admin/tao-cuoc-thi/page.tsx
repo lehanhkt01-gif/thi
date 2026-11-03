@@ -250,6 +250,8 @@ export default function ContestWizardPage() {
 
   // Chế độ Tạo mới hay Chỉnh sửa cuộc thi (Yêu cầu 4)
   const [isEditMode, setIsEditMode] = useState(false);
+  const [editingContestId, setEditingContestId] = useState("");
+  const [originalSlug, setOriginalSlug] = useState("");
   const [isSavingStep1, setIsSavingStep1] = useState(false);
   const [isSavingCurrentStep, setIsSavingCurrentStep] = useState(false);
   const [originalCreator, setOriginalCreator] = useState<{
@@ -306,22 +308,27 @@ export default function ContestWizardPage() {
     setRequiredFields(labels);
     setShowRequiredFieldsModal(false);
 
-    // Đồng bộ 2 chiều ngay lập tức vào draft và Server
-    if (slug) {
+    // Đồng bộ 2 chiều ngay lập tức vào draft và Server (nếu đang sửa cuộc thi đã tồn tại)
+    const targetSlug = originalSlug || slug;
+    if (targetSlug && isEditMode) {
       try {
-        const localDraftStr = localStorage.getItem(`easup_contest_draft_${slug}`);
+        const localDraftStr = localStorage.getItem(`easup_contest_draft_${targetSlug}`);
         const draftObj = localDraftStr ? JSON.parse(localDraftStr) : {};
         draftObj.requiredFields = labels;
         draftObj.requiredFieldKeys = selectedRequiredFields;
-        localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draftObj));
+        localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draftObj));
 
-        await fetch(`/api/contests/${slug}`, {
+        await fetch(`/api/contests/${targetSlug}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
             "x-user-role": authUser?.role || "",
+            "x-user-email": authUser?.email || "",
+            "x-user-id": authUser?.id || "",
           },
           body: JSON.stringify({
+            id: editingContestId || undefined,
+            originalSlug: targetSlug,
             requiredFields: labels,
             requiredFieldKeys: selectedRequiredFields,
           }),
@@ -340,9 +347,12 @@ export default function ContestWizardPage() {
     }
     setIsSavingStep1(true);
     try {
+      const targetSlug = originalSlug || slug;
       const draft = {
+        id: editingContestId || undefined,
+        originalSlug: targetSlug,
         title,
-        slug,
+        slug: targetSlug,
         bannerUrl,
         shortDesc,
         startTime,
@@ -375,20 +385,20 @@ export default function ContestWizardPage() {
         unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
         updatedAt: new Date().toISOString(),
       };
-      localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draft));
-      localStorage.setItem("easup_last_edited_slug", slug);
+      localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draft));
+      localStorage.setItem("easup_last_edited_slug", targetSlug);
       localStorage.setItem("easup_contest_draft_last", JSON.stringify(draft));
 
-      // Cập nhật URL trình duyệt với param ?edit=${slug}&step=2 để khi reload hay đăng nhập lại không bị mất
+      // Cập nhật URL trình duyệt với param ?edit=${targetSlug}&step=2 để khi reload hay đăng nhập lại không bị mất
       if (typeof window !== "undefined") {
         const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set("edit", slug);
+        currentUrl.searchParams.set("edit", targetSlug);
         currentUrl.searchParams.set("step", "2");
         window.history.replaceState({}, "", currentUrl.toString());
       }
 
       // Đồng bộ trực tiếp lên Server store để toàn bộ hệ thống nhận dữ liệu ngay lập tức
-      const res = await fetch(`/api/contests/${slug}`, {
+      const res = await fetch(`/api/contests/${targetSlug}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -403,6 +413,12 @@ export default function ContestWizardPage() {
       if (!res.ok) {
         alert(resData.error || "Bạn không có quyền chỉnh sửa cuộc thi này!");
         return;
+      }
+
+      if (resData.contest?.id) setEditingContestId(resData.contest.id);
+      if (resData.contest?.slug) {
+        setSlug(resData.contest.slug);
+        setOriginalSlug(resData.contest.slug);
       }
 
       const msg = isEditMode
@@ -458,9 +474,12 @@ export default function ContestWizardPage() {
         return questionCount || 10;
       })();
 
+      const targetSlug = originalSlug || slug;
       const draftPayload = {
+        id: editingContestId || undefined,
+        originalSlug: targetSlug,
         title,
-        slug,
+        slug: targetSlug,
         bannerUrl,
         shortDesc,
         rulesHtml,
@@ -505,19 +524,19 @@ export default function ContestWizardPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draftPayload));
-      localStorage.setItem("easup_last_edited_slug", slug);
+      localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draftPayload));
+      localStorage.setItem("easup_last_edited_slug", targetSlug);
       localStorage.setItem("easup_contest_draft_last", JSON.stringify(draftPayload));
 
       // Giữ nguyên bước hiện tại trên URL
       if (typeof window !== "undefined") {
         const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set("edit", slug);
+        currentUrl.searchParams.set("edit", targetSlug);
         currentUrl.searchParams.set("step", String(currentStep));
         window.history.replaceState({}, "", currentUrl.toString());
       }
 
-      const res = await fetch(`/api/contests/${slug}`, {
+      const res = await fetch(`/api/contests/${targetSlug}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -532,6 +551,12 @@ export default function ContestWizardPage() {
       if (!res.ok) {
         alert(resData.error || "Không thể lưu thông tin cuộc thi!");
         return;
+      }
+
+      if (resData.contest?.id) setEditingContestId(resData.contest.id);
+      if (resData.contest?.slug) {
+        setSlug(resData.contest.slug);
+        setOriginalSlug(resData.contest.slug);
       }
 
       setIsEditMode(true);
@@ -561,8 +586,11 @@ export default function ContestWizardPage() {
 
     setQuestionCount(effectiveQuestionCount);
 
+    const targetSlug = originalSlug || slug;
     const draft = {
-      ...JSON.parse(localStorage.getItem(`easup_contest_draft_${slug}`) || "{}"),
+      ...JSON.parse(localStorage.getItem(`easup_contest_draft_${targetSlug}`) || "{}"),
+      id: editingContestId || undefined,
+      originalSlug: targetSlug,
       durationMinutes,
       questionCount: effectiveQuestionCount,
       maxAttempts,
@@ -572,11 +600,16 @@ export default function ContestWizardPage() {
       examMixPackages,
       updatedAt: new Date().toISOString(),
     };
-    localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify(draft));
-    if (slug) {
-      fetch(`/api/contests/${slug}`, {
+    localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draft));
+    if (targetSlug && isEditMode) {
+      fetch(`/api/contests/${targetSlug}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
         body: JSON.stringify(draft),
       }).catch(() => {});
     }
@@ -1130,9 +1163,10 @@ export default function ContestWizardPage() {
       setAuthUser(data.user);
       setAuthError("");
 
-      // Gắn thông tin người dùng vừa đăng nhập vào cuộc thi hiện tại để không bị quên
-      if (slug && data.user) {
-        fetch(`/api/contests/${slug}`, {
+      // Chỉ gắn thông tin người dùng vào cuộc thi nếu đang ở chế độ Chỉnh sửa cuộc thi có thật
+      const targetSlug = originalSlug || slug;
+      if (isEditMode && editingContestId && targetSlug && data.user) {
+        fetch(`/api/contests/${targetSlug}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -1141,6 +1175,8 @@ export default function ContestWizardPage() {
             "x-user-id": data.user.id || "",
           },
           body: JSON.stringify({
+            id: editingContestId,
+            originalSlug: targetSlug,
             creatorEmail: data.user.email,
             creatorId: data.user.id,
             creatorName: data.user.name,
@@ -1187,8 +1223,9 @@ export default function ContestWizardPage() {
       setAuthError("");
       setShowGoogleInputPrompt(false);
 
-      if (slug && data.user) {
-        fetch(`/api/contests/${slug}`, {
+      const targetSlug = originalSlug || slug;
+      if (isEditMode && editingContestId && targetSlug && data.user) {
+        fetch(`/api/contests/${targetSlug}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -1197,6 +1234,8 @@ export default function ContestWizardPage() {
             "x-user-id": data.user.id || "",
           },
           body: JSON.stringify({
+            id: editingContestId,
+            originalSlug: targetSlug,
             creatorEmail: data.user.email,
             creatorId: data.user.id,
             creatorName: data.user.name,
@@ -1267,18 +1306,20 @@ export default function ContestWizardPage() {
     setAuthUser(null);
   };
 
-  // Tự động sinh slug từ Title
+  // Tự động sinh slug từ Title (chỉ khi tạo mới cuộc thi; khi đang sửa cuộc thi thì giữ nguyên slug gốc để không bị nhân đôi)
   const handleTitleChange = (val: string) => {
     setTitle(val);
-    const autoSlug = val
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/[đĐ]/g, "d")
-      .replace(/[^a-z0-9\s-]/g, "")
-      .trim()
-      .replace(/\s+/g, "-");
-    setSlug(autoSlug);
+    if (!isEditMode && !editingContestId && !originalSlug) {
+      const autoSlug = val
+        .toLowerCase()
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .replace(/[đĐ]/g, "d")
+        .replace(/[^a-z0-9\s-]/g, "")
+        .trim()
+        .replace(/\s+/g, "-");
+      setSlug(autoSlug);
+    }
   };
 
   // Nạp kho câu hỏi và bộ đề đồng bộ từ server theo quyền người dùng
@@ -1646,8 +1687,9 @@ export default function ContestWizardPage() {
         groupType: "AGENCY",
       }));
 
+      const targetSlug = originalSlug || slug;
       const method = isEditMode ? "PUT" : "POST";
-      const endpoint = isEditMode ? `/api/contests/${slug}` : "/api/contests";
+      const endpoint = isEditMode ? `/api/contests/${targetSlug}` : "/api/contests";
 
       const res = await fetch(endpoint, {
         method,
@@ -1658,8 +1700,10 @@ export default function ContestWizardPage() {
           "x-user-id": authUser?.id || "",
         },
         body: JSON.stringify({
+          id: editingContestId || undefined,
+          originalSlug: targetSlug,
           title,
-          slug,
+          slug: targetSlug,
           bannerUrl,
           rulesHtml,
           organizerName,
@@ -1711,9 +1755,16 @@ export default function ContestWizardPage() {
 
       const data = await res.json();
       if (res.ok) {
-        localStorage.setItem("easup_last_edited_slug", slug);
-        localStorage.setItem(`easup_contest_draft_${slug}`, JSON.stringify({
-          title, slug, bannerUrl, shortDesc, rulesHtml,
+        const savedSlug = data.contest?.slug || targetSlug;
+        if (data.contest?.id) setEditingContestId(data.contest.id);
+        setSlug(savedSlug);
+        setOriginalSlug(savedSlug);
+        setIsEditMode(true);
+
+        localStorage.setItem("easup_last_edited_slug", savedSlug);
+        localStorage.setItem(`easup_contest_draft_${savedSlug}`, JSON.stringify({
+          id: data.contest?.id || editingContestId,
+          title, slug: savedSlug, bannerUrl, shortDesc, rulesHtml,
           prize1, prize2, prize3, prize4,
           prize1Count, prize2Count, prize3Count, prize4Count,
           unitGroupId: selectedGroupId,
@@ -1721,7 +1772,7 @@ export default function ContestWizardPage() {
         }));
         if (typeof window !== "undefined") {
           const currentUrl = new URL(window.location.href);
-          currentUrl.searchParams.set("edit", slug);
+          currentUrl.searchParams.set("edit", savedSlug);
           currentUrl.searchParams.set("step", "5");
           window.history.replaceState({}, "", currentUrl.toString());
         }
@@ -1760,11 +1811,14 @@ export default function ContestWizardPage() {
       const editSlug = params.get("edit") || params.get("slug");
       if (editSlug) {
         setIsEditMode(true);
-        fetch(`/api/contests/${editSlug}`)
+        setOriginalSlug(editSlug);
+        fetch(`/api/contests/${editSlug}?t=${Date.now()}`, { cache: "no-store" })
           .then((res) => res.json())
           .then((data) => {
             if (data.contest) {
               const c = data.contest;
+              if (c.id) setEditingContestId(c.id);
+              if (c.slug) setOriginalSlug(c.slug);
 
               // Kiểm tra quyền: Người dùng chỉ được sửa cuộc thi do chính mình tạo
               try {
@@ -1903,61 +1957,10 @@ export default function ContestWizardPage() {
           })
           .catch((err) => console.error("Lỗi nạp cuộc thi để chỉnh sửa:", err));
       } else {
-        // Tự động khôi phục bản nháp hoặc cuộc thi đã tạo gần nhất khi người dùng đăng nhập lại
-        try {
-          const lastSlug = localStorage.getItem("easup_last_edited_slug");
-          if (lastSlug) {
-            fetch(`/api/contests/${lastSlug}`)
-              .then((res) => res.json())
-              .then((data) => {
-                if (data.contest) {
-                  const c = data.contest;
-                  if (c.title) setTitle(c.title);
-                  if (c.slug) setSlug(c.slug);
-                  if (c.bannerUrl) setBannerUrl(c.bannerUrl);
-                  if (c.shortDesc) setShortDesc(c.shortDesc);
-                  if (c.rulesHtml) setRulesHtml(c.rulesHtml);
-                  if (c.prize1) setPrize1(c.prize1);
-                  if (c.prize2) setPrize2(c.prize2);
-                  if (c.prize3) setPrize3(c.prize3);
-                  if (c.prize4) setPrize4(c.prize4);
-                  if (c.prize1Count) setPrize1Count(c.prize1Count);
-                  if (c.prize2Count) setPrize2Count(c.prize2Count);
-                  if (c.prize3Count) setPrize3Count(c.prize3Count);
-                  if (c.prize4Count) setPrize4Count(c.prize4Count);
-                  if (c.unitGroupId) setSelectedGroupId(c.unitGroupId);
-                  if (c.unitGroupName) setUnitGroupName(c.unitGroupName);
-                  if (c.questions && c.questions.length > 0) setQuestionsList(c.questions);
-                  setIsEditMode(true);
-                }
-              })
-              .catch(() => {});
-          } else {
-            const lastDraftRaw = localStorage.getItem("easup_contest_draft_last");
-            if (lastDraftRaw) {
-              const d = JSON.parse(lastDraftRaw);
-              if (d.title) setTitle(d.title);
-              if (d.slug) setSlug(d.slug);
-              if (d.bannerUrl) setBannerUrl(d.bannerUrl);
-              if (d.shortDesc) setShortDesc(d.shortDesc);
-              if (d.rulesHtml) setRulesHtml(d.rulesHtml);
-              if (d.prize1) setPrize1(d.prize1);
-              if (d.prize2) setPrize2(d.prize2);
-              if (d.prize3) setPrize3(d.prize3);
-              if (d.prize4) setPrize4(d.prize4);
-              if (d.prize1Count) setPrize1Count(d.prize1Count);
-              if (d.prize2Count) setPrize2Count(d.prize2Count);
-              if (d.prize3Count) setPrize3Count(d.prize3Count);
-              if (d.prize4Count) setPrize4Count(d.prize4Count);
-              if (d.unitGroupId) setSelectedGroupId(d.unitGroupId);
-              if (d.unitGroupName) setUnitGroupName(d.unitGroupName);
-              if (d.requiredFields) setRequiredFields(d.requiredFields);
-              if (d.requiredFieldKeys) setSelectedRequiredFields(d.requiredFieldKeys);
-            }
-          }
-        } catch (e) {
-          console.error("Lỗi phục hồi bản nháp:", e);
-        }
+        // Khi mở đường dẫn /admin/tao-cuoc-thi không có tham số ?edit=..., đây là chế độ Tạo cuộc thi mới hoàn toàn
+        setIsEditMode(false);
+        setEditingContestId("");
+        setOriginalSlug("");
       }
     }
 

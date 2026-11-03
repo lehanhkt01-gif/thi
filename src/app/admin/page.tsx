@@ -229,14 +229,14 @@ export default function AdminDashboardPage() {
 
   // Fetch Contests & Question Bank
   useEffect(() => {
-    fetch("/api/contests")
+    fetch(`/api/contests?t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.contests) setContests(data.contests);
       })
       .catch((err) => console.error("Error loading contests:", err));
 
-    fetch("/api/questions/bank")
+    fetch(`/api/questions/bank?t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.questions) setQuestions(data.questions);
@@ -544,7 +544,16 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setContests((prev) => prev.filter((c) => c.slug !== slug && c.id !== slug));
+        setContests((prev) => prev.filter((c) => c.slug !== slug && c.id !== slug && (!target || (c.id !== target.id && c.slug !== target.slug))));
+        try {
+          localStorage.removeItem(`easup_contest_draft_${slug}`);
+          if (target?.slug) localStorage.removeItem(`easup_contest_draft_${target.slug}`);
+          const lastSlug = localStorage.getItem("easup_last_edited_slug");
+          if (lastSlug === slug || (target && (lastSlug === target.slug || lastSlug === target.id))) {
+            localStorage.removeItem("easup_last_edited_slug");
+            localStorage.removeItem("easup_contest_draft_last");
+          }
+        } catch {}
       } else {
         alert(data.error || "Không thể xóa cuộc thi");
       }
@@ -556,7 +565,7 @@ export default function AdminDashboardPage() {
   // Fetch Media Contests
   const loadMediaContests = async () => {
     try {
-      const res = await fetch("/api/media-contests");
+      const res = await fetch(`/api/media-contests?t=${Date.now()}`, { cache: "no-store" });
       const data = await res.json();
       if (data.contests) setMediaContests(data.contests);
     } catch (err) {

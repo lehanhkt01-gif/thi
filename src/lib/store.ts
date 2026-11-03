@@ -431,6 +431,25 @@ class DataStore {
   private users: UserModel[] = [];
   private questionPackages: QuestionPackageModel[] = [];
   private questionBank: QuestionModel[] = [];
+  private deletedContestIds: string[] = [];
+  private deletedMediaContestIds: string[] = [];
+  private deletedQuestionIds: string[] = [];
+  private deletedPackageIds: string[] = [];
+  private deletedUserIds: string[] = [];
+
+  private isContestDeleted(c?: { id?: string; slug?: string } | null): boolean {
+    if (!c) return false;
+    if (c.id && this.deletedContestIds.includes(c.id)) return true;
+    if (c.slug && this.deletedContestIds.includes(c.slug)) return true;
+    return false;
+  }
+
+  private isMediaContestDeleted(c?: { id?: string; slug?: string } | null): boolean {
+    if (!c) return false;
+    if (c.id && this.deletedMediaContestIds.includes(c.id)) return true;
+    if (c.slug && this.deletedMediaContestIds.includes(c.slug)) return true;
+    return false;
+  }
 
   constructor() {
     this.initSampleQuestions();
@@ -438,7 +457,7 @@ class DataStore {
     this.initSampleAttempts();
     this.initSampleMediaContests();
     this.initSampleUsers();
-    this.loadFromDisk();
+    this.loadFromDisk(true);
   }
 
   private initSampleQuestions() {
@@ -701,63 +720,109 @@ class DataStore {
         return null;
       };
 
-      // 1. Nạp từ file chính (ưu tiên liveFile -> dbFile -> backupFile)
-      const primaryData = readJson(liveFile) || readJson(dbFile) || readJson(backupFile);
+      // 1. Nạp từ file chính (ưu tiên liveFile -> liveBackupFile -> dbFile -> backupFile)
+      const primaryData = readJson(liveFile) || readJson(liveBackupFile) || readJson(dbFile) || readJson(backupFile);
+
+      // Thu thập danh sách các ID đã bị xóa vĩnh viễn từ mọi nguồn để không bao giờ khôi phục nhầm
+      const delContests = new Set<string>(this.deletedContestIds);
+      const delMedia = new Set<string>(this.deletedMediaContestIds);
+      const delQuestions = new Set<string>(this.deletedQuestionIds);
+      const delPackages = new Set<string>(this.deletedPackageIds);
+      const delUsers = new Set<string>(this.deletedUserIds);
+
+      for (const file of candidateFiles) {
+        const d = readJson(file);
+        if (!d) continue;
+        if (Array.isArray(d.deletedContestIds)) d.deletedContestIds.forEach((id: string) => id && delContests.add(id));
+        if (Array.isArray(d.deletedMediaContestIds)) d.deletedMediaContestIds.forEach((id: string) => id && delMedia.add(id));
+        if (Array.isArray(d.deletedQuestionIds)) d.deletedQuestionIds.forEach((id: string) => id && delQuestions.add(id));
+        if (Array.isArray(d.deletedPackageIds)) d.deletedPackageIds.forEach((id: string) => id && delPackages.add(id));
+        if (Array.isArray(d.deletedUserIds)) d.deletedUserIds.forEach((id: string) => id && delUsers.add(id));
+      }
+
+      this.deletedContestIds = Array.from(delContests);
+      this.deletedMediaContestIds = Array.from(delMedia);
+      this.deletedQuestionIds = Array.from(delQuestions);
+      this.deletedPackageIds = Array.from(delPackages);
+      this.deletedUserIds = Array.from(delUsers);
+
       if (primaryData) {
-        if (Array.isArray(primaryData.contests) && primaryData.contests.length > 0) {
-          this.contests = primaryData.contests.map((c: any) => {
-            if (!c.questions || c.questions.length === 0) {
-              return {
-                ...c,
-                questions: MASTER_QUESTION_BANK.slice(0, c.questionCount || 5),
-              };
-            }
-            return c;
-          });
+        if (Array.isArray(primaryData.contests)) {
+          this.contests = primaryData.contests
+            .filter((c: any) => !this.isContestDeleted(c))
+            .map((c: any) => {
+              if (!c.questions || c.questions.length === 0) {
+                return {
+                  ...c,
+                  questions: MASTER_QUESTION_BANK.slice(0, c.questionCount || 5),
+                };
+              }
+              return c;
+            });
         }
-        if (Array.isArray(primaryData.mediaContests) && primaryData.mediaContests.length > 0) {
-          this.mediaContests = primaryData.mediaContests;
+        if (Array.isArray(primaryData.mediaContests)) {
+          this.mediaContests = primaryData.mediaContests.filter((c: any) => !this.isMediaContestDeleted(c));
         }
         if (Array.isArray(primaryData.mediaSubmissions)) {
-          this.mediaSubmissions = primaryData.mediaSubmissions;
+          this.mediaSubmissions = primaryData.mediaSubmissions.filter(
+            (s: any) => !this.deletedMediaContestIds.includes(s.contestId) && !this.deletedMediaContestIds.includes(s.contestSlug)
+          );
         }
         if (Array.isArray(primaryData.users) && primaryData.users.length > 0) {
-          this.users = this.mergeUsersList(primaryData.users, this.users);
+          this.users = this.mergeUsersList(primaryData.users, this.users, this.deletedUserIds);
         }
-        if (Array.isArray(primaryData.questionPackages) && primaryData.questionPackages.length > 0) {
-          this.questionPackages = primaryData.questionPackages;
+        if (Array.isArray(primaryData.questionPackages)) {
+          this.questionPackages = primaryData.questionPackages.filter(
+            (p: any) => !this.deletedPackageIds.includes(p.id)
+          );
         }
-        if (Array.isArray(primaryData.questionBank) && primaryData.questionBank.length > 0) {
-          this.questionBank = primaryData.questionBank;
+        if (Array.isArray(primaryData.questionBank)) {
+          this.questionBank = primaryData.questionBank.filter(
+            (q: any) =>
+              !this.deletedQuestionIds.includes(q.id) &&
+              (!q.packageId || !this.deletedPackageIds.includes(q.packageId))
+          );
         }
         if (Array.isArray(primaryData.participants)) {
-          this.participants = primaryData.participants;
+          this.participants = primaryData.participants.filter(
+            (p: any) => !this.deletedContestIds.includes(p.contestId)
+          );
         }
         if (Array.isArray(primaryData.attempts)) {
-          this.attempts = primaryData.attempts;
+          this.attempts = primaryData.attempts.filter(
+            (a: any) => !this.deletedContestIds.includes(a.contestId)
+          );
         }
+      } else {
+        this.contests = this.contests.filter((c) => !this.isContestDeleted(c));
+        this.mediaContests = this.mediaContests.filter((c) => !this.isMediaContestDeleted(c));
       }
 
       // 2. NGUYÊN TẮC BẢO VỆ DỮ LIỆU THI CỬ VĨNH CỬU:
-      // Tự động hợp nhất (UNION) toàn bộ kết quả thi (attempts) và thí sinh (participants)
-      // từ tất cả các file nguồn (liveFile, liveBackupFile, dbFile, backupFile, dailyBackup).
-      // Dù git pull có ghi đè hay pull code mới, các lượt thi đã nộp KHÔNG BAO GIỜ BỊ MẤT.
+      // Tự động hợp nhất (UNION) kết quả thi (attempts) và thí sinh (participants) của các cuộc thi ĐANG TỒN TẠI
+      // Tuyệt đối KHÔNG phục hồi lại các cuộc thi (contests) đã bị xóa hoặc ghi đè nội dung cuộc thi đã chỉnh sửa ở primaryData.
       const attemptsMap = new Map<string, ExamAttemptModel>();
-      for (const a of this.attempts) attemptsMap.set(a.id, a);
+      for (const a of this.attempts) {
+        if (!this.deletedContestIds.includes(a.contestId)) {
+          attemptsMap.set(a.id, a);
+        }
+      }
 
       const participantsMap = new Map<string, ParticipantModel>();
-      for (const p of this.participants) participantsMap.set(p.id, p);
-
-      const contestsMap = new Map<string, ContestModel>();
-      for (const c of this.contests) contestsMap.set(c.id, c);
+      for (const p of this.participants) {
+        if (!this.deletedContestIds.includes(p.contestId)) {
+          participantsMap.set(p.id, p);
+        }
+      }
 
       for (const file of candidateFiles) {
         const data = readJson(file);
         if (!data) continue;
 
-        // Hợp nhất attempts
+        // Hợp nhất attempts (chỉ lấy của cuộc thi chưa bị xóa)
         if (Array.isArray(data.attempts)) {
           for (const a of data.attempts) {
+            if (!a || this.deletedContestIds.includes(a.contestId)) continue;
             const existing = attemptsMap.get(a.id);
             if (!existing) {
               attemptsMap.set(a.id, a);
@@ -771,33 +836,25 @@ class DataStore {
           }
         }
 
-        // Hợp nhất participants
+        // Hợp nhất participants (chỉ lấy của cuộc thi chưa bị xóa)
         if (Array.isArray(data.participants)) {
           for (const p of data.participants) {
+            if (!p || this.deletedContestIds.includes(p.contestId)) continue;
             if (!participantsMap.has(p.id)) {
               participantsMap.set(p.id, p);
             }
           }
         }
 
-        // Hợp nhất contests do người dùng tạo
-        if (Array.isArray(data.contests)) {
-          for (const c of data.contests) {
-            if (!contestsMap.has(c.id)) {
-              contestsMap.set(c.id, c);
-            }
-          }
-        }
-
-        // Hợp nhất users
+        // Hợp nhất users (loại trừ các user đã xóa)
         if (Array.isArray(data.users)) {
-          this.users = this.mergeUsersList(data.users, this.users);
+          this.users = this.mergeUsersList(data.users, this.users, this.deletedUserIds);
         }
       }
 
       this.attempts = Array.from(attemptsMap.values());
       this.participants = Array.from(participantsMap.values());
-      this.contests = Array.from(contestsMap.values());
+      this.contests = this.contests.filter((c) => !this.isContestDeleted(c));
 
       // Nếu liveFile chưa tồn tại trên VPS, ghi ngay để khởi tạo kho lưu trữ bất biến
       if (!fsModule.existsSync(liveFile)) {
@@ -887,6 +944,11 @@ class DataStore {
       const dbFile = pathModule.join(dataDir, "database.json");
       const backupFile = pathModule.join(dataDir, "database.backup.json");
 
+      if (deletedUserIds && deletedUserIds.length > 0) {
+        const setU = new Set([...this.deletedUserIds, ...deletedUserIds]);
+        this.deletedUserIds = Array.from(setU);
+      }
+
       // Đọc và hợp nhất với dữ liệu đang có trên đĩa trước khi ghi để chống mất mát
       const primaryRead = fsModule.existsSync(liveFile)
         ? liveFile
@@ -897,19 +959,42 @@ class DataStore {
           const raw = fsModule.readFileSync(primaryRead, "utf-8");
           if (raw && raw.trim()) {
             const diskData = JSON.parse(raw);
+            if (Array.isArray(diskData.deletedContestIds)) {
+              this.deletedContestIds = Array.from(new Set([...this.deletedContestIds, ...diskData.deletedContestIds]));
+            }
+            if (Array.isArray(diskData.deletedMediaContestIds)) {
+              this.deletedMediaContestIds = Array.from(new Set([...this.deletedMediaContestIds, ...diskData.deletedMediaContestIds]));
+            }
+            if (Array.isArray(diskData.deletedQuestionIds)) {
+              this.deletedQuestionIds = Array.from(new Set([...this.deletedQuestionIds, ...diskData.deletedQuestionIds]));
+            }
+            if (Array.isArray(diskData.deletedPackageIds)) {
+              this.deletedPackageIds = Array.from(new Set([...this.deletedPackageIds, ...diskData.deletedPackageIds]));
+            }
+            if (Array.isArray(diskData.deletedUserIds)) {
+              this.deletedUserIds = Array.from(new Set([...this.deletedUserIds, ...diskData.deletedUserIds]));
+            }
+
             if (Array.isArray(diskData.users)) {
-              this.users = this.mergeUsersList(diskData.users, this.users, deletedUserIds);
+              this.users = this.mergeUsersList(diskData.users, this.users, this.deletedUserIds);
             }
             if (Array.isArray(diskData.participants)) {
               const pMap = new Map<string, ParticipantModel>();
-              for (const p of diskData.participants) pMap.set(p.id, p);
-              for (const p of this.participants) pMap.set(p.id, p);
+              for (const p of diskData.participants) {
+                if (p && !this.deletedContestIds.includes(p.contestId)) pMap.set(p.id, p);
+              }
+              for (const p of this.participants) {
+                if (p && !this.deletedContestIds.includes(p.contestId)) pMap.set(p.id, p);
+              }
               this.participants = Array.from(pMap.values());
             }
             if (Array.isArray(diskData.attempts)) {
               const aMap = new Map<string, ExamAttemptModel>();
-              for (const a of diskData.attempts) aMap.set(a.id, a);
+              for (const a of diskData.attempts) {
+                if (a && !this.deletedContestIds.includes(a.contestId)) aMap.set(a.id, a);
+              }
               for (const a of this.attempts) {
+                if (!a || this.deletedContestIds.includes(a.contestId)) continue;
                 const diskA = aMap.get(a.id);
                 if (diskA && diskA.submittedAt && !a.submittedAt) {
                   aMap.set(a.id, { ...diskA, ...a, submittedAt: diskA.submittedAt });
@@ -923,6 +1008,14 @@ class DataStore {
         } catch (e) {}
       }
 
+      // Lọc sạch các mục đã nằm trong danh sách xóa vĩnh viễn
+      this.contests = this.contests.filter((c) => !this.isContestDeleted(c));
+      this.mediaContests = this.mediaContests.filter((c) => !this.isMediaContestDeleted(c));
+      this.questionPackages = this.questionPackages.filter((p) => !this.deletedPackageIds.includes(p.id));
+      this.questionBank = this.questionBank.filter(
+        (q) => !this.deletedQuestionIds.includes(q.id) && (!q.packageId || !this.deletedPackageIds.includes(q.packageId))
+      );
+
       const payload = {
         contests: this.contests,
         mediaContests: this.mediaContests,
@@ -932,6 +1025,11 @@ class DataStore {
         questionBank: this.questionBank,
         participants: this.participants,
         attempts: this.attempts,
+        deletedContestIds: this.deletedContestIds,
+        deletedMediaContestIds: this.deletedMediaContestIds,
+        deletedQuestionIds: this.deletedQuestionIds,
+        deletedPackageIds: this.deletedPackageIds,
+        deletedUserIds: this.deletedUserIds,
         lastSavedAt: new Date().toISOString(),
       };
 
@@ -1098,8 +1196,13 @@ class DataStore {
     this.loadFromDisk(true);
     const index = this.users.findIndex((u) => u.id === id);
     if (index === -1) return false;
+    const u = this.users[index];
+    if (!this.deletedUserIds.includes(u.id)) this.deletedUserIds.push(u.id);
+    if (u.email && !this.deletedUserIds.includes(u.email.toLowerCase())) {
+      this.deletedUserIds.push(u.email.toLowerCase());
+    }
     this.users.splice(index, 1);
-    this.saveToDisk(false, [id]);
+    this.saveToDisk(true, [id]);
     return true;
   }
 
@@ -1156,19 +1259,27 @@ class DataStore {
   }
 
   public getContests(): ContestModel[] {
-    return this.contests;
+    this.loadFromDisk();
+    return this.contests.filter((c) => !this.isContestDeleted(c));
   }
 
   public getContestBySlug(slug: string): ContestModel | undefined {
-    return this.contests.find((c) => c.slug === slug);
+    this.loadFromDisk();
+    return this.contests.find((c) => (c.slug === slug || c.id === slug) && !this.isContestDeleted(c));
   }
 
   public getContestById(id: string): ContestModel | undefined {
-    return this.contests.find((c) => c.id === id);
+    this.loadFromDisk();
+    return this.contests.find((c) => (c.id === id || c.slug === id) && !this.isContestDeleted(c));
   }
 
   public createContest(contestData: Omit<ContestModel, "id" | "createdAt">): ContestModel {
+    this.loadFromDisk(true);
     const id = `contest-${Date.now()}`;
+    // Nếu người dùng chủ động tạo mới lại cuộc thi có cùng slug đã xóa trước đó, gỡ khỏi danh sách đã xóa
+    this.deletedContestIds = this.deletedContestIds.filter(
+      (delId) => delId !== id && delId !== contestData.slug
+    );
     const newContest: ContestModel = {
       ...contestData,
       id,
@@ -1178,107 +1289,135 @@ class DataStore {
       createdAt: new Date().toISOString(),
     };
     this.contests.unshift(newContest);
-    this.saveToDisk();
+    this.saveToDisk(true);
     return newContest;
   }
 
   public updateContest(id: string, updateData: Partial<ContestModel>): ContestModel | null {
-    const index = this.contests.findIndex((c) => c.id === id);
+    this.loadFromDisk(true);
+    const index = this.contests.findIndex((c) => c.id === id || c.slug === id);
     if (index === -1) return null;
     this.contests[index] = { ...this.contests[index], ...updateData };
-    this.saveToDisk();
+    this.saveToDisk(true);
     return this.contests[index];
   }
 
-  public upsertContest(contestData: Partial<ContestModel> & { slug: string }): ContestModel {
-    const index = this.contests.findIndex((c) => c.slug === contestData.slug);
+  public upsertContest(
+    contestData: Partial<ContestModel> & { slug: string; originalSlug?: string }
+  ): ContestModel {
+    this.loadFromDisk(true);
+
+    // Tìm cuộc thi hiện có theo id, originalSlug hoặc slug để cập nhật đúng cuộc thi đang sửa (tránh nhân đôi khi đổi tên tiêu đề)
+    const index = this.contests.findIndex((c) => {
+      if (contestData.id && c.id === contestData.id) return true;
+      if (contestData.originalSlug && (c.slug === contestData.originalSlug || c.id === contestData.originalSlug)) return true;
+      return c.slug === contestData.slug || c.id === contestData.slug;
+    });
+
     if (index >= 0) {
       const existing = this.contests[index];
       const questions = (contestData.questions && contestData.questions.length > 0)
         ? contestData.questions
         : (existing.questions && existing.questions.length > 0 ? existing.questions : MASTER_QUESTION_BANK.slice(0, contestData.questionCount || 5));
 
+      const { originalSlug, ...cleanContestData } = contestData;
+
+      // Bảo toàn id và slug gốc khi chỉnh sửa (trừ khi slug được đổi chủ đích sang giá trị hợp lệ và không trùng)
+      const finalSlug = existing.slug || cleanContestData.slug;
+
       this.contests[index] = {
         ...existing,
-        ...contestData,
-        prize1: contestData.prize1 !== undefined ? contestData.prize1 : existing.prize1,
-        prize2: contestData.prize2 !== undefined ? contestData.prize2 : existing.prize2,
-        prize3: contestData.prize3 !== undefined ? contestData.prize3 : existing.prize3,
-        prize4: contestData.prize4 !== undefined ? contestData.prize4 : existing.prize4,
-        prize1Count: contestData.prize1Count !== undefined ? contestData.prize1Count : existing.prize1Count,
-        prize2Count: contestData.prize2Count !== undefined ? contestData.prize2Count : existing.prize2Count,
-        prize3Count: contestData.prize3Count !== undefined ? contestData.prize3Count : existing.prize3Count,
-        prize4Count: contestData.prize4Count !== undefined ? contestData.prize4Count : existing.prize4Count,
-        unitGroupId: contestData.unitGroupId !== undefined ? contestData.unitGroupId : existing.unitGroupId,
-        unitGroupName: contestData.unitGroupName !== undefined ? contestData.unitGroupName : existing.unitGroupName,
-        customSlug: contestData.customSlug !== undefined ? contestData.customSlug : existing.customSlug,
-        clickCount: contestData.clickCount !== undefined ? contestData.clickCount : (existing.clickCount || 0),
-        sharedEmails: contestData.sharedEmails !== undefined ? contestData.sharedEmails : (existing.sharedEmails || []),
+        ...cleanContestData,
+        id: existing.id,
+        slug: finalSlug,
+        prize1: cleanContestData.prize1 !== undefined ? cleanContestData.prize1 : existing.prize1,
+        prize2: cleanContestData.prize2 !== undefined ? cleanContestData.prize2 : existing.prize2,
+        prize3: cleanContestData.prize3 !== undefined ? cleanContestData.prize3 : existing.prize3,
+        prize4: cleanContestData.prize4 !== undefined ? cleanContestData.prize4 : existing.prize4,
+        prize1Count: cleanContestData.prize1Count !== undefined ? cleanContestData.prize1Count : existing.prize1Count,
+        prize2Count: cleanContestData.prize2Count !== undefined ? cleanContestData.prize2Count : existing.prize2Count,
+        prize3Count: cleanContestData.prize3Count !== undefined ? cleanContestData.prize3Count : existing.prize3Count,
+        prize4Count: cleanContestData.prize4Count !== undefined ? cleanContestData.prize4Count : existing.prize4Count,
+        unitGroupId: cleanContestData.unitGroupId !== undefined ? cleanContestData.unitGroupId : existing.unitGroupId,
+        unitGroupName: cleanContestData.unitGroupName !== undefined ? cleanContestData.unitGroupName : existing.unitGroupName,
+        customSlug: cleanContestData.customSlug !== undefined ? cleanContestData.customSlug : existing.customSlug,
+        clickCount: cleanContestData.clickCount !== undefined ? cleanContestData.clickCount : (existing.clickCount || 0),
+        sharedEmails: cleanContestData.sharedEmails !== undefined ? cleanContestData.sharedEmails : (existing.sharedEmails || []),
         questions,
         // Giữ nguyên người khởi tạo ban đầu, không bị ghi đè kể cả tài khoản admin chỉnh sửa
-        creatorEmail: existing.creatorEmail || contestData.creatorEmail,
-        creatorId: existing.creatorId || contestData.creatorId,
-        creatorName: existing.creatorName || contestData.creatorName,
+        creatorEmail: existing.creatorEmail || cleanContestData.creatorEmail,
+        creatorId: existing.creatorId || cleanContestData.creatorId,
+        creatorName: existing.creatorName || cleanContestData.creatorName,
       };
-      this.saveToDisk();
+      this.saveToDisk(true);
       return this.contests[index];
     } else {
-      const id = `contest-${Date.now()}`;
+      const { originalSlug, ...cleanContestData } = contestData;
+      const id = cleanContestData.id || `contest-${Date.now()}`;
+      // Gỡ khỏi danh sách đã xóa nếu người dùng tạo mới lại
+      this.deletedContestIds = this.deletedContestIds.filter(
+        (delId) => delId !== id && delId !== cleanContestData.slug
+      );
       const newContest: ContestModel = {
         id,
-        organizationId: contestData.organizationId || "org-ubnd",
-        organizationName: contestData.organizationName || "Ủy ban Nhân dân xã Ea Súp",
-        title: contestData.title || "Cuộc thi trực tuyến xã Ea Súp",
-        slug: contestData.slug,
-        bannerUrl: contestData.bannerUrl || "/banner-easup.png",
-        rulesHtml: contestData.rulesHtml || "<p>Thể lệ cuộc thi...</p>",
-        organizerName: contestData.organizerName || "Ủy ban Nhân dân xã Ea Súp",
-        organizerAddress: contestData.organizerAddress || "Trung tâm hành chính xã Ea Súp",
-        organizerEmail: contestData.organizerEmail || "ubnd.easup@daklak.gov.vn",
-        organizerPhone: contestData.organizerPhone || "0262.3688.114",
-        announcement: contestData.announcement || "",
-        creatorEmail: contestData.creatorEmail,
-        creatorId: contestData.creatorId,
-        creatorName: contestData.creatorName,
-        sharedEmails: contestData.sharedEmails || [],
-        startTime: contestData.startTime || new Date().toISOString(),
-        endTime: contestData.endTime || new Date(Date.now() + 30 * 86400000).toISOString(),
-        durationMinutes: contestData.durationMinutes || 15,
-        questionCount: contestData.questionCount || 10,
-        maxAttempts: contestData.maxAttempts || 3,
-        hasTieBreaker: contestData.hasTieBreaker !== false,
-        status: contestData.status || "PUBLISHED",
-        audioUrl: contestData.audioUrl || "",
-        themeColor: contestData.themeColor || "#DC2626",
-        shortDesc: contestData.shortDesc || "",
-        rulesFileUrl: contestData.rulesFileUrl || "",
-        planHtml: contestData.planHtml || "",
-        planFileUrl: contestData.planFileUrl || "",
-        requiredFields: contestData.requiredFields || "Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh",
-        customLeaderboard: contestData.customLeaderboard || "",
-        examPassword: contestData.examPassword || "",
-        requirePortrait: contestData.requirePortrait || "none",
-        fullScreenExam: contestData.fullScreenExam ?? true,
-        unitGroupId: contestData.unitGroupId,
-        unitGroupName: contestData.unitGroupName,
-        customSlug: contestData.customSlug || undefined,
-        clickCount: contestData.clickCount || 0,
-        prize1: contestData.prize1 || "5.000.000 đồng/giải",
-        prize2: contestData.prize2 || "3.000.000 đồng/giải",
-        prize3: contestData.prize3 || "1.000.000 đồng/giải",
-        prize4: contestData.prize4 || "750.000 đồng/giải",
-        prize1Count: contestData.prize1Count || "01",
-        prize2Count: contestData.prize2Count || "02",
-        prize3Count: contestData.prize3Count || "03",
-        prize4Count: contestData.prize4Count || "05",
+        organizationId: cleanContestData.organizationId || "org-ubnd",
+        organizationName: cleanContestData.organizationName || "Ủy ban Nhân dân xã Ea Súp",
+        title: cleanContestData.title || "Cuộc thi trực tuyến xã Ea Súp",
+        slug: cleanContestData.slug,
+        bannerUrl: cleanContestData.bannerUrl || "/banner-easup.png",
+        rulesHtml: cleanContestData.rulesHtml || "<p>Thể lệ cuộc thi...</p>",
+        organizerName: cleanContestData.organizerName || "Ủy ban Nhân dân xã Ea Súp",
+        organizerAddress: cleanContestData.organizerAddress || "Trung tâm hành chính xã Ea Súp",
+        organizerEmail: cleanContestData.organizerEmail || "ubnd.easup@daklak.gov.vn",
+        organizerPhone: cleanContestData.organizerPhone || "0262.3688.114",
+        announcement: cleanContestData.announcement || "",
+        creatorEmail: cleanContestData.creatorEmail,
+        creatorId: cleanContestData.creatorId,
+        creatorName: cleanContestData.creatorName,
+        sharedEmails: cleanContestData.sharedEmails || [],
+        startTime: cleanContestData.startTime || new Date().toISOString(),
+        endTime: cleanContestData.endTime || new Date(Date.now() + 30 * 86400000).toISOString(),
+        durationMinutes: cleanContestData.durationMinutes || 15,
+        questionCount: cleanContestData.questionCount || 10,
+        maxAttempts: cleanContestData.maxAttempts || 3,
+        hasTieBreaker: cleanContestData.hasTieBreaker !== false,
+        status: cleanContestData.status || "PUBLISHED",
+        audioUrl: cleanContestData.audioUrl || "",
+        themeColor: cleanContestData.themeColor || "#DC2626",
+        shortDesc: cleanContestData.shortDesc || "",
+        rulesFileUrl: cleanContestData.rulesFileUrl || "",
+        planHtml: cleanContestData.planHtml || "",
+        planFileUrl: cleanContestData.planFileUrl || "",
+        requiredFields: cleanContestData.requiredFields || "Họ tên thí sinh, Số điện thoại, CCCD/Mã định danh",
+        requiredFieldKeys: cleanContestData.requiredFieldKeys,
+        customLeaderboard: cleanContestData.customLeaderboard || "",
+        examPassword: cleanContestData.examPassword || "",
+        requirePortrait: cleanContestData.requirePortrait || "none",
+        fullScreenExam: cleanContestData.fullScreenExam ?? true,
+        resultVisibility: cleanContestData.resultVisibility || "SCORE_ONLY",
+        attemptCalculation: cleanContestData.attemptCalculation || "ENTIRE_CONTEST",
+        shuffleMode: cleanContestData.shuffleMode || "NONE",
+        examMixPackages: cleanContestData.examMixPackages || [],
+        unitGroupId: cleanContestData.unitGroupId,
+        unitGroupName: cleanContestData.unitGroupName,
+        customSlug: cleanContestData.customSlug || undefined,
+        clickCount: cleanContestData.clickCount || 0,
+        prize1: cleanContestData.prize1 || "5.000.000 đồng/giải",
+        prize2: cleanContestData.prize2 || "3.000.000 đồng/giải",
+        prize3: cleanContestData.prize3 || "1.000.000 đồng/giải",
+        prize4: cleanContestData.prize4 || "750.000 đồng/giải",
+        prize1Count: cleanContestData.prize1Count || "01",
+        prize2Count: cleanContestData.prize2Count || "02",
+        prize3Count: cleanContestData.prize3Count || "03",
+        prize4Count: cleanContestData.prize4Count || "05",
         createdAt: new Date().toISOString(),
-        units: contestData.units || EA_SUP_VILLAGES.map((v, i) => ({ id: `u-${i + 1}`, contestId: id, name: v, groupType: "VILLAGE" })),
-        questions: (contestData.questions && contestData.questions.length > 0)
-          ? contestData.questions
-          : MASTER_QUESTION_BANK.slice(0, contestData.questionCount || 5),
+        units: cleanContestData.units || EA_SUP_VILLAGES.map((v, i) => ({ id: `u-${i + 1}`, contestId: id, name: v, groupType: "VILLAGE" })),
+        questions: (cleanContestData.questions && cleanContestData.questions.length > 0)
+          ? cleanContestData.questions
+          : MASTER_QUESTION_BANK.slice(0, cleanContestData.questionCount || 5),
       };
       this.contests.unshift(newContest);
-      this.saveToDisk();
+      this.saveToDisk(true);
       return newContest;
     }
   }
@@ -1289,7 +1428,7 @@ class DataStore {
     sharedEmails: string[],
     user?: { email?: string; role?: string; id?: string }
   ): { success: boolean; error?: string; contest?: ContestModel } {
-    this.loadFromDisk();
+    this.loadFromDisk(true);
     const contest = this.contests.find((c) => c.slug === slugOrId || c.id === slugOrId);
     if (!contest) {
       return { success: false, error: "Không tìm thấy cuộc thi!" };
@@ -1315,27 +1454,32 @@ class DataStore {
     );
 
     contest.sharedEmails = cleanList;
-    this.saveToDisk();
+    this.saveToDisk(true);
     return { success: true, contest };
   }
 
   public getContestByCustomSlug(customSlug: string): ContestModel | undefined {
+    this.loadFromDisk();
     if (!customSlug) return undefined;
     const clean = customSlug.trim().toLowerCase();
-    return this.contests.find((c) => c.customSlug?.toLowerCase() === clean);
+    return this.contests.find((c) => c.customSlug?.toLowerCase() === clean && !this.isContestDeleted(c));
   }
 
   public getContestByAnySlug(identifier: string): ContestModel | undefined {
+    this.loadFromDisk();
     if (!identifier) return undefined;
     const clean = identifier.trim().toLowerCase();
     return this.contests.find((c) =>
-      c.customSlug?.toLowerCase() === clean ||
-      c.slug.toLowerCase() === clean ||
-      c.id.toLowerCase() === clean
+      !this.isContestDeleted(c) && (
+        c.customSlug?.toLowerCase() === clean ||
+        c.slug.toLowerCase() === clean ||
+        c.id.toLowerCase() === clean
+      )
     );
   }
 
   public checkCustomSlugAvailable(customSlug: string, currentContestIdOrSlug?: string): { available: boolean; reason?: string } {
+    this.loadFromDisk();
     if (!customSlug) {
       return { available: false, reason: "Đường dẫn rút gọn không được để trống" };
     }
@@ -1363,6 +1507,7 @@ class DataStore {
 
     // Check collision with other contests
     const conflict = this.contests.find((c) => {
+      if (this.isContestDeleted(c)) return false;
       if (currentContestIdOrSlug && (c.id === currentContestIdOrSlug || c.slug === currentContestIdOrSlug)) {
         return false;
       }
@@ -1380,6 +1525,7 @@ class DataStore {
   }
 
   public updateContestCustomSlug(contestIdOrSlug: string, customSlug: string): { success: boolean; contest?: ContestModel; error?: string } {
+    this.loadFromDisk(true);
     const check = this.checkCustomSlugAvailable(customSlug, contestIdOrSlug);
     if (!check.available) {
       return { success: false, error: check.reason };
@@ -1391,11 +1537,12 @@ class DataStore {
     }
 
     contest.customSlug = customSlug.trim().toLowerCase();
-    this.saveToDisk();
+    this.saveToDisk(true);
     return { success: true, contest };
   }
 
   public incrementContestClickCount(contestIdOrSlug: string): number {
+    this.loadFromDisk(true);
     const contest = this.contests.find((c) =>
       c.id === contestIdOrSlug ||
       c.slug === contestIdOrSlug ||
@@ -1408,6 +1555,7 @@ class DataStore {
   }
 
   public deleteContest(slugOrId: string, user?: { email?: string; role?: string; id?: string }): { success: boolean; error?: string } {
+    this.loadFromDisk(true);
     const index = this.contests.findIndex((c) => c.slug === slugOrId || c.id === slugOrId);
     if (index === -1) {
       return { success: false, error: "Không tìm thấy cuộc thi cần xóa!" };
@@ -1422,10 +1570,24 @@ class DataStore {
         return { success: false, error: "Bạn không có quyền xóa cuộc thi do người khác tạo!" };
       }
     }
-    this.contests.splice(index, 1);
-    this.attempts = this.attempts.filter((a) => a.contestId !== contest.id && a.contestId !== contest.slug);
-    this.participants = this.participants.filter((p) => p.contestId !== contest.id && p.contestId !== contest.slug);
-    this.saveToDisk();
+
+    // Lưu dấu vết xóa vĩnh viễn để không bao giờ bị khôi phục từ file backup hoặc bộ nhớ cũ
+    if (contest.id && !this.deletedContestIds.includes(contest.id)) {
+      this.deletedContestIds.push(contest.id);
+    }
+    if (contest.slug && !this.deletedContestIds.includes(contest.slug)) {
+      this.deletedContestIds.push(contest.slug);
+    }
+    if (slugOrId && !this.deletedContestIds.includes(slugOrId)) {
+      this.deletedContestIds.push(slugOrId);
+    }
+
+    const delId = contest.id;
+    const delSlug = contest.slug;
+    this.contests = this.contests.filter((c) => c.id !== delId && c.slug !== delSlug && c.id !== slugOrId && c.slug !== slugOrId);
+    this.attempts = this.attempts.filter((a) => a.contestId !== delId && a.contestId !== delSlug);
+    this.participants = this.participants.filter((p) => p.contestId !== delId && p.contestId !== delSlug);
+    this.saveToDisk(true);
     return { success: true };
   }
 
@@ -1525,14 +1687,18 @@ class DataStore {
   }
 
   public getMediaContests(): MediaContestModel[] {
-    return this.mediaContests.map((c) => ({
-      ...c,
-      submissionsCount: this.mediaSubmissions.filter((s) => s.contestId === c.id || s.contestSlug === c.slug).length,
-    }));
+    this.loadFromDisk();
+    return this.mediaContests
+      .filter((c) => !this.isMediaContestDeleted(c))
+      .map((c) => ({
+        ...c,
+        submissionsCount: this.mediaSubmissions.filter((s) => s.contestId === c.id || s.contestSlug === c.slug).length,
+      }));
   }
 
   public getMediaContestBySlug(slug: string): MediaContestModel | undefined {
-    const contest = this.mediaContests.find((c) => c.slug === slug);
+    this.loadFromDisk();
+    const contest = this.mediaContests.find((c) => (c.slug === slug || c.id === slug) && !this.isMediaContestDeleted(c));
     if (!contest) return undefined;
     return {
       ...contest,
@@ -1541,6 +1707,7 @@ class DataStore {
   }
 
   public createMediaContest(data: Partial<MediaContestModel>): MediaContestModel {
+    this.loadFromDisk(true);
     const id = `media-${Date.now()}`;
     const slug = data.slug || (data.title || "cuoc-thi")
       .toLowerCase()
@@ -1550,6 +1717,10 @@ class DataStore {
       .replace(/[^a-z0-9]/g, "-")
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "") || `media-${Date.now()}`;
+
+    this.deletedMediaContestIds = this.deletedMediaContestIds.filter(
+      (delId) => delId !== id && delId !== slug
+    );
 
     const newContest: MediaContestModel = {
       id,
@@ -1571,11 +1742,12 @@ class DataStore {
       createdAt: new Date().toISOString(),
     };
     this.mediaContests.unshift(newContest);
-    this.saveToDisk();
+    this.saveToDisk(true);
     return newContest;
   }
 
   public deleteMediaContest(id: string, user?: { email?: string; role?: string; id?: string }): { success: boolean; error?: string } {
+    this.loadFromDisk(true);
     const idx = this.mediaContests.findIndex((c) => c.id === id || c.slug === id);
     if (idx === -1) return { success: false, error: "Không tìm thấy cuộc thi bình chọn!" };
     const contest = this.mediaContests[idx];
@@ -1587,13 +1759,23 @@ class DataStore {
         return { success: false, error: "Bạn không có quyền xóa cuộc thi do người khác tạo!" };
       }
     }
-    this.mediaContests.splice(idx, 1);
-    this.saveToDisk();
+    if (contest.id && !this.deletedMediaContestIds.includes(contest.id)) {
+      this.deletedMediaContestIds.push(contest.id);
+    }
+    if (contest.slug && !this.deletedMediaContestIds.includes(contest.slug)) {
+      this.deletedMediaContestIds.push(contest.slug);
+    }
+    const delId = contest.id;
+    const delSlug = contest.slug;
+    this.mediaContests = this.mediaContests.filter((c) => c.id !== delId && c.slug !== delSlug && c.id !== id && c.slug !== id);
+    this.mediaSubmissions = this.mediaSubmissions.filter((s) => s.contestId !== delId && s.contestSlug !== delSlug);
+    this.saveToDisk(true);
     return { success: true };
   }
 
   public updateMediaContest(id: string, updateData: Partial<MediaContestModel>): MediaContestModel | null {
-    const idx = this.mediaContests.findIndex((c) => c.id === id);
+    this.loadFromDisk(true);
+    const idx = this.mediaContests.findIndex((c) => c.id === id || c.slug === id);
     if (idx === -1) return null;
     const existing = this.mediaContests[idx];
     const { creatorEmail, creatorId, creatorName, ...rest } = updateData;
@@ -1605,17 +1787,19 @@ class DataStore {
       creatorId: existing.creatorId || creatorId,
       creatorName: existing.creatorName || creatorName,
     };
-    this.saveToDisk();
+    this.saveToDisk(true);
     return this.mediaContests[idx];
   }
 
   public getMediaSubmissions(contestIdOrSlug: string): MediaSubmissionModel[] {
+    this.loadFromDisk();
     return this.mediaSubmissions.filter(
       (s) => s.contestId === contestIdOrSlug || s.contestSlug === contestIdOrSlug
     );
   }
 
   public addMediaSubmission(data: Omit<MediaSubmissionModel, "id" | "createdAt" | "votesCount">): MediaSubmissionModel {
+    this.loadFromDisk(true);
     const newSub: MediaSubmissionModel = {
       ...data,
       id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
@@ -1629,6 +1813,7 @@ class DataStore {
   }
 
   public voteMediaSubmission(submissionId: string): { success: boolean; votesCount: number } {
+    this.loadFromDisk(true);
     const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
     if (!sub) return { success: false, votesCount: 0 };
     sub.votesCount += 1;
@@ -1638,6 +1823,7 @@ class DataStore {
 
   // ZERO ANSWER LEAKAGE: When sanitizeForStudent = true, remove correctOptionIds and explanation
   public getContestQuestions(contestId: string, sanitizeForStudent = false): Partial<QuestionModel>[] {
+    this.loadFromDisk();
     const contest = this.contests.find((c) => c.id === contestId || c.slug === contestId);
     if (!contest) return [];
 
@@ -1662,6 +1848,7 @@ class DataStore {
 
   // --- Quản lý Kho đề thi & Ngân hàng câu hỏi (Nhập đồng loạt & Phân quyền riêng tư) ---
   public getQuestionPackages(user?: { email?: string; role?: string; id?: string }): QuestionPackageModel[] {
+    this.loadFromDisk();
     const list = this.questionPackages.map((p) => {
       const count = this.questionBank.filter((q) => q.packageId === p.id).length;
       return { ...p, questionCount: count };
@@ -1688,6 +1875,7 @@ class DataStore {
     search?: string;
     user?: { email?: string; role?: string; id?: string };
   }): QuestionModel[] {
+    this.loadFromDisk();
     let list = [...this.questionBank];
 
     // Lọc quyền riêng tư: người tạo có toàn quyền, không cho người khác xem được
@@ -1727,6 +1915,7 @@ class DataStore {
     packageInfo: { id?: string; name: string; description?: string },
     user?: { email?: string; role?: string; id?: string; name?: string }
   ): { success: boolean; count: number; packageId: string; packageName: string } {
+    this.loadFromDisk(true);
     let pkgId = packageInfo.id;
     let pkg = pkgId ? this.questionPackages.find((p) => p.id === pkgId) : undefined;
 
@@ -1771,7 +1960,7 @@ class DataStore {
 
     this.questionBank.unshift(...newQuestions);
     pkg.questionCount = this.questionBank.filter((q) => q.packageId === pkg!.id).length;
-    this.saveToDisk();
+    this.saveToDisk(true);
 
     return {
       success: true,
@@ -1782,6 +1971,7 @@ class DataStore {
   }
 
   public deleteQuestion(id: string, user?: { email?: string; role?: string; id?: string }): { success: boolean; error?: string } {
+    this.loadFromDisk(true);
     const idx = this.questionBank.findIndex((q) => q.id === id);
     if (idx === -1) return { success: false, error: "Không tìm thấy câu hỏi!" };
     const q = this.questionBank[idx];
@@ -1799,12 +1989,16 @@ class DataStore {
       }
     }
 
+    if (!this.deletedQuestionIds.includes(id)) {
+      this.deletedQuestionIds.push(id);
+    }
     this.questionBank.splice(idx, 1);
-    this.saveToDisk();
+    this.saveToDisk(true);
     return { success: true };
   }
 
   public deleteQuestionPackage(packageId: string, user?: { email?: string; role?: string; id?: string }): { success: boolean; error?: string } {
+    this.loadFromDisk(true);
     if (packageId === "pkg-system-common") {
       return { success: false, error: "Không thể xóa Bộ đề Chung mặc định của xã Ea Súp!" };
     }
@@ -1822,9 +2016,17 @@ class DataStore {
       }
     }
 
+    if (!this.deletedPackageIds.includes(packageId)) {
+      this.deletedPackageIds.push(packageId);
+    }
+    for (const q of this.questionBank) {
+      if (q.packageId === packageId && !this.deletedQuestionIds.includes(q.id)) {
+        this.deletedQuestionIds.push(q.id);
+      }
+    }
     this.questionPackages.splice(idx, 1);
     this.questionBank = this.questionBank.filter((q) => q.packageId !== packageId);
-    this.saveToDisk();
+    this.saveToDisk(true);
     return { success: true };
   }
 
@@ -1833,6 +2035,7 @@ class DataStore {
     packageData: { name: string; description?: string; isSystem?: boolean },
     user?: { email?: string; role?: string; id?: string; name?: string }
   ): { success: boolean; package?: QuestionPackageModel; error?: string } {
+    this.loadFromDisk(true);
     if (!packageData.name || !packageData.name.trim()) {
       return { success: false, error: "Vui lòng nhập tên bộ đề!" };
     }
@@ -1855,7 +2058,7 @@ class DataStore {
     };
 
     this.questionPackages.unshift(newPkg);
-    this.saveToDisk();
+    this.saveToDisk(true);
     return { success: true, package: newPkg };
   }
 
@@ -1864,6 +2067,7 @@ class DataStore {
     sourcePackageId: string,
     user?: { email?: string; role?: string; id?: string; name?: string }
   ): { success: boolean; newPackage?: QuestionPackageModel; count?: number; error?: string } {
+    this.loadFromDisk(true);
     if (user?.role !== "ADMIN") {
       return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền nhân bản thành bộ đề chung!" };
     }

@@ -65,11 +65,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Nếu cuộc thi đã tồn tại (do đã lưu nháp ở Bước 1 hoặc đang chỉnh sửa), cập nhật và xuất bản
-    const existing = store.getContestBySlug(body.slug);
+    const existing =
+      store.getContestBySlug(body.slug) ||
+      (body.originalSlug ? store.getContestBySlug(body.originalSlug) : undefined) ||
+      (body.id ? store.getContestById(body.id) : undefined);
     if (existing) {
       const updated = store.upsertContest({
         ...body,
-        slug: body.slug,
+        id: existing.id,
+        slug: existing.slug,
+        originalSlug: body.originalSlug || existing.slug,
         status: body.status || "PUBLISHED",
       });
       return NextResponse.json({ success: true, contest: updated }, { status: 200 });

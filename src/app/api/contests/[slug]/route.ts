@@ -2,13 +2,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import { store } from "@/lib/store";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
     const { slug } = await params;
-    const contest = store.getContestBySlug(slug);
+    const contest = store.getContestBySlug(slug) || store.getContestById(slug);
 
     if (!contest) {
       return NextResponse.json({ error: "Cuộc thi không tồn tại!" }, { status: 404 });
@@ -87,7 +90,11 @@ export async function PUT(
     const { slug } = await params;
     const body = await req.json();
 
-    const existing = store.getContestBySlug(slug);
+    const existing =
+      store.getContestBySlug(slug) ||
+      (body.originalSlug ? store.getContestBySlug(body.originalSlug) : undefined) ||
+      (body.id ? store.getContestById(body.id) : undefined);
+
     const userRole = req.headers.get("x-user-role") || body.userRole;
     const userEmail = req.headers.get("x-user-email") || body.userEmail;
     const userId = req.headers.get("x-user-id") || body.userId;
@@ -108,10 +115,12 @@ export async function PUT(
       }
     }
 
-    // Bảo lưu thông tin người tạo ban đầu của cuộc thi, không bị ghi đè khi admin hoặc ai khác cập nhật
+    // Bảo lưu thông tin người tạo ban đầu & ID/slug gốc của cuộc thi, không bị nhân đôi khi đổi tên tiêu đề
     const updated = store.upsertContest({
       ...body,
-      slug,
+      id: existing?.id || body.id,
+      slug: existing?.slug || body.slug || slug,
+      originalSlug: body.originalSlug || slug,
       creatorEmail: existing?.creatorEmail || body.creatorEmail,
       creatorId: existing?.creatorId || body.creatorId,
       creatorName: existing?.creatorName || body.creatorName,
