@@ -1258,19 +1258,40 @@ class DataStore {
     return this.organizations;
   }
 
+  private syncAndEnrichContestFiles(target: ContestModel): ContestModel {
+    const normTitle = (target.title || "").trim().toLowerCase();
+    const normCustomSlug = (target.customSlug || "").trim().toLowerCase();
+
+    for (const c of this.contests) {
+      if (c.id === target.id) continue;
+      const sameCustomSlug = normCustomSlug && (c.customSlug || "").trim().toLowerCase() === normCustomSlug;
+      const sameTitle = normTitle && (c.title || "").trim().toLowerCase() === normTitle;
+      if (sameCustomSlug || sameTitle) {
+        if (!target.planFileUrl && c.planFileUrl) target.planFileUrl = c.planFileUrl;
+        if (!target.rulesFileUrl && c.rulesFileUrl) target.rulesFileUrl = c.rulesFileUrl;
+        if (!target.planHtml && c.planHtml) target.planHtml = c.planHtml;
+      }
+    }
+    return target;
+  }
+
   public getContests(): ContestModel[] {
     this.loadFromDisk();
-    return this.contests.filter((c) => !this.isContestDeleted(c));
+    return this.contests
+      .filter((c) => !this.isContestDeleted(c))
+      .map((c) => this.syncAndEnrichContestFiles(c));
   }
 
   public getContestBySlug(slug: string): ContestModel | undefined {
     this.loadFromDisk();
-    return this.contests.find((c) => (c.slug === slug || c.id === slug) && !this.isContestDeleted(c));
+    const found = this.contests.find((c) => (c.slug === slug || c.id === slug) && !this.isContestDeleted(c));
+    return found ? this.syncAndEnrichContestFiles(found) : undefined;
   }
 
   public getContestById(id: string): ContestModel | undefined {
     this.loadFromDisk();
-    return this.contests.find((c) => (c.id === id || c.slug === id) && !this.isContestDeleted(c));
+    const found = this.contests.find((c) => (c.id === id || c.slug === id) && !this.isContestDeleted(c));
+    return found ? this.syncAndEnrichContestFiles(found) : undefined;
   }
 
   public createContest(contestData: Omit<ContestModel, "id" | "createdAt">): ContestModel {
@@ -1330,6 +1351,10 @@ class DataStore {
         ...cleanContestData,
         id: existing.id,
         slug: finalSlug,
+        rulesFileUrl: cleanContestData.rulesFileUrl !== undefined ? cleanContestData.rulesFileUrl : existing.rulesFileUrl,
+        planFileUrl: cleanContestData.planFileUrl !== undefined ? cleanContestData.planFileUrl : existing.planFileUrl,
+        planHtml: cleanContestData.planHtml !== undefined ? cleanContestData.planHtml : existing.planHtml,
+        rulesHtml: cleanContestData.rulesHtml !== undefined ? cleanContestData.rulesHtml : existing.rulesHtml,
         prize1: cleanContestData.prize1 !== undefined ? cleanContestData.prize1 : existing.prize1,
         prize2: cleanContestData.prize2 !== undefined ? cleanContestData.prize2 : existing.prize2,
         prize3: cleanContestData.prize3 !== undefined ? cleanContestData.prize3 : existing.prize3,
@@ -1349,8 +1374,26 @@ class DataStore {
         creatorId: existing.creatorId || cleanContestData.creatorId,
         creatorName: existing.creatorName || cleanContestData.creatorName,
       };
+
+      // Đồng bộ file Thể lệ / Kế hoạch sang các bản cuộc thi cùng customSlug hoặc cùng tên tiêu đề (nếu có)
+      const updated = this.contests[index];
+      if (cleanContestData.rulesFileUrl !== undefined || cleanContestData.planFileUrl !== undefined || cleanContestData.planHtml !== undefined) {
+        const normTitle = (updated.title || "").trim().toLowerCase();
+        const normCustomSlug = (updated.customSlug || "").trim().toLowerCase();
+        for (const c of this.contests) {
+          if (c.id === updated.id) continue;
+          const sameCustomSlug = normCustomSlug && (c.customSlug || "").trim().toLowerCase() === normCustomSlug;
+          const sameTitle = normTitle && (c.title || "").trim().toLowerCase() === normTitle;
+          if (sameCustomSlug || sameTitle) {
+            if (cleanContestData.rulesFileUrl !== undefined) c.rulesFileUrl = cleanContestData.rulesFileUrl;
+            if (cleanContestData.planFileUrl !== undefined) c.planFileUrl = cleanContestData.planFileUrl;
+            if (cleanContestData.planHtml !== undefined) c.planHtml = cleanContestData.planHtml;
+          }
+        }
+      }
+
       this.saveToDisk(true);
-      return this.contests[index];
+      return this.syncAndEnrichContestFiles(this.contests[index]);
     } else {
       const { originalSlug, ...cleanContestData } = contestData;
       const id = cleanContestData.id || `contest-${Date.now()}`;
@@ -1462,20 +1505,39 @@ class DataStore {
     this.loadFromDisk();
     if (!customSlug) return undefined;
     const clean = customSlug.trim().toLowerCase();
-    return this.contests.find((c) => c.customSlug?.toLowerCase() === clean && !this.isContestDeleted(c));
+    const matches = this.contests.filter((c) => c.customSlug?.toLowerCase() === clean && !this.isContestDeleted(c));
+    if (matches.length === 0) return undefined;
+    matches.sort((a, b) => {
+      const aHasFile = (a.planFileUrl ? 1 : 0) + (a.rulesFileUrl ? 1 : 0);
+      const bHasFile = (b.planFileUrl ? 1 : 0) + (b.rulesFileUrl ? 1 : 0);
+      if (bHasFile !== aHasFile) return bHasFile - aHasFile;
+      return (b.clickCount || 0) - (a.clickCount || 0);
+    });
+    return this.syncAndEnrichContestFiles(matches[0]);
   }
 
   public getContestByAnySlug(identifier: string): ContestModel | undefined {
     this.loadFromDisk();
     if (!identifier) return undefined;
     const clean = identifier.trim().toLowerCase();
-    return this.contests.find((c) =>
+    const matches = this.contests.filter((c) =>
       !this.isContestDeleted(c) && (
         c.customSlug?.toLowerCase() === clean ||
         c.slug.toLowerCase() === clean ||
         c.id.toLowerCase() === clean
       )
     );
+    if (matches.length === 0) return undefined;
+    matches.sort((a, b) => {
+      const aExact = (a.slug.toLowerCase() === clean || a.id.toLowerCase() === clean) ? 1 : 0;
+      const bExact = (b.slug.toLowerCase() === clean || b.id.toLowerCase() === clean) ? 1 : 0;
+      if (bExact !== aExact) return bExact - aExact;
+      const aHasFile = (a.planFileUrl ? 1 : 0) + (a.rulesFileUrl ? 1 : 0);
+      const bHasFile = (b.planFileUrl ? 1 : 0) + (b.rulesFileUrl ? 1 : 0);
+      if (bHasFile !== aHasFile) return bHasFile - aHasFile;
+      return (b.clickCount || 0) - (a.clickCount || 0);
+    });
+    return this.syncAndEnrichContestFiles(matches[0]);
   }
 
   public checkCustomSlugAvailable(customSlug: string, currentContestIdOrSlug?: string): { available: boolean; reason?: string } {

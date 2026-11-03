@@ -74,6 +74,207 @@ interface LeaderboardItem {
   submittedAt: string;
 }
 
+// Bộ hiển thị PDF đa nền tảng: Tự động dựng từng trang PDF lên Canvas cho Điện thoại / Zalo / Facebook WebView & Iframe cho Máy tính
+function ResponsivePdfViewer({ fileUrl, title }: { fileUrl: string; title: string }) {
+  const [isMobileOrWebView, setIsMobileOrWebView] = useState(false);
+  const [numPages, setNumPages] = useState<number>(0);
+  const [loadingPdf, setLoadingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string>("");
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const ua = navigator.userAgent || "";
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|FBAN|FBAV|Zalo/i.test(ua);
+    const isSmallScreen = window.innerWidth < 768;
+    setIsMobileOrWebView(isMobileUA || isSmallScreen);
+  }, []);
+
+  useEffect(() => {
+    if (!isMobileOrWebView || !fileUrl) return;
+    let isCancelled = false;
+
+    const loadAndRenderPdf = async () => {
+      try {
+        setLoadingPdf(true);
+        setPdfError("");
+
+        // Nạp thư viện PDF.js từ CDN nếu chưa có trên window
+        let pdfjsLib = (window as any).pdfjsLib;
+        if (!pdfjsLib) {
+          await new Promise<void>((resolve, reject) => {
+            const existingScript = document.querySelector('script[data-pdfjs="true"]') as HTMLScriptElement | null;
+            if (existingScript) {
+              existingScript.addEventListener("load", () => resolve());
+              existingScript.addEventListener("error", () => reject(new Error("Không thể tải thư viện đọc PDF")));
+              return;
+            }
+            const script = document.createElement("script");
+            script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+            script.async = true;
+            script.setAttribute("data-pdfjs", "true");
+            script.onload = () => resolve();
+            script.onerror = () => reject(new Error("Không thể tải thư viện đọc PDF"));
+            document.head.appendChild(script);
+          });
+          pdfjsLib = (window as any).pdfjsLib;
+        }
+
+        if (!pdfjsLib) {
+          throw new Error("Không khởi tạo được trình đọc PDF");
+        }
+
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+
+        const loadingTask = pdfjsLib.getDocument(fileUrl);
+        const pdf = await loadingTask.promise;
+        if (isCancelled) return;
+
+        setNumPages(pdf.numPages);
+        const container = canvasContainerRef.current;
+        if (!container) return;
+        container.innerHTML = "";
+
+        const containerWidth = Math.max(container.clientWidth - 16, 280);
+        const dpr = Math.min(window.devicePixelRatio || 1.5, 2);
+
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          if (isCancelled) return;
+          const page = await pdf.getPage(pageNum);
+          const unscaledViewport = page.getViewport({ scale: 1 });
+          const scale = (containerWidth / unscaledViewport.width) * dpr;
+          const viewport = page.getViewport({ scale });
+
+          const pageWrapper = document.createElement("div");
+          pageWrapper.className = "w-full bg-white rounded-xl shadow-xs border border-slate-200 overflow-hidden mb-3 last:mb-0";
+
+          const pageLabel = document.createElement("div");
+          pageLabel.className = "bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-600 border-b border-slate-200 flex justify-between";
+          pageLabel.innerHTML = `<span>Trang ${pageNum} / ${pdf.numPages}</span><span>Văn bản chính thức</span>`;
+          pageWrapper.appendChild(pageLabel);
+
+          const canvas = document.createElement("canvas");
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          canvas.style.width = "100%";
+          canvas.style.height = "auto";
+          canvas.style.display = "block";
+
+          pageWrapper.appendChild(canvas);
+          container.appendChild(pageWrapper);
+
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            await page.render({ canvasContext: ctx, viewport }).promise;
+          }
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.warn("Lỗi hiển thị PDF trực tiếp trên mobile:", err);
+          setPdfError(err?.message || "Không thể hiển thị trực tiếp tệp PDF");
+        }
+      } finally {
+        if (!isCancelled) {
+          setLoadingPdf(false);
+        }
+      }
+    };
+
+    loadAndRenderPdf();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [isMobileOrWebView, fileUrl]);
+
+  const fullPdfUrl =
+    typeof window !== "undefined" && fileUrl.startsWith("/")
+      ? `${window.location.origin}${fileUrl}`
+      : fileUrl;
+
+  const isPublicDomain =
+    typeof window !== "undefined" &&
+    !window.location.hostname.includes("localhost") &&
+    !window.location.hostname.startsWith("127.") &&
+    !window.location.hostname.startsWith("192.168.");
+
+  if (!isMobileOrWebView) {
+    return (
+      <div className="w-full h-[380px] sm:h-[480px] rounded-2xl overflow-hidden border border-slate-300 bg-slate-100 shadow-inner">
+        <iframe
+          src={`${fileUrl}#toolbar=1`}
+          title={title}
+          className="w-full h-full border-none"
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div className="w-full">
+      {/* Thanh nút bấm thao tác nhanh tối ưu cho điện thoại / Zalo / Facebook */}
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <a
+          href={fileUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-[#0052CC] text-white text-xs font-bold shadow-xs active:scale-[0.98] transition-transform"
+        >
+          <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+          <span>Mở xem toàn màn hình</span>
+        </a>
+        <a
+          href={fileUrl}
+          download
+          className="flex items-center justify-center space-x-1.5 py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 text-xs font-bold active:scale-[0.98] transition-transform"
+        >
+          <Download className="w-3.5 h-3.5 shrink-0" />
+          <span>Tải PDF về máy</span>
+        </a>
+      </div>
+
+      {/* Khung cuộn xem trực tiếp từng trang PDF ngay trên điện thoại */}
+      <div className="w-full max-h-[420px] overflow-y-auto rounded-2xl border border-slate-300 bg-slate-100 p-2 shadow-inner">
+        {loadingPdf && (
+          <div className="py-10 flex flex-col items-center justify-center text-slate-600 space-y-2">
+            <div className="w-7 h-7 border-3 border-[#DC2626] border-t-transparent rounded-full animate-spin" />
+            <span className="text-xs font-semibold">
+              Đang tải văn bản PDF ({numPages > 0 ? `${numPages} trang` : "vui lòng đợi..."})
+            </span>
+          </div>
+        )}
+
+        <div ref={canvasContainerRef} className="w-full" />
+
+        {pdfError && !loadingPdf && (
+          <div className="w-full">
+            {isPublicDomain ? (
+              <div className="w-full h-[380px] rounded-xl overflow-hidden bg-white">
+                <iframe
+                  src={`https://docs.google.com/gview?embedded=true&url=${encodeURIComponent(fullPdfUrl)}`}
+                  title={title}
+                  className="w-full h-full border-none"
+                />
+              </div>
+            ) : (
+              <div className="p-6 text-center bg-white rounded-xl border border-slate-200">
+                <FileText className="w-10 h-10 text-red-600 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-800 mb-1">
+                  Trình duyệt đang dùng hạn chế xem trước trực tiếp
+                </p>
+                <p className="text-[11px] text-slate-500 mb-3">
+                  Vui lòng bấm nút bên trên để mở xem trực tiếp hoặc tải văn bản PDF về điện thoại.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ExamPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
 
@@ -182,8 +383,11 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           "Content-Type": "application/json",
           "x-user-role": authUser?.role || "",
           "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
         },
         body: JSON.stringify({
+          id: contest?.id,
+          originalSlug: contest?.slug || slug,
           [targetField]: fileUrl,
         }),
       });
@@ -197,6 +401,16 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
         ...prev,
         [targetField]: fileUrl,
       }));
+
+      try {
+        const draftKey = `easup_contest_draft_${contest?.slug || slug}`;
+        const existingDraftStr = localStorage.getItem(draftKey);
+        if (existingDraftStr) {
+          const parsedDraft = JSON.parse(existingDraftStr);
+          parsedDraft[targetField] = fileUrl;
+          localStorage.setItem(draftKey, JSON.stringify(parsedDraft));
+        }
+      } catch (e) {}
 
       alert(`Đã cập nhật ${targetField === "rulesFileUrl" ? "file Thể lệ" : "file Kế hoạch"} thành công!`);
     } catch (err: any) {
@@ -221,8 +435,11 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
           "Content-Type": "application/json",
           "x-user-role": authUser?.role || "",
           "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
         },
         body: JSON.stringify({
+          id: contest?.id,
+          originalSlug: contest?.slug || slug,
           [targetField]: "",
         }),
       });
@@ -236,6 +453,16 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
         ...prev,
         [targetField]: "",
       }));
+
+      try {
+        const draftKey = `easup_contest_draft_${contest?.slug || slug}`;
+        const existingDraftStr = localStorage.getItem(draftKey);
+        if (existingDraftStr) {
+          const parsedDraft = JSON.parse(existingDraftStr);
+          parsedDraft[targetField] = "";
+          localStorage.setItem(draftKey, JSON.stringify(parsedDraft));
+        }
+      } catch (e) {}
 
       alert(`Đã gỡ bỏ file ${targetField === "rulesFileUrl" ? "Thể lệ" : "Kế hoạch"} thành công!`);
     } catch (err: any) {
@@ -350,7 +577,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
       } catch (e) {}
     }
 
-    fetch(`/api/contests/${slug}`)
+    fetch(`/api/contests/${slug}?t=${Date.now()}`, { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         let finalContest = data.contest || localDraft;
@@ -359,9 +586,15 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
         }
 
         if (finalContest) {
-          // Gộp với draft nếu có
+          // Gộp với draft nếu có (giữ nguyên file Thể lệ / Kế hoạch từ server nếu draft rỗng)
           if (localDraft && (!data.contest || queryParams?.get("preview") === "1")) {
+            const serverRulesFile = finalContest.rulesFileUrl;
+            const serverPlanFile = finalContest.planFileUrl;
+            const serverPlanHtml = finalContest.planHtml;
             finalContest = { ...finalContest, ...localDraft };
+            if (serverRulesFile && !finalContest.rulesFileUrl) finalContest.rulesFileUrl = serverRulesFile;
+            if (serverPlanFile && !finalContest.planFileUrl) finalContest.planFileUrl = serverPlanFile;
+            if (serverPlanHtml && !finalContest.planHtml) finalContest.planHtml = serverPlanHtml;
           }
           // Gộp các giá trị live query params khi xem trước (Mobile Preview modal)
           if (queryParams?.get("theme")) finalContest.themeColor = queryParams.get("theme");
@@ -1859,13 +2092,10 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                     </div>
 
                     {isPdf ? (
-                      <div className="w-full h-[360px] sm:h-[480px] rounded-2xl overflow-hidden border border-slate-300 bg-slate-100 shadow-inner">
-                        <iframe
-                          src={`${currentFileUrl}#toolbar=1`}
-                          title={isRules ? "Thể lệ cuộc thi PDF" : "Kế hoạch cuộc thi PDF"}
-                          className="w-full h-full border-none"
-                        />
-                      </div>
+                      <ResponsivePdfViewer
+                        fileUrl={currentFileUrl}
+                        title={isRules ? "Thể lệ cuộc thi PDF" : "Kế hoạch cuộc thi PDF"}
+                      />
                     ) : (
                       <div className="w-full rounded-2xl overflow-hidden border border-slate-200 bg-slate-50 p-2 flex justify-center shadow-xs">
                         <img

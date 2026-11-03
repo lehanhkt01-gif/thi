@@ -78,6 +78,9 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": contentType,
+        "Content-Disposition": "inline",
+        "Accept-Ranges": "bytes",
+        "Access-Control-Allow-Origin": "*",
         "Cache-Control": "public, max-age=31536000, immutable",
       },
     });

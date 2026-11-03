@@ -71,10 +71,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Giới hạn dung lượng tối đa 15MB
-    if (fileSize > 15 * 1024 * 1024) {
+    // Giới hạn dung lượng tối đa 25MB
+    if (fileSize > 25 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, error: "Dung lượng ảnh vượt quá giới hạn 15MB. Vui lòng nén ảnh hoặc chọn ảnh nhỏ hơn." },
+        { success: false, error: "Dung lượng tệp vượt quá giới hạn 25MB. Vui lòng nén tệp hoặc chọn tệp nhỏ hơn." },
         { status: 400 }
       );
     }

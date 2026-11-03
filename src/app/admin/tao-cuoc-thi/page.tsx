@@ -198,6 +198,9 @@ export default function ContestWizardPage() {
 <h3>II. HÌNH THỨC & THỜI GIAN</h3>
 <p>Thi trực tuyến trên cổng cuocthi.easupso.com. Mỗi thí sinh có 3 lượt thi, thời gian 15 phút/lượt.</p>
   `.trim());
+  const [rulesFileUrl, setRulesFileUrl] = useState("");
+  const [planHtml, setPlanHtml] = useState("");
+  const [planFileUrl, setPlanFileUrl] = useState("");
   const [startTime, setStartTime] = useState("2026-03-01T00:00");
   const [endTime, setEndTime] = useState("2026-12-31T23:59");
   const [createdAt, setCreatedAt] = useState<string>(() => new Date().toISOString());
@@ -356,6 +359,10 @@ export default function ContestWizardPage() {
         slug: targetSlug,
         bannerUrl,
         shortDesc,
+        rulesHtml,
+        rulesFileUrl: rulesFileUrl || undefined,
+        planHtml: planHtml || undefined,
+        planFileUrl: planFileUrl || undefined,
         startTime,
         endTime,
         themeColor,
@@ -484,6 +491,9 @@ export default function ContestWizardPage() {
         bannerUrl,
         shortDesc,
         rulesHtml,
+        rulesFileUrl: rulesFileUrl || undefined,
+        planHtml: planHtml || undefined,
+        planFileUrl: planFileUrl || undefined,
         organizerName,
         organizerAddress,
         organizerEmail,
@@ -1707,6 +1717,9 @@ export default function ContestWizardPage() {
           slug: targetSlug,
           bannerUrl,
           rulesHtml,
+          rulesFileUrl: rulesFileUrl || undefined,
+          planHtml: planHtml || undefined,
+          planFileUrl: planFileUrl || undefined,
           organizerName,
           organizerAddress,
           organizerEmail,
@@ -1857,6 +1870,9 @@ export default function ContestWizardPage() {
               if (c.bannerUrl) setBannerUrl(c.bannerUrl);
               if (c.shortDesc) setShortDesc(c.shortDesc);
               if (c.rulesHtml) setRulesHtml(c.rulesHtml);
+              if (c.rulesFileUrl) setRulesFileUrl(c.rulesFileUrl);
+              if (c.planHtml) setPlanHtml(c.planHtml);
+              if (c.planFileUrl) setPlanFileUrl(c.planFileUrl);
               if (c.organizerName) setOrganizerName(c.organizerName);
               if (c.organizerAddress) setOrganizerAddress(c.organizerAddress);
               if (c.organizerEmail) setOrganizerEmail(c.organizerEmail);
