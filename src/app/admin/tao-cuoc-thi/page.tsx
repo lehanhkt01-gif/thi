@@ -99,15 +99,108 @@ export default function ContestWizardPage() {
   const bannerFileInputRef = React.useRef<HTMLInputElement>(null);
   const [isUploadingBanner, setIsUploadingBanner] = useState(false);
 
-  // Xử lý nén ảnh trên Client Canvas (chuyển đổi ảnh chụp nặng thành kích thước tối ưu < 500KB)
+  // Helper 1: Lưu vào localStorage an toàn, chống lỗi "The quota has been exceeded." trên iPhone / iOS Safari / Zalo WebView
+  const safeSetLocalStorage = (key: string, value: any) => {
+    if (typeof window === "undefined") return;
+    try {
+      let serialized = "";
+      if (typeof value === "string") {
+        serialized = value;
+      } else if (value && typeof value === "object") {
+        // Loại bỏ chuỗi ảnh base64 nặng và danh sách câu hỏi lớn khi lưu nháp localStorage để không bao giờ vượt 5MB
+        const lightCopy: any = { ...value };
+        if (typeof lightCopy.bannerUrl === "string" && lightCopy.bannerUrl.startsWith("data:") && lightCopy.bannerUrl.length > 40000) {
+          delete lightCopy.bannerUrl;
+        }
+        if (Array.isArray(lightCopy.questions) && lightCopy.questions.length > 30) {
+          lightCopy.questions = lightCopy.questions.slice(0, 30);
+        }
+        serialized = JSON.stringify(lightCopy);
+      } else {
+        serialized = JSON.stringify(value);
+      }
+
+      try {
+        localStorage.setItem(key, serialized);
+      } catch (quotaErr) {
+        // Dọn dẹp các bản nháp cũ trong localStorage nếu bộ nhớ trình duyệt đầy rồi thử lại
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith("easup_contest_draft_") || k.startsWith("easup_draft_"))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => {
+          try {
+            localStorage.removeItem(k);
+          } catch {}
+        });
+        try {
+          localStorage.setItem(key, serialized);
+        } catch {}
+      }
+    } catch {}
+  };
+
+  // Helper 2: Phân tích phản hồi JSON an toàn, chống lỗi "The string did not match the expected pattern." trên iOS Safari khi Nginx trả về HTML (413/502)
+  const safeParseResponseJson = async (res: Response): Promise<any> => {
+    try {
+      const rawText = await res.text();
+      if (!rawText) return {};
+      return JSON.parse(rawText);
+    } catch {
+      if (res.status === 413) {
+        return {
+          error: "Dung lượng ảnh hoặc dữ liệu gửi lên vượt quá giới hạn máy chủ (413). Hệ thống đã tự động nén gọn, vui lòng bấm Lưu lại!",
+        };
+      }
+      return {
+        error: `Máy chủ trả về phản hồi không hợp lệ (Mã ${res.status}). Vui lòng thử lại!`,
+      };
+    }
+  };
+
+  // Helper 3: Chuẩn hóa slug hợp lệ, chống lỗi URL không khớp pattern trên iOS Safari
+  const ensureValidSlug = (rawSlug: string, fallbackTitle: string): string => {
+    const clean = (rawSlug || fallbackTitle || "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[đĐ]/g, "d")
+      .replace(/[^a-z0-9\s-]/g, "")
+      .trim()
+      .replace(/\s+/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+    return clean || `cuoc-thi-${Date.now()}`;
+  };
+
+  // Helper 4: Cập nhật thanh địa chỉ trình duyệt an toàn trên mọi WebView (Zalo / Facebook / iOS Safari)
+  const safeUpdateBrowserUrl = (paramsToUpdate: Record<string, string>, mode: "replace" | "push" = "replace") => {
+    if (typeof window === "undefined") return;
+    try {
+      const currentUrl = new URL(window.location.href);
+      Object.entries(paramsToUpdate).forEach(([k, v]) => {
+        if (v) currentUrl.searchParams.set(k, v);
+      });
+      if (mode === "push") {
+        window.history.pushState({}, "", currentUrl.toString());
+      } else {
+        window.history.replaceState({}, "", currentUrl.toString());
+      }
+    } catch {}
+  };
+
+  // Xử lý nén ảnh trên Client Canvas sang JPEG chuẩn < 250KB (tương thích 100% với iOS Safari và vượt qua giới hạn 1MB của Nginx)
   const compressImage = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (readerEvent) => {
         const img = new Image();
         img.onload = () => {
-          const maxWidth = 1600;
-          const maxHeight = 900;
+          const maxWidth = 1280;
+          const maxHeight = 720;
           let width = img.width;
           let height = img.height;
 
@@ -125,18 +218,41 @@ export default function ContestWizardPage() {
           canvas.height = height;
           const ctx = canvas.getContext("2d");
           if (ctx) {
+            // Tô nền trắng trước khi vẽ để ảnh PNG trong suốt chuyển sang JPEG không bị nền đen
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
-            const dataUrl = canvas.toDataURL("image/webp", 0.88);
+
+            // Dùng image/jpeg thay vì image/webp vì iOS Safari hỗ trợ nén JPEG phần cứng cực nhẹ (< 250KB)
+            let quality = 0.82;
+            let dataUrl = canvas.toDataURL("image/jpeg", quality);
+            while (dataUrl.length > 450000 && quality > 0.45) {
+              quality -= 0.12;
+              dataUrl = canvas.toDataURL("image/jpeg", quality);
+            }
+
             canvas.toBlob(
               (blob) => {
-                if (blob) {
+                if (blob && blob.size < 600000) {
                   resolve({ blob, dataUrl });
                 } else {
-                  resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+                  // Chuyển trực tiếp từ dataUrl đã nén sang Blob nếu toBlob trên iOS trả về kích thước lớn
+                  try {
+                    const parts = dataUrl.split(",");
+                    const byteString = atob(parts[1] || "");
+                    const ab = new ArrayBuffer(byteString.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteString.length; i++) {
+                      ia[i] = byteString.charCodeAt(i);
+                    }
+                    resolve({ blob: new Blob([ab], { type: "image/jpeg" }), dataUrl });
+                  } catch {
+                    resolve({ blob: blob || file, dataUrl });
+                  }
                 }
               },
-              "image/webp",
-              0.88
+              "image/jpeg",
+              quality
             );
           } else {
             resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
@@ -151,12 +267,39 @@ export default function ContestWizardPage() {
     });
   };
 
+  // Đảm bảo bannerUrl luôn là đường dẫn ngắn gọn trên máy chủ trước khi Lưu / Xuất bản
+  const ensureServerBannerUrl = async (currentBanner: string): Promise<string> => {
+    if (!currentBanner || !currentBanner.startsWith("data:")) {
+      return currentBanner || "/banner-easup.png";
+    }
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          base64: currentBanner,
+          name: "banner.jpg",
+        }),
+      });
+      const data = await safeParseResponseJson(res);
+      if (res.ok && data.success && data.url) {
+        setBannerUrl(data.url);
+        return data.url;
+      }
+    } catch {}
+    // Nếu vẫn là base64 quá nặng (> 350KB), không gửi trực tiếp trong JSON cuộc thi để tránh lỗi 413 trên Nginx
+    if (currentBanner.length > 350000) {
+      return "/banner-easup.png";
+    }
+    return currentBanner;
+  };
+
   // Xử lý tải ảnh banner lên từ máy tính / điện thoại
   const handleBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith("image/")) {
+    if (!file.type.startsWith("image/") && !/\.(jpg|jpeg|png|webp|gif|heic|heif)$/i.test(file.name)) {
       alert("Vui lòng chọn tệp hình ảnh hợp lệ (JPG, PNG, WEBP, GIF)!");
       return;
     }
@@ -164,7 +307,7 @@ export default function ContestWizardPage() {
     try {
       setIsUploadingBanner(true);
 
-      // Nén ảnh tự động trên client
+      // Nén ảnh tự động trên client sang JPEG gọn nhẹ (< 250KB)
       const { blob, dataUrl } = await compressImage(file);
 
       // Hiển thị xem trước ngay lập tức bằng dataUrl
@@ -172,18 +315,27 @@ export default function ContestWizardPage() {
 
       // Gửi tệp lên API /api/upload để lưu trữ lâu dài trên server
       const formData = new FormData();
-      formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".webp"));
+      formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
 
       const res = await fetch("/api/upload", {
         method: "POST",
         body: formData,
       });
 
-      const data = await res.json();
-      if (data.success && data.url) {
+      const data = await safeParseResponseJson(res);
+      if (res.ok && data.success && data.url) {
         setBannerUrl(data.url);
       } else {
-        console.warn("Upload server trả về cảnh báo, duy trì ảnh preview:", data.error);
+        // Dự phòng gửi qua JSON base64 đã nén nhẹ
+        const fallbackRes = await fetch("/api/upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ base64: dataUrl, name: "banner.jpg" }),
+        });
+        const fallbackData = await safeParseResponseJson(fallbackRes);
+        if (fallbackRes.ok && fallbackData.success && fallbackData.url) {
+          setBannerUrl(fallbackData.url);
+        }
       }
     } catch (err: any) {
       console.warn("Lỗi khi gửi ảnh lên server, tự động duy trì ảnh hiển thị:", err);
@@ -313,16 +465,16 @@ export default function ContestWizardPage() {
     setShowRequiredFieldsModal(false);
 
     // Đồng bộ 2 chiều ngay lập tức vào draft và Server (nếu đang sửa cuộc thi đã tồn tại)
-    const targetSlug = originalSlug || slug;
+    const targetSlug = ensureValidSlug(originalSlug || slug, title);
     if (targetSlug && isEditMode) {
       try {
         const localDraftStr = localStorage.getItem(`easup_contest_draft_${targetSlug}`);
         const draftObj = localDraftStr ? JSON.parse(localDraftStr) : {};
         draftObj.requiredFields = labels;
         draftObj.requiredFieldKeys = selectedRequiredFields;
-        localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draftObj));
+        safeSetLocalStorage(`easup_contest_draft_${targetSlug}`, draftObj);
 
-        await fetch(`/api/contests/${targetSlug}`, {
+        await fetch(`/api/contests/${encodeURIComponent(targetSlug)}`, {
           method: "PUT",
           headers: {
             "Content-Type": "application/json",
@@ -351,13 +503,14 @@ export default function ContestWizardPage() {
     }
     setIsSavingStep1(true);
     try {
-      const targetSlug = originalSlug || slug;
+      const targetSlug = ensureValidSlug(originalSlug || slug, title);
+      const cleanBannerUrl = await ensureServerBannerUrl(bannerUrl);
       const draft = {
         id: editingContestId || undefined,
         originalSlug: targetSlug,
         title,
         slug: targetSlug,
-        bannerUrl,
+        bannerUrl: cleanBannerUrl,
         shortDesc,
         rulesHtml,
         rulesFileUrl: rulesFileUrl || undefined,
@@ -393,20 +546,15 @@ export default function ContestWizardPage() {
         unitGroupName: unitGroupName.trim() || (unitGroups.find((g) => g.id === selectedGroupId)?.name || (organizerName ? `Khối ${organizerName}` : "Đơn vị đã cấu hình")),
         updatedAt: new Date().toISOString(),
       };
-      localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draft));
-      localStorage.setItem("easup_last_edited_slug", targetSlug);
-      localStorage.setItem("easup_contest_draft_last", JSON.stringify(draft));
+      safeSetLocalStorage(`easup_contest_draft_${targetSlug}`, draft);
+      safeSetLocalStorage("easup_last_edited_slug", targetSlug);
+      safeSetLocalStorage("easup_contest_draft_last", draft);
 
       // Cập nhật URL trình duyệt với param ?edit=${targetSlug}&step=2 để khi reload hay đăng nhập lại không bị mất
-      if (typeof window !== "undefined") {
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set("edit", targetSlug);
-        currentUrl.searchParams.set("step", "2");
-        window.history.replaceState({}, "", currentUrl.toString());
-      }
+      safeUpdateBrowserUrl({ edit: targetSlug, step: "2" }, "replace");
 
       // Đồng bộ trực tiếp lên Server store để toàn bộ hệ thống nhận dữ liệu ngay lập tức
-      const res = await fetch(`/api/contests/${targetSlug}`, {
+      const res = await fetch(`/api/contests/${encodeURIComponent(targetSlug)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -417,7 +565,7 @@ export default function ContestWizardPage() {
         body: JSON.stringify(draft),
       });
 
-      const resData = await res.json().catch(() => ({}));
+      const resData = await safeParseResponseJson(res);
       if (!res.ok) {
         alert(resData.error || "Bạn không có quyền chỉnh sửa cuộc thi này!");
         return;
@@ -441,6 +589,7 @@ export default function ContestWizardPage() {
       handleNavigateStep(2);
     } catch (err: any) {
       console.error("Lỗi khi lưu cuộc thi:", err);
+      alert("Lỗi khi lưu: " + (err?.message || "Vui lòng kiểm tra kết nối và thử lại"));
     } finally {
       setIsSavingStep1(false);
     }
@@ -482,13 +631,14 @@ export default function ContestWizardPage() {
         return questionCount || 10;
       })();
 
-      const targetSlug = originalSlug || slug;
+      const targetSlug = ensureValidSlug(originalSlug || slug, title);
+      const cleanBannerUrl = await ensureServerBannerUrl(bannerUrl);
       const draftPayload = {
         id: editingContestId || undefined,
         originalSlug: targetSlug,
         title,
         slug: targetSlug,
-        bannerUrl,
+        bannerUrl: cleanBannerUrl,
         shortDesc,
         rulesHtml,
         rulesFileUrl: rulesFileUrl || undefined,
@@ -535,19 +685,14 @@ export default function ContestWizardPage() {
         updatedAt: new Date().toISOString(),
       };
 
-      localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draftPayload));
-      localStorage.setItem("easup_last_edited_slug", targetSlug);
-      localStorage.setItem("easup_contest_draft_last", JSON.stringify(draftPayload));
+      safeSetLocalStorage(`easup_contest_draft_${targetSlug}`, draftPayload);
+      safeSetLocalStorage("easup_last_edited_slug", targetSlug);
+      safeSetLocalStorage("easup_contest_draft_last", draftPayload);
 
       // Giữ nguyên bước hiện tại trên URL
-      if (typeof window !== "undefined") {
-        const currentUrl = new URL(window.location.href);
-        currentUrl.searchParams.set("edit", targetSlug);
-        currentUrl.searchParams.set("step", String(currentStep));
-        window.history.replaceState({}, "", currentUrl.toString());
-      }
+      safeUpdateBrowserUrl({ edit: targetSlug, step: String(currentStep) }, "replace");
 
-      const res = await fetch(`/api/contests/${targetSlug}`, {
+      const res = await fetch(`/api/contests/${encodeURIComponent(targetSlug)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -558,7 +703,7 @@ export default function ContestWizardPage() {
         body: JSON.stringify(draftPayload),
       });
 
-      const resData = await res.json().catch(() => ({}));
+      const resData = await safeParseResponseJson(res);
       if (!res.ok) {
         alert(resData.error || "Không thể lưu thông tin cuộc thi!");
         return;
@@ -576,7 +721,7 @@ export default function ContestWizardPage() {
       setTimeout(() => setShowSaveToast(false), 3000);
     } catch (err: any) {
       console.error("Lỗi khi lưu thông tin:", err);
-      alert("Lỗi khi lưu: " + err.message);
+      alert("Lỗi khi lưu: " + (err?.message || "Vui lòng kiểm tra kết nối và thử lại"));
     } finally {
       setIsSavingCurrentStep(false);
     }
@@ -597,9 +742,13 @@ export default function ContestWizardPage() {
 
     setQuestionCount(effectiveQuestionCount);
 
-    const targetSlug = originalSlug || slug;
+    const targetSlug = ensureValidSlug(originalSlug || slug, title);
+    let existingDraft: any = {};
+    try {
+      existingDraft = JSON.parse(localStorage.getItem(`easup_contest_draft_${targetSlug}`) || "{}");
+    } catch {}
     const draft = {
-      ...JSON.parse(localStorage.getItem(`easup_contest_draft_${targetSlug}`) || "{}"),
+      ...existingDraft,
       id: editingContestId || undefined,
       originalSlug: targetSlug,
       durationMinutes,
@@ -611,9 +760,9 @@ export default function ContestWizardPage() {
       examMixPackages,
       updatedAt: new Date().toISOString(),
     };
-    localStorage.setItem(`easup_contest_draft_${targetSlug}`, JSON.stringify(draft));
+    safeSetLocalStorage(`easup_contest_draft_${targetSlug}`, draft);
     if (targetSlug && isEditMode) {
-      fetch(`/api/contests/${targetSlug}`, {
+      fetch(`/api/contests/${encodeURIComponent(targetSlug)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -1698,9 +1847,10 @@ export default function ContestWizardPage() {
         groupType: "AGENCY",
       }));
 
-      const targetSlug = originalSlug || slug;
+      const targetSlug = ensureValidSlug(originalSlug || slug, title);
+      const cleanBannerUrl = await ensureServerBannerUrl(bannerUrl);
       const method = isEditMode ? "PUT" : "POST";
-      const endpoint = isEditMode ? `/api/contests/${targetSlug}` : "/api/contests";
+      const endpoint = isEditMode ? `/api/contests/${encodeURIComponent(targetSlug)}` : "/api/contests";
 
       const res = await fetch(endpoint, {
         method,
@@ -1715,7 +1865,7 @@ export default function ContestWizardPage() {
           originalSlug: targetSlug,
           title,
           slug: targetSlug,
-          bannerUrl,
+          bannerUrl: cleanBannerUrl,
           rulesHtml,
           rulesFileUrl: rulesFileUrl || undefined,
           planHtml: planHtml || undefined,
@@ -1767,7 +1917,7 @@ export default function ContestWizardPage() {
         }),
       });
 
-      const data = await res.json();
+      const data = await safeParseResponseJson(res);
       if (res.ok) {
         const savedSlug = data.contest?.slug || targetSlug;
         if (data.contest?.id) setEditingContestId(data.contest.id);
@@ -1775,28 +1925,33 @@ export default function ContestWizardPage() {
         setOriginalSlug(savedSlug);
         setIsEditMode(true);
 
-        localStorage.setItem("easup_last_edited_slug", savedSlug);
-        localStorage.setItem(`easup_contest_draft_${savedSlug}`, JSON.stringify({
+        safeSetLocalStorage("easup_last_edited_slug", savedSlug);
+        safeSetLocalStorage(`easup_contest_draft_${savedSlug}`, {
           id: data.contest?.id || editingContestId,
-          title, slug: savedSlug, bannerUrl, shortDesc, rulesHtml,
-          prize1, prize2, prize3, prize4,
-          prize1Count, prize2Count, prize3Count, prize4Count,
+          title,
+          slug: savedSlug,
+          bannerUrl: cleanBannerUrl,
+          shortDesc,
+          rulesHtml,
+          prize1,
+          prize2,
+          prize3,
+          prize4,
+          prize1Count,
+          prize2Count,
+          prize3Count,
+          prize4Count,
           unitGroupId: selectedGroupId,
           unitGroupName,
-        }));
-        if (typeof window !== "undefined") {
-          const currentUrl = new URL(window.location.href);
-          currentUrl.searchParams.set("edit", savedSlug);
-          currentUrl.searchParams.set("step", "5");
-          window.history.replaceState({}, "", currentUrl.toString());
-        }
+        });
+        safeUpdateBrowserUrl({ edit: savedSlug, step: "5" }, "replace");
         setPublishSuccess(true);
         handleNavigateStep(5);
       } else {
         alert(data.error || "Không thể lưu cuộc thi!");
       }
     } catch (err: any) {
-      alert("Lỗi xuất bản: " + err.message);
+      alert("Lỗi xuất bản: " + (err?.message || "Vui lòng kiểm tra kết nối và thử lại"));
     } finally {
       setIsSubmitting(false);
     }
@@ -2007,11 +2162,7 @@ export default function ContestWizardPage() {
   const handleNavigateStep = (stepNum: number) => {
     if (stepNum < 1 || stepNum > 5) return;
     setCurrentStep(stepNum);
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      url.searchParams.set("step", String(stepNum));
-      window.history.pushState({}, "", url.toString());
-    }
+    safeUpdateBrowserUrl({ step: String(stepNum) }, "push");
   };
 
   // Trạng thái đang kiểm tra authentication

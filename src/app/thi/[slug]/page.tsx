@@ -361,23 +361,61 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
     try {
       setUploadingDoc(true);
-      const formData = new FormData();
-      formData.append("file", file);
+      const CHUNK_SIZE = 600 * 1024; // 600KB mỗi phần để vượt qua giới hạn 1MB của Nginx
+      const totalChunks = Math.max(1, Math.ceil(file.size / CHUNK_SIZE));
+      const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      let fileUrl = "";
 
-      const res = await fetch("/api/upload", {
-        method: "POST",
-        body: formData,
-      });
+      if (totalChunks === 1) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const rawText = await res.text();
+        let data: any = {};
+        try {
+          data = rawText ? JSON.parse(rawText) : {};
+        } catch {
+          throw new Error(`Máy chủ từ chối tệp tải lên (Mã ${res.status}). Vui lòng thử lại!`);
+        }
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Tải tệp lên máy chủ thất bại!");
+        }
+        fileUrl = data.url;
+      } else {
+        for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+          const start = chunkIdx * CHUNK_SIZE;
+          const end = Math.min(start + CHUNK_SIZE, file.size);
+          const chunkBlob = file.slice(start, end);
+          const formData = new FormData();
+          formData.append("file", chunkBlob, file.name);
+          formData.append("fileName", file.name);
+          formData.append("chunkIndex", String(chunkIdx));
+          formData.append("totalChunks", String(totalChunks));
+          formData.append("uploadId", uploadId);
 
-      const data = await res.json();
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || "Tải tệp lên máy chủ thất bại!");
+          const res = await fetch("/api/upload", {
+            method: "POST",
+            body: formData,
+          });
+          const rawText = await res.text();
+          let data: any = {};
+          try {
+            data = rawText ? JSON.parse(rawText) : {};
+          } catch {
+            throw new Error(`Lỗi khi tải phần ${chunkIdx + 1}/${totalChunks} (Mã ${res.status})`);
+          }
+          if (!res.ok || !data.success) {
+            throw new Error(data.error || `Tải tệp thất bại ở phần ${chunkIdx + 1}/${totalChunks}`);
+          }
+          fileUrl = data.url;
+        }
       }
 
-      const fileUrl = data.url;
-
       // Cập nhật cuộc thi lưu trữ lâu dài trên server
-      const updateRes = await fetch(`/api/contests/${slug}`, {
+      const updateRes = await fetch(`/api/contests/${encodeURIComponent(slug)}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -392,7 +430,11 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
         }),
       });
 
-      const updateData = await updateRes.json();
+      const updateRaw = await updateRes.text();
+      let updateData: any = {};
+      try {
+        updateData = updateRaw ? JSON.parse(updateRaw) : {};
+      } catch {}
       if (!updateRes.ok) {
         throw new Error(updateData.error || "Lưu đường dẫn tệp vào cuộc thi thất bại!");
       }

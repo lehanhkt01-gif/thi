@@ -1,6 +1,6 @@
-// src/app/api/upload/route.ts - API tiếp nhận và lưu trữ ảnh upload an toàn
+// src/app/api/upload/route.ts - API tiếp nhận và lưu trữ ảnh / PDF upload an toàn (hỗ trợ cả chunked upload vượt giới hạn Nginx 1MB)
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, appendFile, mkdir } from "fs/promises";
 import path from "path";
 
 export const dynamic = "force-dynamic";
@@ -12,6 +12,9 @@ export async function POST(req: NextRequest) {
     let fileNameOriginal = "banner.png";
     let fileExt = ".png";
     let fileSize = 0;
+    let chunkIndex: number | null = null;
+    let totalChunks: number | null = null;
+    let uploadId: string | null = null;
 
     const contentType = req.headers.get("content-type") || "";
 
@@ -26,11 +29,18 @@ export async function POST(req: NextRequest) {
         );
       }
 
-      fileNameOriginal = file.name || "banner.png";
+      const rawName = (formData.get("fileName") as string) || file.name || "banner.png";
+      fileNameOriginal = rawName;
       fileExt = path.extname(fileNameOriginal).toLowerCase() || ".png";
       const bytes = await file.arrayBuffer();
       fileBuffer = Buffer.from(bytes);
       fileSize = file.size;
+
+      if (formData.get("chunkIndex") !== null && formData.get("totalChunks") !== null) {
+        chunkIndex = Number(formData.get("chunkIndex"));
+        totalChunks = Number(formData.get("totalChunks"));
+        uploadId = String(formData.get("uploadId") || "");
+      }
     } else if (contentType.includes("application/json")) {
       // Hỗ trợ upload qua JSON Base64
       const body = await req.json();
@@ -42,6 +52,12 @@ export async function POST(req: NextRequest) {
         );
       }
 
+      if (body.name) {
+        fileNameOriginal = body.name;
+        const extFromName = path.extname(fileNameOriginal).toLowerCase();
+        if (extFromName) fileExt = extFromName;
+      }
+
       const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
       if (matches && matches.length === 3) {
         const mime = matches[1];
@@ -49,13 +65,12 @@ export async function POST(req: NextRequest) {
         else if (mime.includes("webp")) fileExt = ".webp";
         else if (mime.includes("gif")) fileExt = ".gif";
         else if (mime.includes("pdf")) fileExt = ".pdf";
-        else fileExt = ".png";
+        else if (!path.extname(fileNameOriginal)) fileExt = ".png";
 
         fileBuffer = Buffer.from(matches[2], "base64");
       } else {
         fileBuffer = Buffer.from(base64Data, "base64");
       }
-      if (body.name) fileNameOriginal = body.name;
       fileSize = fileBuffer.length;
     } else {
       return NextResponse.json(
@@ -90,19 +105,41 @@ export async function POST(req: NextRequest) {
     const cleanBase = path.basename(fileNameOriginal, fileExt)
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "") // Bỏ dấu tiếng Việt
+      .replace(/[đĐ]/g, "d")
       .replace(/[^a-zA-Z0-9]/g, "-")
       .toLowerCase()
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "")
       .slice(0, 30) || "banner";
 
-    const timestamp = Date.now();
-    const finalFileName = `banner-${timestamp}-${cleanBase}${fileExt}`;
+    const safeUploadId = uploadId
+      ? uploadId.replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24)
+      : String(Date.now());
+    const finalFileName = `banner-${safeUploadId}-${cleanBase}${fileExt}`;
 
     const publicFilePath = path.join(publicUploadDir, finalFileName);
     const storageFilePath = path.join(storageUploadDir, finalFileName);
 
-    // Ghi file
+    if (chunkIndex !== null && totalChunks !== null && totalChunks > 1) {
+      if (chunkIndex === 0) {
+        await writeFile(publicFilePath, fileBuffer);
+        await writeFile(storageFilePath, fileBuffer).catch(() => {});
+      } else {
+        await appendFile(publicFilePath, fileBuffer);
+        await appendFile(storageFilePath, fileBuffer).catch(() => {});
+      }
+      const isComplete = chunkIndex >= totalChunks - 1;
+      return NextResponse.json({
+        success: true,
+        complete: isComplete,
+        chunkIndex,
+        totalChunks,
+        url: `/uploads/${finalFileName}`,
+        fileName: finalFileName,
+      });
+    }
+
+    // Ghi file một lần (khi <= 700KB)
     await writeFile(publicFilePath, fileBuffer);
     await writeFile(storageFilePath, fileBuffer).catch(() => {});
 
@@ -113,7 +150,7 @@ export async function POST(req: NextRequest) {
       url: publicUrl,
       fileName: finalFileName,
       size: fileSize,
-      message: "Tải lên ảnh thành công",
+      message: "Tải lên tệp thành công",
     });
   } catch (error: any) {
     console.error("[API Upload] Lỗi khi xử lý ảnh:", error);
