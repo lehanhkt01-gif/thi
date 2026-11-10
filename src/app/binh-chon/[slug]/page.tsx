@@ -1307,23 +1307,19 @@ export default function MediaContestPublicPage({
         </div>
 
         {/* ========================================================================= */}
-        {/* 1. ẢNH BÌA CUỘC THI RỘNG & ĐẦY ĐỦ NHƯ CUỘC THI TRẮC NGHIỆM TRỰC TUYẾN */}
+        {/* 1. ẢNH BÌA BANNER ĐƠN LỚP GỌN NHẸ (BỎ LỚP NỀN & HÌNH MẶC ĐỊNH BÊN DƯỚI) */}
         {/* ========================================================================= */}
-        <section
-          className="relative w-full overflow-hidden py-1 sm:py-1.5 md:py-2 px-1 sm:px-2 md:px-3 shadow-md transition-colors duration-300"
-          style={{
-            backgroundColor: themeColor,
-            backgroundImage: `radial-gradient(ellipse at 50% 30%, ${themeColor} 0%, #0f172a 100%)`,
-          }}
-        >
-          <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-300 via-transparent to-transparent"></div>
-
-          <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl w-full mx-auto relative z-10 flex justify-center">
-            <div className="relative w-full rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/40 bg-black/15 backdrop-blur-xs flex items-center justify-center group">
+        <section className="w-full max-w-5xl lg:max-w-6xl xl:max-w-7xl mx-auto px-2 sm:px-4 pt-1 pb-2">
+          {isLoading && !contest ? (
+            <div className="w-full h-48 sm:h-72 md:h-80 rounded-xl sm:rounded-2xl bg-slate-100 animate-pulse" />
+          ) : contest?.bannerUrl ? (
+            <div className="relative w-full rounded-xl sm:rounded-2xl overflow-hidden shadow-md border border-slate-200/80 flex items-center justify-center group">
               <img
-                src={contest?.bannerUrl || "/images/contest_stage_banner.jpg"}
-                alt={contest?.title || "Ảnh bìa cuộc thi"}
-                className="w-full h-auto block object-contain object-center transform group-hover:scale-[1.002] transition-transform duration-300"
+                src={contest.bannerUrl}
+                alt={contest.title || "Ảnh bìa cuộc thi"}
+                decoding="async"
+                fetchPriority="high"
+                className="w-full h-auto block object-contain object-center"
               />
               {canManage && (
                 <button
@@ -1336,7 +1332,7 @@ export default function MediaContestPublicPage({
                 </button>
               )}
             </div>
-          </div>
+          ) : null}
         </section>
 
         {/* ========================================================================= */}

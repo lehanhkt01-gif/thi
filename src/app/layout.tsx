@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     siteName: "thi.easupso.com",
     images: [
       {
-        url: "/banner-easup.png",
+        url: "/api/og-banner/home",
         width: 1200,
         height: 630,
         alt: "Cuộc thi trực tuyến Xã Ea Súp",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Cuộc thi trực tuyến Xã Ea Súp | thi.easupso.com",
     description: "Tri thức - Kết nối - Lan tỏa - Vì một Ea Súp phát triển",
-    images: ["/banner-easup.png"],
+    images: ["/api/og-banner/home"],
   },
 };
 
