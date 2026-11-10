@@ -2168,6 +2168,11 @@ class DataStore {
     );
   }
 
+  public getMediaSubmission(submissionId: string): MediaSubmissionModel | undefined {
+    this.loadFromDisk();
+    return this.mediaSubmissions.find((s) => s.id === submissionId);
+  }
+
   public addMediaSubmission(data: Omit<MediaSubmissionModel, "id" | "createdAt" | "votesCount">): MediaSubmissionModel {
     this.loadFromDisk(true);
     const newSub: MediaSubmissionModel = {

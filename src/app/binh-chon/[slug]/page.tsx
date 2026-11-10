@@ -132,6 +132,22 @@ type SettingsSectionKey =
   | "thong-bao"
   | "ban-to-chuc";
 
+// Định dạng ngày giờ chuẩn: HH:mm ngày dd/MM/yyyy (như Ảnh 2)
+function formatSubmissionDate(isoString?: string): string {
+  if (!isoString) return "";
+  try {
+    const d = new Date(isoString);
+    const hours = String(d.getHours()).padStart(2, "0");
+    const minutes = String(d.getMinutes()).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    const year = d.getFullYear();
+    return `${hours}:${minutes} ngày ${day}/${month}/${year}`;
+  } catch {
+    return "";
+  }
+}
+
 export default function MediaContestPublicPage({
   params,
 }: {
@@ -860,7 +876,7 @@ export default function MediaContestPublicPage({
       typeof window !== "undefined"
         ? `${window.location.origin}/binh-chon/${slug}`
         : `https://thi.easupso.com/binh-chon/${slug}`;
-    const shareUrl = `${baseUrl}?artwork=${encodeURIComponent(sub.id)}`;
+    const shareUrl = `${baseUrl}/tac-pham/${encodeURIComponent(sub.id)}`;
     const shareTitle = `${sub.title} - Tác giả: ${sub.authorName} (${sub.unitName}) | ${contest?.title || "Cuộc thi Ảnh đẹp Ea Súp"}`;
 
     incrementSubmissionShareCount(sub.id);
@@ -1581,12 +1597,9 @@ export default function MediaContestPublicPage({
                     }`}
                   >
                     {/* Khung Ảnh / Video tác phẩm */}
-                    <div
-                      onClick={() => {
-                        setSelectedSubmissionImageIdx(0);
-                        setSelectedSubmission(sub);
-                      }}
-                      className={`relative rounded-xl overflow-hidden bg-slate-900/5 cursor-pointer group ${
+                    <Link
+                      href={`/binh-chon/${slug}/tac-pham/${sub.id}`}
+                      className={`relative rounded-xl overflow-hidden bg-slate-900/5 cursor-pointer group block ${
                         isHorizontalCardLayout
                           ? "w-full sm:w-52 md:w-60 aspect-[4/3] shrink-0"
                           : autoImageOrientation === "horizontal"
@@ -1622,24 +1635,21 @@ export default function MediaContestPublicPage({
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
                         <span className="opacity-0 group-hover:opacity-100 bg-black/75 text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center space-x-1.5 transition-opacity shadow-sm">
                           <Eye className="w-3.5 h-3.5" />
-                          <span>Xem chi tiết</span>
+                          <span>Xem chi tiết &amp; Bình chọn</span>
                         </span>
                       </div>
-                    </div>
+                    </Link>
 
                     {/* Phần tên tác phẩm, tác giả, nút Bình chọn và hàng thống kê ☆ bình chọn / 🔗 chia sẻ cân đối, rõ ràng */}
                     <div className="flex-1 min-w-0 flex flex-col justify-between text-center px-1 py-0.5">
                       <div className="space-y-1">
-                        <h3
-                          onClick={() => {
-                            setSelectedSubmissionImageIdx(0);
-                            setSelectedSubmission(sub);
-                          }}
+                        <Link
+                          href={`/binh-chon/${slug}/tac-pham/${sub.id}`}
                           title={sub.title}
-                          className="font-extrabold text-sm sm:text-[15px] text-slate-900 line-clamp-2 leading-snug cursor-pointer hover:underline"
+                          className="font-extrabold text-sm sm:text-[15px] text-slate-900 line-clamp-2 leading-snug cursor-pointer hover:underline block"
                         >
                           {sub.title}
-                        </h3>
+                        </Link>
                         <p className="text-xs text-slate-500 font-medium truncate">
                           {sub.authorName} • {sub.unitName}
                         </p>
@@ -2730,20 +2740,21 @@ export default function MediaContestPublicPage({
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL XEM CHI TIẾT TÁC PHẨM & BÌNH CHỌN / CHIA SẺ */}
+      {/* MODAL XEM CHI TIẾT TÁC PHẨM & BÌNH CHỌN (MÔ PHỎNG CHUẨN ẢNH 2) */}
       {/* ========================================================================= */}
       {selectedSubmission && (
-        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl relative border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl relative border border-slate-200 animate-in fade-in zoom-in-95 duration-200 my-auto">
             <button
               type="button"
               onClick={() => setSelectedSubmission(null)}
-              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 cursor-pointer"
+              className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
 
-            <div className="grid grid-cols-1 md:grid-cols-2">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 sm:p-8 items-start">
+              {/* CỘT TRÁI: HÌNH ẢNH TÁC PHẨM (CHUẨN ẢNH 2, NỀN SÁNG THANH LỊCH) */}
               {(() => {
                 const imgs =
                   Array.isArray(selectedSubmission.mediaUrls) &&
@@ -2752,21 +2763,25 @@ export default function MediaContestPublicPage({
                     : [selectedSubmission.mediaUrl];
                 const safeIdx = Math.min(selectedSubmissionImageIdx, imgs.length - 1);
                 return (
-                  <div className="bg-slate-950 flex flex-col items-center justify-center max-h-[480px] overflow-hidden p-2">
-                    <img
-                      src={imgs[safeIdx] || selectedSubmission.mediaUrl}
-                      alt={selectedSubmission.title}
-                      className="w-full h-full object-contain max-h-[400px]"
-                    />
+                  <div className="md:col-span-6 flex flex-col items-center">
+                    <div className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-2xs flex items-center justify-center">
+                      <img
+                        src={imgs[safeIdx] || selectedSubmission.mediaUrl}
+                        alt={selectedSubmission.title}
+                        className="w-full h-auto max-h-[520px] object-contain rounded-2xl"
+                      />
+                    </div>
                     {imgs.length > 1 && (
-                      <div className="flex items-center space-x-2 pt-2 overflow-x-auto max-w-full">
+                      <div className="w-full flex items-center justify-center space-x-2 pt-3 overflow-x-auto">
                         {imgs.map((u, i) => (
                           <button
                             key={i}
                             type="button"
                             onClick={() => setSelectedSubmissionImageIdx(i)}
-                            className={`w-11 h-11 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${
-                              i === safeIdx ? "border-white scale-105" : "border-transparent opacity-60"
+                            className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                              i === safeIdx
+                                ? "border-emerald-600 scale-105 shadow-2xs"
+                                : "border-slate-200 opacity-60 hover:opacity-100"
                             }`}
                           >
                             <img src={u} alt="" className="w-full h-full object-cover" />
@@ -2778,33 +2793,74 @@ export default function MediaContestPublicPage({
                 );
               })()}
 
-              <div className="p-5 sm:p-6 flex flex-col justify-between space-y-4">
-                <div className="space-y-2.5">
-                  <span
-                    style={{ backgroundColor: `${themeColor}18`, color: themeColor }}
-                    className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold"
-                  >
-                    {selectedSubmission.unitName}
-                  </span>
-                  <h3 className="text-lg font-extrabold text-slate-900">
+              {/* CỘT PHẢI: CHI TIẾT THÔNG TIN & BÌNH CHỌN (CHUẨN ẢNH 2) */}
+              <div className="md:col-span-6 flex flex-col space-y-4">
+                {/* Tên tác phẩm & Thời gian nộp bài */}
+                <div className="space-y-1">
+                  <h3 className="text-xl sm:text-2xl font-extrabold text-slate-900 leading-snug tracking-tight">
                     {selectedSubmission.title}
                   </h3>
-                  <div className="text-xs text-slate-600">
-                    Tác giả: <strong className="text-slate-900">{selectedSubmission.authorName}</strong>
+                  <div className="text-xs text-slate-400 font-medium">
+                    {formatSubmissionDate(selectedSubmission.createdAt)}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed pt-2 border-t border-slate-100">
-                    {selectedSubmission.description || "Tác phẩm tham dự cuộc thi ảnh đẹp trực tuyến xã Ea Súp."}
-                  </p>
                 </div>
 
-                <div className="space-y-3 pt-3 border-t border-slate-100">
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span className="font-bold text-slate-900">
-                      ⭐ {selectedSubmission.votesCount || 0} lượt bình chọn
-                    </span>
-                    <span>🔗 {selectedSubmission.sharesCount || 0} lượt chia sẻ</span>
+                {/* Khung số liệu: Lượt bình chọn & Lượt chia sẻ (Ảnh 2) */}
+                <div className="bg-white border border-slate-200/90 rounded-2xl py-3 px-5 shadow-2xs grid grid-cols-2 text-center divide-x divide-slate-100">
+                  <div className="px-1">
+                    <div className="text-2xl font-extrabold text-slate-800 tracking-tight">
+                      {selectedSubmission.votesCount || 0}
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium mt-0.5">
+                      lượt bình chọn
+                    </div>
                   </div>
+                  <div className="px-1">
+                    <div className="text-2xl font-extrabold text-slate-800 tracking-tight">
+                      {selectedSubmission.sharesCount || 0}
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium mt-0.5">
+                      lượt chia sẻ
+                    </div>
+                  </div>
+                </div>
 
+                {/* Thông tin Tác giả & Đơn vị (Ảnh 2) */}
+                <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-2.5 flex items-center justify-between">
+                  <div className="flex items-center space-x-2.5 min-w-0">
+                    <div
+                      style={{ backgroundColor: themeColor }}
+                      className="w-9 h-9 rounded-full text-white font-bold text-xs flex items-center justify-center shrink-0 shadow-2xs"
+                    >
+                      {selectedSubmission.authorName ? selectedSubmission.authorName.charAt(0).toUpperCase() : "U"}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="text-sm font-bold text-slate-900 truncate">
+                        {selectedSubmission.authorName}
+                      </div>
+                      {selectedSubmission.unitName && (
+                        <div className="text-[11px] text-slate-500 font-medium truncate">
+                          {selectedSubmission.unitName}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 shrink-0">
+                    Tác giả
+                  </span>
+                </div>
+
+                {/* Lời bình / Thuyết minh tác phẩm (Ảnh 2: "Mô tả" + đường kẻ + nội dung) */}
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">Mô tả</div>
+                  <div className="border-b border-slate-200/80" />
+                  <div className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line max-h-36 overflow-y-auto pr-1">
+                    {selectedSubmission.description || "Con gái Thái"}
+                  </div>
+                </div>
+
+                {/* Hàng nút bấm: Nút BÌNH CHỌN (Xanh) + Xem thêm (Ảnh 2) */}
+                <div className="pt-2 flex items-center justify-between gap-3">
                   <button
                     type="button"
                     onClick={() => handleVote(selectedSubmission.id)}
@@ -2813,42 +2869,55 @@ export default function MediaContestPublicPage({
                       backgroundColor: votedMap[selectedSubmission.id] ? "#E2E8F0" : themeColor,
                       color: votedMap[selectedSubmission.id] ? "#475569" : "#FFFFFF",
                     }}
-                    className="w-full py-2.5 rounded-full font-bold text-xs shadow-md cursor-pointer"
+                    className={`px-7 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all shadow-sm cursor-pointer ${
+                      votedMap[selectedSubmission.id]
+                        ? "cursor-not-allowed opacity-90"
+                        : "hover:opacity-95 hover:shadow-md active:scale-95"
+                    }`}
                   >
-                    {votedMap[selectedSubmission.id] ? "✓ Bạn đã bình chọn tác phẩm này" : "Bình chọn cho tác phẩm"}
+                    {votedMap[selectedSubmission.id] ? "ĐÃ BÌNH CHỌN" : "BÌNH CHỌN"}
                   </button>
 
-                  {contest?.enableSocialShare !== false && (
-                    <div className="space-y-2 pt-1">
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleShareSubmission(selectedSubmission, "zalo")}
-                          className="py-2 rounded-xl bg-[#0068FF] hover:bg-[#0056D6] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                          <span>Chia sẻ Zalo</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleShareSubmission(selectedSubmission, "facebook")}
-                          className="py-2 rounded-xl bg-[#1877F2] hover:bg-[#1464CC] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                        >
-                          <Share2 className="w-3.5 h-3.5" />
-                          <span>Facebook</span>
-                        </button>
-                      </div>
+                  <Link
+                    href={`/binh-chon/${slug}/tac-pham/${selectedSubmission.id}`}
+                    style={{ color: themeColor }}
+                    className="text-xs sm:text-sm font-semibold hover:underline cursor-pointer"
+                  >
+                    Xem toàn trang →
+                  </Link>
+                </div>
+
+                {/* Nút chia sẻ đa nền tảng (Zalo, Facebook, QR) */}
+                {contest?.enableSocialShare !== false && (
+                  <div className="pt-3 border-t border-slate-100 space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <button
                         type="button"
-                        onClick={() => openShareModal(selectedSubmission)}
-                        className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                        onClick={() => handleShareSubmission(selectedSubmission, "zalo")}
+                        className="py-2 rounded-xl bg-[#0068FF] hover:bg-[#0056D6] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
                       >
-                        <QrCode className="w-3.5 h-3.5 text-[#DC2626]" />
-                        <span>Chia sẻ đa nền tảng &amp; Mã QR</span>
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Chia sẻ Zalo</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleShareSubmission(selectedSubmission, "facebook")}
+                        className="py-2 rounded-xl bg-[#1877F2] hover:bg-[#1464CC] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                      >
+                        <Share2 className="w-3.5 h-3.5" />
+                        <span>Facebook</span>
                       </button>
                     </div>
-                  )}
-                </div>
+                    <button
+                      type="button"
+                      onClick={() => openShareModal(selectedSubmission)}
+                      className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <QrCode className="w-3.5 h-3.5 text-[#DC2626]" />
+                      <span>Chia sẻ đa nền tảng &amp; Mã QR</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -2957,7 +3026,7 @@ export default function MediaContestPublicPage({
             ? `${window.location.origin}/binh-chon/${slug}`
             : `https://thi.easupso.com/binh-chon/${slug}`;
         const targetShareUrl = isArtworkShare
-          ? `${baseUrl}?artwork=${encodeURIComponent(shareModalTarget.id)}`
+          ? `${baseUrl}/tac-pham/${encodeURIComponent(shareModalTarget.id)}`
           : baseUrl;
         const targetShareTitle = isArtworkShare
           ? `Tác phẩm: "${shareModalTarget.title}" - Tác giả: ${shareModalTarget.authorName} (${shareModalTarget.unitName})`
