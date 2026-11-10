@@ -182,7 +182,9 @@ export default function AdminDashboardPage() {
     status: "PUBLISHED" as "DRAFT" | "PUBLISHED",
     description: "Cuộc thi bình chọn tác phẩm hình ảnh/video trực tuyến",
     themeColor: "#1B7F5C",
-    layoutMode: "vertical" as "vertical" | "horizontal",
+    layoutMode: "both" as "vertical" | "horizontal" | "both",
+    layoutModes: ["vertical", "horizontal"] as ("vertical" | "horizontal")[],
+    maxImagesPerSubmission: 5,
     sortBy: "votesCount" as "createdAt" | "votesCount" | "score",
     enableSocialShare: true,
     sharePlatforms: ["facebook", "zalo"] as string[],
@@ -611,43 +613,187 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Safe JSON helper chống lỗi Unexpected token '<', "<html>..." is not valid JSON
+  const safeParseMediaResponse = async (res: Response) => {
+    const raw = await res.text();
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {
+        _isHtmlError: true,
+        error: `Máy chủ phản hồi mã trạng thái ${res.status}. Đang tự động tối ưu hóa dữ liệu...`,
+      };
+    }
+  };
+
+  // Nén ảnh client-side xuống < 180KB để không bao giờ bị Nginx chặn 413 HTML
+  const compressMediaImageFile = (file: File, maxWidth = 1280, quality = 0.78): Promise<{ blob: Blob; dataUrl: string }> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new window.Image();
+        img.onload = () => {
+          let w = img.width;
+          let h = img.height;
+          if (w > maxWidth) {
+            h = Math.round((h * maxWidth) / w);
+            w = maxWidth;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) return reject(new Error("Canvas context error"));
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL("image/jpeg", quality);
+          canvas.toBlob(
+            (blob) => {
+              if (blob) resolve({ blob, dataUrl });
+              else reject(new Error("Blob error"));
+            },
+            "image/jpeg",
+            quality
+          );
+        };
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Phát tín hiệu đồng bộ 2 chiều giữa /admin và /binh-chon/[slug]
+  const broadcastMediaContestSync = (updatedContest?: any) => {
+    try {
+      if (typeof window !== "undefined") {
+        if ("BroadcastChannel" in window) {
+          const bc = new BroadcastChannel("easup_media_contest_sync");
+          bc.postMessage({
+            type: "MEDIA_CONTEST_SYNC",
+            contest: updatedContest || null,
+            timestamp: Date.now(),
+          });
+          bc.close();
+        }
+        localStorage.setItem(
+          "easup_media_contest_sync_event",
+          JSON.stringify({
+            contestId: updatedContest?.id,
+            slug: updatedContest?.slug,
+            ts: Date.now(),
+          })
+        );
+      }
+    } catch {}
+  };
+
   // Fetch Media Contests
   const loadMediaContests = async () => {
     try {
       const res = await fetch(`/api/media-contests?t=${Date.now()}`, { cache: "no-store" });
-      const data = await res.json();
-      if (data.contests) setMediaContests(data.contests);
+      const data = await safeParseMediaResponse(res);
+      if (data.contests) {
+        setMediaContests(data.contests);
+      }
     } catch (err) {
       console.error("Lỗi tải cuộc thi ảnh/video:", err);
     }
   };
+
+  // Lắng nghe đồng bộ 2 chiều realtime từ trang /binh-chon/[slug]
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleSyncContestToForm = (incoming: any) => {
+      if (!incoming) return;
+      setMediaContests((prev) => {
+        const exists = prev.some((c) => c.id === incoming.id || c.slug === incoming.slug);
+        if (!exists) return [incoming, ...prev];
+        return prev.map((c) =>
+          c.id === incoming.id || c.slug === incoming.slug ? { ...c, ...incoming } : c
+        );
+      });
+
+      if (
+        editingMediaContestId &&
+        (incoming.id === editingMediaContestId || incoming.slug === editingMediaContestId)
+      ) {
+        const syncedModes: ("vertical" | "horizontal")[] =
+          Array.isArray(incoming.layoutModes) && incoming.layoutModes.length > 0
+            ? incoming.layoutModes
+            : incoming.layoutMode === "both"
+              ? ["vertical", "horizontal"]
+              : [incoming.layoutMode || "vertical"];
+        setNewMediaForm((prev) => ({
+          ...prev,
+          ...incoming,
+          submitStartDate: (incoming.submitStartDate || incoming.startDate || prev.submitStartDate).slice(0, 16),
+          submitEndDate: (incoming.submitEndDate || prev.submitEndDate).slice(0, 16),
+          voteStartDate: (incoming.voteStartDate || prev.voteStartDate).slice(0, 16),
+          voteEndDate: (incoming.voteEndDate || incoming.endDate || prev.voteEndDate).slice(0, 16),
+          layoutModes: syncedModes,
+          layoutMode: syncedModes.length >= 2 ? "both" : syncedModes[0] || "vertical",
+          maxImagesPerSubmission: Number(incoming.maxImagesPerSubmission) || prev.maxImagesPerSubmission || 5,
+        }));
+      }
+    };
+
+    let bc: BroadcastChannel | null = null;
+    if ("BroadcastChannel" in window) {
+      bc = new BroadcastChannel("easup_media_contest_sync");
+      bc.onmessage = (ev) => {
+        if (ev.data?.type === "MEDIA_CONTEST_SYNC") {
+          if (ev.data.contest) {
+            handleSyncContestToForm(ev.data.contest);
+          }
+          loadMediaContests();
+        }
+      };
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "easup_media_contest_sync_event") {
+        loadMediaContests();
+      }
+    };
+    const onFocus = () => {
+      loadMediaContests();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
+  }, [editingMediaContestId]);
 
   const handleMediaBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingMediaBanner(true);
     try {
+      const { blob, dataUrl } = await compressMediaImageFile(file);
+      setNewMediaForm((prev) => ({ ...prev, bannerUrl: dataUrl }));
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
       const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const data = await res.json();
+      const data = await safeParseMediaResponse(res);
       if (data.url) {
         setNewMediaForm((prev) => ({ ...prev, bannerUrl: data.url }));
-      } else {
-        const reader = new FileReader();
-        reader.onload = () => {
-          setNewMediaForm((prev) => ({ ...prev, bannerUrl: reader.result as string }));
-        };
-        reader.readAsDataURL(file);
       }
     } catch {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setNewMediaForm((prev) => ({ ...prev, bannerUrl: reader.result as string }));
-      };
-      reader.readAsDataURL(file);
+      try {
+        const { dataUrl } = await compressMediaImageFile(file, 960, 0.7);
+        setNewMediaForm((prev) => ({ ...prev, bannerUrl: dataUrl }));
+      } catch {}
     } finally {
       setUploadingMediaBanner(false);
+      if (e.target) e.target.value = "";
     }
   };
 
@@ -662,8 +808,37 @@ export default function AdminDashboardPage() {
         return dt;
       };
 
+      // Nếu bannerUrl là chuỗi data:base64 thì đẩy lên /api/upload trước để tránh lỗi 413 HTML từ Nginx
+      let cleanBannerUrl = newMediaForm.bannerUrl;
+      if (cleanBannerUrl && cleanBannerUrl.startsWith("data:")) {
+        try {
+          const upRes = await fetch("/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64: cleanBannerUrl, name: "media-banner.jpg" }),
+          });
+          const upData = await safeParseMediaResponse(upRes);
+          if (upData.url) {
+            cleanBannerUrl = upData.url;
+          }
+        } catch {}
+      }
+
+      const normalizedModes: ("vertical" | "horizontal")[] =
+        Array.isArray(newMediaForm.layoutModes) && newMediaForm.layoutModes.length > 0
+          ? newMediaForm.layoutModes
+          : ["vertical"];
+      const normalizedLayoutMode: "vertical" | "horizontal" | "both" =
+        normalizedModes.length >= 2 ? "both" : normalizedModes[0] || "vertical";
+
       const payload = {
         ...newMediaForm,
+        bannerUrl: cleanBannerUrl,
+        editingId: editingMediaContestId || undefined,
+        action: editingMediaContestId ? "update" : "create",
+        layoutModes: normalizedModes,
+        layoutMode: normalizedLayoutMode,
+        maxImagesPerSubmission: Number(newMediaForm.maxImagesPerSubmission) > 0 ? Number(newMediaForm.maxImagesPerSubmission) : 5,
         startDate: newMediaForm.submitStartDate || newMediaForm.startDate,
         endDate: newMediaForm.voteEndDate || newMediaForm.endDate,
         displayStartDate: formatDisplayDate(newMediaForm.submitStartDate || newMediaForm.startDate),
@@ -673,31 +848,52 @@ export default function AdminDashboardPage() {
         creatorName: authUser?.name,
       };
 
-      const targetSlugOrId = editingMediaContestId;
-      const res = await fetch(
-        targetSlugOrId ? `/api/media-contests/${targetSlugOrId}` : "/api/media-contests",
-        {
-          method: targetSlugOrId ? "PATCH" : "POST",
+      // Luôn gửi qua POST /api/media-contests để tương thích 100% với mọi cấu hình Nginx/Cloudflare
+      let res = await fetch("/api/media-contests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      let data = await safeParseMediaResponse(res);
+
+      // Nếu vì lý do nào đó payload lớn bị chặn HTML, tự động rút gọn bannerUrl và gửi lại
+      if (data._isHtmlError) {
+        const retryPayload = {
+          ...payload,
+          bannerUrl:
+            payload.bannerUrl && payload.bannerUrl.startsWith("data:")
+              ? "/images/contest_stage_banner.jpg"
+              : payload.bannerUrl,
+        };
+        res = await fetch("/api/media-contests", {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
-      const data = await res.json();
+          body: JSON.stringify(retryPayload),
+        });
+        data = await safeParseMediaResponse(res);
+      }
+
       if (data.success || data.contest) {
+        const savedContest = data.contest;
+        await loadMediaContests();
+        broadcastMediaContestSync(savedContest);
         setShowCreateMediaModal(false);
         setEditingMediaContestId(null);
-        await loadMediaContests();
-        const savedSlug = data.contest?.slug || targetSlugOrId;
+        const savedSlug = savedContest?.slug || editingMediaContestId;
         if (openDashboardAfter && savedSlug) {
           window.open(`/binh-chon/${savedSlug}?settings=1`, "_blank");
         } else {
-          alert(targetSlugOrId ? "Đã lưu cài đặt cuộc thi ảnh thành công!" : "Khởi tạo cuộc thi bình chọn mới thành công!");
+          alert(
+            editingMediaContestId
+              ? "Đã lưu & đồng bộ cài đặt cuộc thi ảnh thành công!"
+              : "Khởi tạo cuộc thi bình chọn mới thành công!"
+          );
         }
       } else {
         alert(data.error || "Lỗi lưu cuộc thi");
       }
     } catch (err: any) {
-      alert("Lỗi: " + err.message);
+      alert("Lỗi khi lưu cài đặt: " + (err?.message || "Vui lòng thử lại"));
     }
   };
 
@@ -2264,7 +2460,13 @@ export default function AdminDashboardPage() {
                                         <button
                                           type="button"
                                           onClick={() => {
-                                            setEditingMediaContestId(c.slug || c.id);
+                                            const initModes: ("vertical" | "horizontal")[] =
+                                              Array.isArray(c.layoutModes) && c.layoutModes.length > 0
+                                                ? c.layoutModes
+                                                : c.layoutMode === "both"
+                                                  ? ["vertical", "horizontal"]
+                                                  : [c.layoutMode || "vertical"];
+                                            setEditingMediaContestId(c.id || c.slug);
                                             setNewMediaForm({
                                               title: c.title || "",
                                               slug: c.slug || "",
@@ -2281,7 +2483,9 @@ export default function AdminDashboardPage() {
                                               status: c.status || "PUBLISHED",
                                               description: c.description || "",
                                               themeColor: c.themeColor || "#1B7F5C",
-                                              layoutMode: c.layoutMode || "vertical",
+                                              layoutMode: initModes.length >= 2 ? "both" : initModes[0] || "vertical",
+                                              layoutModes: initModes,
+                                              maxImagesPerSubmission: Number(c.maxImagesPerSubmission) > 0 ? Number(c.maxImagesPerSubmission) : 5,
                                               sortBy: c.sortBy || "votesCount",
                                               enableSocialShare: c.enableSocialShare ?? true,
                                               sharePlatforms: Array.isArray(c.sharePlatforms) ? c.sharePlatforms : ["facebook", "zalo"],
@@ -3608,49 +3812,123 @@ export default function AdminDashboardPage() {
 
                 {mediaSettingsSection === "submissions" && (
                   <div className="mt-3 space-y-3">
-                    {/* Bố cục: Bố cục dọc / Bố cục ngang (Ảnh 3) */}
+                    {/* Bố cục: Cho phép chọn cả Bố cục dọc VÀ Bố cục ngang (Ảnh 2) */}
                     <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
-                      <label className="block font-bold text-slate-800 text-xs">Bố cục</label>
+                      <div className="flex items-center justify-between">
+                        <label className="block font-bold text-slate-800 text-xs">Bố cục</label>
+                        <span className="text-[10px] text-slate-400">
+                          Có thể chọn 1 hoặc cả 2 chiều
+                        </span>
+                      </div>
                       <div className="flex items-center space-x-8">
-                        <label
-                          onClick={() =>
-                            setNewMediaForm({ ...newMediaForm, layoutMode: "vertical" })
-                          }
-                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
-                        >
-                          <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
-                              newMediaForm.layoutMode === "vertical"
-                                ? "border-[#EF4444] bg-[#EF4444]"
-                                : "border-slate-300 bg-white"
-                            }`}
-                          >
-                            {newMediaForm.layoutMode === "vertical" && (
-                              <span className="w-2 h-2 rounded-full bg-white" />
-                            )}
-                          </span>
-                          <span className="text-xs font-medium text-slate-800">Bố cục dọc</span>
-                        </label>
+                        {([
+                          { id: "vertical", label: "Bố cục dọc" },
+                          { id: "horizontal", label: "Bố cục ngang" },
+                        ] as const).map((item) => {
+                          const currentModes: ("vertical" | "horizontal")[] =
+                            Array.isArray(newMediaForm.layoutModes) &&
+                            newMediaForm.layoutModes.length > 0
+                              ? newMediaForm.layoutModes
+                              : ["vertical"];
+                          const isChecked = currentModes.includes(item.id);
+                          return (
+                            <label
+                              key={item.id}
+                              onClick={() => {
+                                let nextModes: ("vertical" | "horizontal")[];
+                                if (isChecked) {
+                                  // Nếu đang chọn cả 2 thì bỏ bớt 1; nếu chỉ còn 1 mà bấm tiếp thì chuyển sang chiều kia
+                                  if (currentModes.length > 1) {
+                                    nextModes = currentModes.filter((m) => m !== item.id);
+                                  } else {
+                                    nextModes = [item.id === "vertical" ? "horizontal" : "vertical"];
+                                  }
+                                } else {
+                                  nextModes = [...currentModes, item.id];
+                                }
+                                setNewMediaForm({
+                                  ...newMediaForm,
+                                  layoutModes: nextModes,
+                                  layoutMode:
+                                    nextModes.length >= 2 ? "both" : nextModes[0] || "vertical",
+                                });
+                              }}
+                              className="inline-flex items-center space-x-2 cursor-pointer select-none"
+                            >
+                              <span
+                                className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                                  isChecked
+                                    ? "border-[#EF4444] bg-[#EF4444]"
+                                    : "border-slate-300 bg-white"
+                                }`}
+                              >
+                                {isChecked && (
+                                  <span className="w-2 h-2 rounded-full bg-white" />
+                                )}
+                              </span>
+                              <span className="text-xs font-medium text-slate-800">
+                                {item.label}
+                              </span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    </div>
 
-                        <label
-                          onClick={() =>
-                            setNewMediaForm({ ...newMediaForm, layoutMode: "horizontal" })
-                          }
-                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
-                        >
-                          <span
-                            className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
-                              newMediaForm.layoutMode === "horizontal"
-                                ? "border-[#EF4444] bg-[#EF4444]"
-                                : "border-slate-300 bg-white"
-                            }`}
-                          >
-                            {newMediaForm.layoutMode === "horizontal" && (
-                              <span className="w-2 h-2 rounded-full bg-white" />
-                            )}
-                          </span>
-                          <span className="text-xs font-medium text-slate-800">Bố cục ngang</span>
+                    {/* Số lượng hình tối đa dự thi */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <label className="block font-bold text-slate-800 text-xs">
+                          Số lượng hình tối đa dự thi
                         </label>
+                        <span className="text-[11px] font-bold text-[#DC2626] bg-red-50 px-2 py-0.5 rounded-md">
+                          Tối đa {newMediaForm.maxImagesPerSubmission || 5} hình / bài
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          {[1, 3, 5, 10].map((num) => {
+                            const active = (newMediaForm.maxImagesPerSubmission || 5) === num;
+                            return (
+                              <button
+                                key={num}
+                                type="button"
+                                onClick={() =>
+                                  setNewMediaForm({
+                                    ...newMediaForm,
+                                    maxImagesPerSubmission: num,
+                                  })
+                                }
+                                className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                                  active
+                                    ? "border-[#EF4444] bg-[#EF4444] text-white"
+                                    : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                                }`}
+                              >
+                                {num} hình
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center space-x-1.5 shrink-0">
+                          <span className="text-[11px] text-slate-500">Tùy chỉnh:</span>
+                          <input
+                            type="number"
+                            min={1}
+                            max={20}
+                            value={newMediaForm.maxImagesPerSubmission || 5}
+                            onChange={(e) =>
+                              setNewMediaForm({
+                                ...newMediaForm,
+                                maxImagesPerSubmission: Math.max(
+                                  1,
+                                  Math.min(20, Number(e.target.value) || 1)
+                                ),
+                              })
+                            }
+                            className="w-14 px-2 py-1 rounded-lg border border-slate-200 text-xs text-center font-bold text-slate-800 focus:outline-none focus:border-red-500"
+                          />
+                        </div>
                       </div>
                     </div>
 

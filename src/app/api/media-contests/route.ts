@@ -21,6 +21,22 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
 
+    // Hỗ trợ cập nhật cuộc thi hiện có qua POST (tránh lỗi Nginx/WAF chặn method PATCH trả về HTML)
+    const targetUpdateId = body.editingId || (body.action === "update" ? body.id || body.slug : null);
+    if (targetUpdateId) {
+      const updated = store.updateMediaContest(targetUpdateId, body);
+      if (updated) {
+        return NextResponse.json({ success: true, contest: updated, mode: "updated" });
+      }
+      // Fallback: thử tìm theo slug nếu truyền id không khớp
+      if (body.slug) {
+        const updatedBySlug = store.updateMediaContest(body.slug, body);
+        if (updatedBySlug) {
+          return NextResponse.json({ success: true, contest: updatedBySlug, mode: "updated" });
+        }
+      }
+    }
+
     if (!body.title) {
       return NextResponse.json(
         { error: "Vui lòng nhập tên cuộc thi bình chọn!" },
@@ -44,16 +60,19 @@ export async function POST(req: NextRequest) {
       displayEndDate: body.displayEndDate || "24/11/2026",
       status: body.status || "PUBLISHED",
       description: body.description || "",
+      layoutModes: body.layoutModes || (body.layoutMode === "both" ? ["vertical", "horizontal"] : [body.layoutMode || "vertical"]),
+      layoutMode: body.layoutMode || "vertical",
+      maxImagesPerSubmission: Number(body.maxImagesPerSubmission) > 0 ? Number(body.maxImagesPerSubmission) : 5,
       organizerName: body.organizerName || "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
       creatorEmail: body.creatorEmail,
       creatorId: body.creatorId,
       creatorName: body.creatorName,
     });
 
-    return NextResponse.json({ success: true, contest: newContest });
+    return NextResponse.json({ success: true, contest: newContest, mode: "created" });
   } catch (error: any) {
     return NextResponse.json(
-      { error: "Lỗi tạo cuộc thi: " + error.message },
+      { error: "Lỗi lưu cuộc thi: " + error.message },
       { status: 500 }
     );
   }

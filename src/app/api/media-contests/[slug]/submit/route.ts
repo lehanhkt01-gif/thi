@@ -26,6 +26,13 @@ export async function POST(
       );
     }
 
+    const maxImgs = contest.maxImagesPerSubmission || 5;
+    const rawUrls: string[] = Array.isArray(body.mediaUrls) && body.mediaUrls.length > 0
+      ? body.mediaUrls.filter(Boolean).slice(0, maxImgs)
+      : body.mediaUrl
+        ? [body.mediaUrl]
+        : ["https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"];
+
     const newSub = store.addMediaSubmission({
       contestId: contest.id,
       contestSlug: contest.slug,
@@ -35,9 +42,11 @@ export async function POST(
       authorCccd: body.authorCccd || "",
       unitName: body.unitName,
       mediaType: body.mediaType || contest.type || "IMAGE",
-      mediaUrl: body.mediaUrl || "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
+      mediaUrl: rawUrls[0],
+      mediaUrls: rawUrls,
+      orientation: body.orientation || undefined,
       description: body.description || "",
-      status: "APPROVED",
+      status: contest.requireApproval ? "PENDING" : "APPROVED",
     });
 
     return NextResponse.json({ success: true, submission: newSub });

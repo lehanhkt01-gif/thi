@@ -154,7 +154,9 @@ export interface MediaContestModel {
   rulesFileUrl?: string;
   announcement?: string;
   themeColor?: string;
-  layoutMode?: "vertical" | "horizontal";
+  layoutMode?: "vertical" | "horizontal" | "both";
+  layoutModes?: ("vertical" | "horizontal")[];
+  maxImagesPerSubmission?: number;
   sortBy?: "createdAt" | "votesCount" | "score";
   enableSocialShare?: boolean;
   sharePlatforms?: ("facebook" | "zalo")[];
@@ -173,6 +175,7 @@ export interface MediaContestModel {
   creatorId?: string;
   creatorName?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface MediaSubmissionModel {
@@ -187,6 +190,8 @@ export interface MediaSubmissionModel {
   unitName: string;
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
+  mediaUrls?: string[];
+  orientation?: "vertical" | "horizontal";
   description: string;
   votesCount: number;
   sharesCount?: number;
@@ -1821,8 +1826,60 @@ class DataStore {
     ];
   }
 
+  private slugifyMediaTitle(title: string, fallbackId?: string): string {
+    const base = (title || "cuoc-thi")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/đ/g, "d")
+      .replace(/[^a-z0-9]/g, "-")
+      .replace(/-+/g, "-")
+      .replace(/^-|-$/g, "");
+    return base || fallbackId || `media-${Date.now()}`;
+  }
+
+  private normalizeMediaContestsList() {
+    let changed = false;
+    const usedSlugs = new Set<string>();
+    for (const c of this.mediaContests) {
+      if (this.isMediaContestDeleted(c)) continue;
+      // Fix legacy duplicate "cuoc-thi-binh-chon-moi" when title was customized
+      if (
+        c.slug === "cuoc-thi-binh-chon-moi" &&
+        c.id !== "media-contest-1" &&
+        c.title &&
+        c.title.trim().toUpperCase() !== "CUỘC THI BÌNH CHỌN MỚI"
+      ) {
+        const nextSlug = this.slugifyMediaTitle(c.title, c.id);
+        c.slug = usedSlugs.has(nextSlug) ? `${nextSlug}-${c.id.slice(-4)}` : nextSlug;
+        changed = true;
+      } else if (usedSlugs.has(c.slug)) {
+        c.slug = `${c.slug}-${c.id.slice(-4)}`;
+        changed = true;
+      }
+      usedSlugs.add(c.slug);
+
+      if (!c.layoutModes || !Array.isArray(c.layoutModes) || c.layoutModes.length === 0) {
+        if (c.layoutMode === "both") {
+          c.layoutModes = ["vertical", "horizontal"];
+        } else if (c.layoutMode === "horizontal") {
+          c.layoutModes = ["horizontal"];
+        } else {
+          c.layoutModes = ["vertical"];
+        }
+      }
+      if (!c.maxImagesPerSubmission || c.maxImagesPerSubmission < 1) {
+        c.maxImagesPerSubmission = 5;
+      }
+    }
+    if (changed) {
+      this.saveToDisk(true);
+    }
+  }
+
   public getMediaContests(): MediaContestModel[] {
     this.loadFromDisk();
+    this.normalizeMediaContestsList();
     return this.mediaContests
       .filter((c) => !this.isMediaContestDeleted(c))
       .map((c) => ({
@@ -1833,7 +1890,12 @@ class DataStore {
 
   public getMediaContestBySlug(slug: string): MediaContestModel | undefined {
     this.loadFromDisk();
-    let contest = this.mediaContests.find((c) => (c.slug === slug || c.id === slug) && !this.isMediaContestDeleted(c));
+    this.normalizeMediaContestsList();
+    // Ưu tiên khớp chính xác ID trước để tránh trùng slug
+    let contest = this.mediaContests.find((c) => c.id === slug && !this.isMediaContestDeleted(c));
+    if (!contest) {
+      contest = this.mediaContests.find((c) => c.slug === slug && !this.isMediaContestDeleted(c));
+    }
     if (!contest && slug === "cuoc-thi-binh-chon-moi") {
       contest = this.mediaContests.find((c) => !this.isMediaContestDeleted(c));
     }
@@ -1846,19 +1908,32 @@ class DataStore {
 
   public createMediaContest(data: Partial<MediaContestModel>): MediaContestModel {
     this.loadFromDisk(true);
+    this.normalizeMediaContestsList();
     const id = `media-${Date.now()}`;
-    const slug = data.slug || (data.title || "cuoc-thi")
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .replace(/đ/g, "d")
-      .replace(/[^a-z0-9]/g, "-")
-      .replace(/-+/g, "-")
-      .replace(/^-|-$/g, "") || `media-${Date.now()}`;
+    let slug =
+      data.slug && data.slug !== "cuoc-thi-binh-chon-moi"
+        ? data.slug
+        : this.slugifyMediaTitle(data.title || "cuoc-thi", id);
+
+    if (this.mediaContests.some((c) => c.slug === slug && !this.isMediaContestDeleted(c))) {
+      slug = `${slug}-${Date.now().toString().slice(-4)}`;
+    }
 
     this.deletedMediaContestIds = this.deletedMediaContestIds.filter(
       (delId) => delId !== id && delId !== slug
     );
+
+    const layoutModes: ("vertical" | "horizontal")[] =
+      Array.isArray(data.layoutModes) && data.layoutModes.length > 0
+        ? data.layoutModes
+        : data.layoutMode === "both"
+          ? ["vertical", "horizontal"]
+          : data.layoutMode === "horizontal"
+            ? ["horizontal"]
+            : ["vertical"];
+
+    const layoutMode: "vertical" | "horizontal" | "both" =
+      layoutModes.length >= 2 ? "both" : layoutModes[0] || "vertical";
 
     const newContest: MediaContestModel = {
       id,
@@ -1881,7 +1956,9 @@ class DataStore {
       rulesFileUrl: data.rulesFileUrl || "",
       announcement: data.announcement || "Ban Tổ Chức đang tiếp nhận tác phẩm dự thi và mở cổng bình chọn trực tuyến công khai.",
       themeColor: data.themeColor || "#1B7F5C",
-      layoutMode: data.layoutMode || "vertical",
+      layoutMode,
+      layoutModes,
+      maxImagesPerSubmission: Number(data.maxImagesPerSubmission) > 0 ? Number(data.maxImagesPerSubmission) : 5,
       sortBy: data.sortBy || "votesCount",
       enableSocialShare: data.enableSocialShare !== undefined ? data.enableSocialShare : true,
       sharePlatforms: data.sharePlatforms || ["facebook", "zalo"],
@@ -1900,6 +1977,7 @@ class DataStore {
       creatorId: data.creatorId,
       creatorName: data.creatorName,
       createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
     this.mediaContests.unshift(newContest);
     this.saveToDisk(true);
@@ -1908,7 +1986,10 @@ class DataStore {
 
   public deleteMediaContest(id: string, user?: { email?: string; role?: string; id?: string }): { success: boolean; error?: string } {
     this.loadFromDisk(true);
-    const idx = this.mediaContests.findIndex((c) => c.id === id || c.slug === id);
+    let idx = this.mediaContests.findIndex((c) => c.id === id);
+    if (idx === -1) {
+      idx = this.mediaContests.findIndex((c) => c.slug === id);
+    }
     if (idx === -1) return { success: false, error: "Không tìm thấy cuộc thi bình chọn!" };
     const contest = this.mediaContests[idx];
     if (user && user.role !== "ADMIN") {
@@ -1927,7 +2008,7 @@ class DataStore {
     }
     const delId = contest.id;
     const delSlug = contest.slug;
-    this.mediaContests = this.mediaContests.filter((c) => c.id !== delId && c.slug !== delSlug && c.id !== id && c.slug !== id);
+    this.mediaContests = this.mediaContests.filter((c) => c.id !== delId);
     this.mediaSubmissions = this.mediaSubmissions.filter((s) => s.contestId !== delId && s.contestSlug !== delSlug);
     this.saveToDisk(true);
     return { success: true };
@@ -1935,20 +2016,61 @@ class DataStore {
 
   public updateMediaContest(id: string, updateData: Partial<MediaContestModel>): MediaContestModel | null {
     this.loadFromDisk(true);
-    const idx = this.mediaContests.findIndex((c) => c.id === id || c.slug === id);
+    this.normalizeMediaContestsList();
+    // Ưu tiên tìm chính xác theo id trước, sau đó mới theo slug
+    let idx = this.mediaContests.findIndex((c) => c.id === id);
+    if (idx === -1) {
+      idx = this.mediaContests.findIndex((c) => c.slug === id);
+    }
     if (idx === -1) return null;
     const existing = this.mediaContests[idx];
-    const { creatorEmail, creatorId, creatorName, ...rest } = updateData;
+    const { creatorEmail, creatorId, creatorName, id: _ignoreId, ...rest } = updateData as any;
+
+    let layoutModes: ("vertical" | "horizontal")[] = existing.layoutModes || ["vertical"];
+    if (Array.isArray(rest.layoutModes) && rest.layoutModes.length > 0) {
+      layoutModes = rest.layoutModes;
+    } else if (rest.layoutMode) {
+      layoutModes =
+        rest.layoutMode === "both"
+          ? ["vertical", "horizontal"]
+          : [rest.layoutMode as "vertical" | "horizontal"];
+    }
+    const layoutMode: "vertical" | "horizontal" | "both" =
+      layoutModes.length >= 2 ? "both" : layoutModes[0] || "vertical";
+
     this.mediaContests[idx] = {
       ...existing,
       ...rest,
+      id: existing.id,
+      slug: rest.slug || existing.slug,
+      layoutModes,
+      layoutMode,
+      maxImagesPerSubmission:
+        Number(rest.maxImagesPerSubmission) > 0
+          ? Number(rest.maxImagesPerSubmission)
+          : existing.maxImagesPerSubmission || 5,
       // Giữ nguyên người khởi tạo ban đầu
       creatorEmail: existing.creatorEmail || creatorEmail,
       creatorId: existing.creatorId || creatorId,
       creatorName: existing.creatorName || creatorName,
+      updatedAt: new Date().toISOString(),
     };
+
+    // Đồng bộ contestSlug cho các bài dự thi thuộc cuộc thi này nếu slug thay đổi
+    const updatedContest = this.mediaContests[idx];
+    for (const sub of this.mediaSubmissions) {
+      if (sub.contestId === updatedContest.id) {
+        sub.contestSlug = updatedContest.slug;
+      }
+    }
+
     this.saveToDisk(true);
-    return this.mediaContests[idx];
+    return {
+      ...updatedContest,
+      submissionsCount: this.mediaSubmissions.filter(
+        (s) => s.contestId === updatedContest.id || s.contestSlug === updatedContest.slug
+      ).length,
+    };
   }
 
   public getMediaSubmissions(contestIdOrSlug: string): MediaSubmissionModel[] {

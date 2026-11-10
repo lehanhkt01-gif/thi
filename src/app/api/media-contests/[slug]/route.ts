@@ -71,12 +71,16 @@ export async function PATCH(
 ) {
   try {
     const { slug } = await params;
-    const contest = store.getMediaContestBySlug(slug);
+    const body = await req.json();
+    const targetId = body.editingId || body.id || slug;
+    let contest = store.getMediaContestBySlug(targetId);
+    if (!contest) {
+      contest = store.getMediaContestBySlug(slug);
+    }
     if (!contest) {
       return NextResponse.json({ error: "Không tìm thấy cuộc thi!" }, { status: 404 });
     }
 
-    const body = await req.json();
     const updated = store.updateMediaContest(contest.id, body);
     return NextResponse.json({ success: true, contest: updated });
   } catch (error: any) {
@@ -85,6 +89,13 @@ export async function PATCH(
 }
 
 export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  return PATCH(req, context);
+}
+
+export async function POST(
   req: NextRequest,
   context: { params: Promise<{ slug: string }> }
 ) {

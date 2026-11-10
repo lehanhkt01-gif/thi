@@ -65,7 +65,9 @@ interface MediaContest {
   rulesFileUrl?: string;
   announcement?: string;
   themeColor?: string;
-  layoutMode?: "vertical" | "horizontal";
+  layoutMode?: "vertical" | "horizontal" | "both";
+  layoutModes?: ("vertical" | "horizontal")[];
+  maxImagesPerSubmission?: number;
   sortBy?: "createdAt" | "votesCount" | "score";
   enableSocialShare?: boolean;
   sharePlatforms?: ("facebook" | "zalo")[];
@@ -97,6 +99,8 @@ interface MediaSubmission {
   unitName: string;
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
+  mediaUrls?: string[];
+  orientation?: "vertical" | "horizontal";
   description: string;
   votesCount: number;
   sharesCount?: number;
@@ -164,6 +168,8 @@ export default function MediaContestPublicPage({
 
   // Lightbox / Detail Modal for viewing a submission
   const [selectedSubmission, setSelectedSubmission] = useState<MediaSubmission | null>(null);
+  const [selectedSubmissionImageIdx, setSelectedSubmissionImageIdx] = useState(0);
+  const [viewOrientation, setViewOrientation] = useState<"vertical" | "horizontal">("vertical");
   // Rules / Announcement Modal
   const [infoModalTab, setInfoModalTab] = useState<"rules" | "announcement" | "leaderboard" | null>(null);
 
@@ -186,12 +192,53 @@ export default function MediaContestPublicPage({
     unitName: EA_SUP_VILLAGES[0],
     mediaType: "IMAGE" as "IMAGE" | "VIDEO",
     mediaUrl: "",
+    mediaUrls: [] as string[],
+    orientation: "vertical" as "vertical" | "horizontal",
     description: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({});
+
+  // Safe JSON helper chống lỗi Unexpected token '<', "<html>..." is not valid JSON
+  const safeParseResponseJson = async (res: Response) => {
+    const raw = await res.text();
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return {
+        _isHtmlError: true,
+        error: `Máy chủ phản hồi mã ${res.status}. Đang tự động tối ưu hóa dữ liệu...`,
+      };
+    }
+  };
+
+  // Phát tín hiệu đồng bộ 2 chiều giữa /binh-chon/[slug] và /admin
+  const broadcastMediaContestSync = (updatedContest?: any) => {
+    try {
+      if (typeof window !== "undefined") {
+        if ("BroadcastChannel" in window) {
+          const bc = new BroadcastChannel("easup_media_contest_sync");
+          bc.postMessage({
+            type: "MEDIA_CONTEST_SYNC",
+            contest: updatedContest || contest || null,
+            timestamp: Date.now(),
+          });
+          bc.close();
+        }
+        localStorage.setItem(
+          "easup_media_contest_sync_event",
+          JSON.stringify({
+            contestId: (updatedContest || contest)?.id,
+            slug: (updatedContest || contest)?.slug || slug,
+            ts: Date.now(),
+          })
+        );
+      }
+    } catch {}
+  };
 
   // Nén ảnh JPEG < 250KB tương thích iOS Safari & vượt giới hạn 1MB của Nginx
   const compressImageToJpeg = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
@@ -284,12 +331,20 @@ export default function MediaContestPublicPage({
       const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}?t=${Date.now()}`, {
         cache: "no-store",
       });
-      const rawText = await res.text();
-      const data = rawText ? JSON.parse(rawText) : {};
+      const data = await safeParseResponseJson(res);
       if (data.contest) {
+        const initModes: ("vertical" | "horizontal")[] =
+          Array.isArray(data.contest.layoutModes) && data.contest.layoutModes.length > 0
+            ? data.contest.layoutModes
+            : data.contest.layoutMode === "both"
+              ? ["vertical", "horizontal"]
+              : [data.contest.layoutMode || "vertical"];
+
         const c: MediaContest = {
           themeColor: "#1B7F5C",
-          layoutMode: "vertical",
+          layoutMode: initModes.length >= 2 ? "both" : initModes[0] || "vertical",
+          layoutModes: initModes,
+          maxImagesPerSubmission: Number(data.contest.maxImagesPerSubmission) > 0 ? Number(data.contest.maxImagesPerSubmission) : 5,
           sortBy: "votesCount",
           enableSocialShare: true,
           sharePlatforms: ["facebook", "zalo"],
@@ -305,7 +360,12 @@ export default function MediaContestPublicPage({
           voteEndDate: data.contest.voteEndDate || data.contest.endDate?.slice(0, 16) || "2026-11-24T07:00",
           ...data.contest,
         };
+        c.layoutModes = initModes;
+        c.layoutMode = initModes.length >= 2 ? "both" : initModes[0] || "vertical";
         setContest(c);
+        if (!initModes.includes(viewOrientation)) {
+          setViewOrientation(initModes[0] || "vertical");
+        }
         setSubmissions(data.submissions || []);
       }
     } catch (err) {
@@ -317,6 +377,39 @@ export default function MediaContestPublicPage({
 
   useEffect(() => {
     loadData();
+  }, [slug]);
+
+  // Lắng nghe đồng bộ 2 chiều từ /admin sang /binh-chon/[slug]
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    let bc: BroadcastChannel | null = null;
+    if ("BroadcastChannel" in window) {
+      bc = new BroadcastChannel("easup_media_contest_sync");
+      bc.onmessage = (ev) => {
+        if (ev.data?.type === "MEDIA_CONTEST_SYNC") {
+          loadData();
+        }
+      };
+    }
+
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === "easup_media_contest_sync_event") {
+        loadData();
+      }
+    };
+
+    const onFocus = () => {
+      loadData();
+    };
+
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onFocus);
+    return () => {
+      if (bc) bc.close();
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+    };
   }, [slug]);
 
   // Real-time countdown calculator
@@ -352,7 +445,16 @@ export default function MediaContestPublicPage({
   }, [contest?.submitEndDate, contest?.voteEndDate, contest?.endDate]);
 
   const themeColor = contest?.themeColor || "#1B7F5C";
-  const layoutMode = contest?.layoutMode || "vertical";
+  const layoutModes: ("vertical" | "horizontal")[] =
+    Array.isArray(contest?.layoutModes) && contest!.layoutModes!.length > 0
+      ? contest!.layoutModes!
+      : contest?.layoutMode === "both"
+        ? ["vertical", "horizontal"]
+        : [contest?.layoutMode === "horizontal" ? "horizontal" : "vertical"];
+  const layoutMode = layoutModes.includes(viewOrientation)
+    ? viewOrientation
+    : layoutModes[0] || "vertical";
+  const maxImagesPerSubmission = Number(contest?.maxImagesPerSubmission) > 0 ? Number(contest?.maxImagesPerSubmission) : 5;
   const sortBy = contest?.sortBy || "votesCount";
 
   const toggleAccordion = (key: SettingsSectionKey) => {
@@ -380,8 +482,7 @@ export default function MediaContestPublicPage({
       const formData = new FormData();
       formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
       const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const raw = await res.text();
-      const data = raw ? JSON.parse(raw) : {};
+      const data = await safeParseResponseJson(res);
       if (res.ok && data.success && data.url) {
         updateContestField("bannerUrl", data.url);
       }
@@ -393,23 +494,54 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Upload Ảnh tác phẩm khi thí sinh nộp bài
+  // Upload nhiều ảnh tác phẩm (tối đa maxImagesPerSubmission hình) khi thí sinh nộp bài
   const handleSubmissionFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const fileList = e.target.files;
+    if (!fileList || fileList.length === 0) return;
+
+    const currentUrls = submitForm.mediaUrls.length > 0
+      ? [...submitForm.mediaUrls]
+      : submitForm.mediaUrl
+        ? [submitForm.mediaUrl]
+        : [];
+
+    const remainingSlots = maxImagesPerSubmission - currentUrls.length;
+    if (remainingSlots <= 0) {
+      alert(`Mỗi bài dự thi chỉ được tải lên tối đa ${maxImagesPerSubmission} hình ảnh!`);
+      if (e.target) e.target.value = "";
+      return;
+    }
+
+    const filesToProcess = Array.from(fileList).slice(0, remainingSlots);
+    if (fileList.length > remainingSlots) {
+      alert(`Chỉ chọn thêm ${remainingSlots} hình để đảm bảo giới hạn tối đa ${maxImagesPerSubmission} hình/bài dự thi.`);
+    }
+
     try {
       setIsUploadingSubmitImage(true);
-      const { blob, dataUrl } = await compressImageToJpeg(file);
-      setSubmitForm((prev) => ({ ...prev, mediaUrl: dataUrl }));
+      const uploadedUrls: string[] = [];
 
-      const formData = new FormData();
-      formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
-      const res = await fetch("/api/upload", { method: "POST", body: formData });
-      const raw = await res.text();
-      const data = raw ? JSON.parse(raw) : {};
-      if (res.ok && data.success && data.url) {
-        setSubmitForm((prev) => ({ ...prev, mediaUrl: data.url }));
+      for (const file of filesToProcess) {
+        const { blob, dataUrl } = await compressImageToJpeg(file);
+        let finalUrl = dataUrl;
+        try {
+          const formData = new FormData();
+          formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
+          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          const data = await safeParseResponseJson(res);
+          if (res.ok && data.success && data.url) {
+            finalUrl = data.url;
+          }
+        } catch {}
+        uploadedUrls.push(finalUrl);
       }
+
+      const nextUrls = [...currentUrls, ...uploadedUrls].slice(0, maxImagesPerSubmission);
+      setSubmitForm((prev) => ({
+        ...prev,
+        mediaUrls: nextUrls,
+        mediaUrl: nextUrls[0] || "",
+      }));
     } catch (err) {
       console.warn("Lỗi tải ảnh tác phẩm:", err);
     } finally {
@@ -418,7 +550,7 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Lưu toàn bộ cấu hình cuộc thi ảnh lên máy chủ
+  // Lưu toàn bộ cấu hình cuộc thi ảnh lên máy chủ & đồng bộ 2 chiều về /admin
   const handleSaveContestSettings = async () => {
     if (!contest) return;
     setIsSavingSettings(true);
@@ -431,37 +563,68 @@ export default function MediaContestPublicPage({
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ base64: cleanBanner, name: "banner-photo.jpg" }),
           });
-          const upRaw = await upRes.text();
-          const upData = upRaw ? JSON.parse(upRaw) : {};
+          const upData = await safeParseResponseJson(upRes);
           if (upRes.ok && upData.success && upData.url) {
             cleanBanner = upData.url;
           }
         } catch {}
       }
 
+      const normalizedModes: ("vertical" | "horizontal")[] =
+        Array.isArray(contest.layoutModes) && contest.layoutModes.length > 0
+          ? contest.layoutModes
+          : ["vertical"];
+      const normalizedLayoutMode: "vertical" | "horizontal" | "both" =
+        normalizedModes.length >= 2 ? "both" : normalizedModes[0] || "vertical";
+
       const payload = {
         ...contest,
+        editingId: contest.id || slug,
+        action: "update",
         bannerUrl: cleanBanner,
+        layoutModes: normalizedModes,
+        layoutMode: normalizedLayoutMode,
+        maxImagesPerSubmission: Number(contest.maxImagesPerSubmission) > 0 ? Number(contest.maxImagesPerSubmission) : 5,
         startDate: contest.submitStartDate || contest.startDate,
         endDate: contest.voteEndDate || contest.endDate,
         displayStartDate: (contest.submitStartDate || contest.startDate || "").slice(0, 10),
         displayEndDate: (contest.voteEndDate || contest.endDate || "").slice(0, 10),
       };
 
-      const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}`, {
-        method: "PATCH",
+      // Gửi qua POST /api/media-contests để tránh lỗi Nginx chặn PATCH trả về HTML
+      let res = await fetch("/api/media-contests", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      const rawText = await res.text();
-      const data = rawText ? JSON.parse(rawText) : {};
-      if (!res.ok) {
+      let data = await safeParseResponseJson(res);
+
+      if (data._isHtmlError) {
+        const retryPayload = {
+          ...payload,
+          bannerUrl:
+            payload.bannerUrl && payload.bannerUrl.startsWith("data:")
+              ? "/images/contest_stage_banner.jpg"
+              : payload.bannerUrl,
+        };
+        res = await fetch("/api/media-contests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(retryPayload),
+        });
+        data = await safeParseResponseJson(res);
+      }
+
+      if (!res.ok && !data.contest) {
         throw new Error(data.error || "Không thể lưu cài đặt cuộc thi!");
       }
       if (data.contest) {
         setContest((prev) => ({ ...prev, ...data.contest }));
+        broadcastMediaContestSync(data.contest);
+      } else {
+        broadcastMediaContestSync(payload);
       }
-      setSaveToast("Đã lưu cài đặt cuộc thi ảnh thành công!");
+      setSaveToast("Đã lưu & đồng bộ cài đặt cuộc thi ảnh thành công!");
       setTimeout(() => setSaveToast(""), 3000);
     } catch (err: any) {
       alert("Lỗi khi lưu cài đặt: " + (err?.message || "Vui lòng thử lại"));
@@ -524,6 +687,7 @@ export default function MediaContestPublicPage({
         if (selectedSubmission?.id === submissionId) {
           setSelectedSubmission((prev) => (prev ? { ...prev, votesCount: data.votesCount } : prev));
         }
+        broadcastMediaContestSync();
 
         confetti({
           particleCount: 55,
@@ -547,21 +711,40 @@ export default function MediaContestPublicPage({
 
     setIsSubmitting(true);
     try {
-      let finalMediaUrl = submitForm.mediaUrl;
-      if (finalMediaUrl && finalMediaUrl.startsWith("data:")) {
-        try {
-          const upRes = await fetch("/api/upload", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ base64: finalMediaUrl, name: "tac-pham.jpg" }),
-          });
-          const upRaw = await upRes.text();
-          const upData = upRaw ? JSON.parse(upRaw) : {};
-          if (upRes.ok && upData.success && upData.url) {
-            finalMediaUrl = upData.url;
+      const candidateUrls =
+        submitForm.mediaUrls.length > 0
+          ? submitForm.mediaUrls
+          : submitForm.mediaUrl
+            ? [submitForm.mediaUrl]
+            : [];
+
+      const uploadedUrls: string[] = [];
+      for (const itemUrl of candidateUrls.slice(0, maxImagesPerSubmission)) {
+        if (itemUrl && itemUrl.startsWith("data:")) {
+          try {
+            const upRes = await fetch("/api/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ base64: itemUrl, name: "tac-pham.jpg" }),
+            });
+            const upData = await safeParseResponseJson(upRes);
+            if (upRes.ok && upData.success && upData.url) {
+              uploadedUrls.push(upData.url);
+            } else {
+              uploadedUrls.push(itemUrl);
+            }
+          } catch {
+            uploadedUrls.push(itemUrl);
           }
-        } catch {}
+        } else if (itemUrl) {
+          uploadedUrls.push(itemUrl);
+        }
       }
+
+      const finalMediaUrls =
+        uploadedUrls.length > 0
+          ? uploadedUrls
+          : ["https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"];
 
       const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}/submit`, {
         method: "POST",
@@ -569,16 +752,16 @@ export default function MediaContestPublicPage({
         body: JSON.stringify({
           ...submitForm,
           mediaType: contest?.type || submitForm.mediaType,
-          mediaUrl:
-            finalMediaUrl ||
-            "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
+          mediaUrl: finalMediaUrls[0],
+          mediaUrls: finalMediaUrls,
+          orientation: submitForm.orientation,
         }),
       });
-      const rawText = await res.text();
-      const data = rawText ? JSON.parse(rawText) : {};
+      const data = await safeParseResponseJson(res);
       if (data.success) {
         setSubmitSuccess(true);
-        loadData();
+        await loadData();
+        broadcastMediaContestSync();
         setTimeout(() => {
           setShowSubmitModal(false);
           setSubmitSuccess(false);
@@ -591,6 +774,8 @@ export default function MediaContestPublicPage({
             unitName: EA_SUP_VILLAGES[0],
             mediaType: contest?.type || "IMAGE",
             mediaUrl: "",
+            mediaUrls: [],
+            orientation: "vertical",
             description: "",
           });
         }, 1400);
@@ -975,16 +1160,15 @@ export default function MediaContestPublicPage({
                 className="w-14 h-1 rounded-full mb-1.5"
                 style={{ backgroundColor: themeColor }}
               />
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                 <h2 className="text-sm sm:text-base font-extrabold uppercase text-slate-800 tracking-wide">
                   DANH SÁCH TÁC PHẨM
                 </h2>
                 <button
                   type="button"
                   onClick={() =>
-                    updateContestField(
-                      "layoutMode",
-                      layoutMode === "vertical" ? "horizontal" : "vertical"
+                    setViewOrientation((prev) =>
+                      prev === "vertical" ? "horizontal" : "vertical"
                     )
                   }
                   className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
@@ -992,6 +1176,34 @@ export default function MediaContestPublicPage({
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
+                {layoutModes.length >= 2 && (
+                  <div className="inline-flex items-center rounded-full bg-slate-100 p-0.5 text-[11px] font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setViewOrientation("vertical")}
+                      style={
+                        layoutMode === "vertical"
+                          ? { backgroundColor: themeColor, color: "#fff" }
+                          : {}
+                      }
+                      className="px-2.5 py-0.5 rounded-full text-slate-600 transition-colors cursor-pointer"
+                    >
+                      Dọc
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setViewOrientation("horizontal")}
+                      style={
+                        layoutMode === "horizontal"
+                          ? { backgroundColor: themeColor, color: "#fff" }
+                          : {}
+                      }
+                      className="px-2.5 py-0.5 rounded-full text-slate-600 transition-colors cursor-pointer"
+                    >
+                      Ngang
+                    </button>
+                  </div>
+                )}
                 {canManage && (
                   <button
                     type="button"
@@ -1055,28 +1267,42 @@ export default function MediaContestPublicPage({
             >
               {paginatedSubmissions.map((sub) => {
                 const hasVoted = votedMap[sub.id];
+                const subImages =
+                  Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
+                    ? sub.mediaUrls
+                    : [sub.mediaUrl];
+                const cardOrientation =
+                  layoutModes.length >= 2 && sub.orientation ? sub.orientation : layoutMode;
                 return (
                   <div
                     key={sub.id}
                     style={{ borderColor: themeColor }}
                     className={`bg-white rounded-xl border-2 p-2 shadow-xs hover:shadow-md transition-all flex ${
-                      layoutMode === "vertical" ? "flex-col" : "flex-col sm:flex-row gap-3"
+                      cardOrientation === "vertical" ? "flex-col" : "flex-col sm:flex-row gap-3"
                     }`}
                   >
                     {/* Khung Ảnh / Video tác phẩm */}
                     <div
-                      onClick={() => setSelectedSubmission(sub)}
+                      onClick={() => {
+                        setSelectedSubmissionImageIdx(0);
+                        setSelectedSubmission(sub);
+                      }}
                       className={`relative rounded-lg overflow-hidden bg-slate-100 cursor-pointer group ${
-                        layoutMode === "vertical"
+                        cardOrientation === "vertical"
                           ? "w-full aspect-[3/4]"
                           : "w-full sm:w-48 aspect-[4/3] shrink-0"
                       }`}
                     >
                       <img
-                        src={sub.mediaUrl}
+                        src={subImages[0] || sub.mediaUrl}
                         alt={sub.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
+                      {subImages.length > 1 && (
+                        <span className="absolute top-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                          📷 {subImages.length} hình
+                        </span>
+                      )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
                         <span className="opacity-0 group-hover:opacity-100 bg-black/70 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center space-x-1 transition-opacity">
                           <Eye className="w-3 h-3" />
@@ -1486,31 +1712,113 @@ export default function MediaContestPublicPage({
 
               {openAccordions["cai-dat-bai-du-thi"] && (
                 <div className="mt-3 space-y-3">
-                  {/* Bố cục: Bố cục dọc | Bố cục ngang (Ảnh 3) */}
-                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
-                    <div className="font-bold text-slate-800">Bố cục</div>
+                  {/* Bố cục: Cho phép chọn cả chiều dọc VÀ chiều ngang (Ảnh 2 & 3) */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">Bố cục</span>
+                      <span className="text-[10px] text-slate-400">
+                        Có thể chọn 1 hoặc cả 2 chiều
+                      </span>
+                    </div>
                     <div className="flex items-center space-x-6">
-                      <label className="inline-flex items-center space-x-2 cursor-pointer">
-                        <input
-                          type="radio"
-                          name="layoutModeRadio"
-                          checked={layoutMode === "vertical"}
-                          onChange={() => updateContestField("layoutMode", "vertical")}
-                          className="w-4 h-4 accent-[#DC2626]"
-                        />
-                        <span className="font-medium text-slate-800">Bố cục dọc</span>
-                      </label>
+                      {([
+                        { id: "vertical", label: "Bố cục dọc" },
+                        { id: "horizontal", label: "Bố cục ngang" },
+                      ] as const).map((item) => {
+                        const isChecked = layoutModes.includes(item.id);
+                        return (
+                          <label
+                            key={item.id}
+                            onClick={() => {
+                              let nextModes: ("vertical" | "horizontal")[];
+                              if (isChecked) {
+                                if (layoutModes.length > 1) {
+                                  nextModes = layoutModes.filter((m) => m !== item.id);
+                                } else {
+                                  nextModes = [item.id === "vertical" ? "horizontal" : "vertical"];
+                                }
+                              } else {
+                                nextModes = [...layoutModes, item.id];
+                              }
+                              const nextLayoutMode =
+                                nextModes.length >= 2 ? "both" : nextModes[0] || "vertical";
+                              setContest((prev) =>
+                                prev
+                                  ? {
+                                      ...prev,
+                                      layoutModes: nextModes,
+                                      layoutMode: nextLayoutMode,
+                                    }
+                                  : prev
+                              );
+                              if (!nextModes.includes(viewOrientation)) {
+                                setViewOrientation(nextModes[0] || "vertical");
+                              }
+                            }}
+                            className="inline-flex items-center space-x-2 cursor-pointer select-none"
+                          >
+                            <span
+                              className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                                isChecked
+                                  ? "border-[#EF4444] bg-[#EF4444]"
+                                  : "border-slate-300 bg-white"
+                              }`}
+                            >
+                              {isChecked && (
+                                <span className="w-2 h-2 rounded-full bg-white" />
+                              )}
+                            </span>
+                            <span className="font-medium text-slate-800">{item.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </div>
 
-                      <label className="inline-flex items-center space-x-2 cursor-pointer">
+                  {/* Số lượng hình tối đa dự thi */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">Số lượng hình tối đa dự thi</span>
+                      <span className="text-[11px] font-bold text-[#DC2626] bg-red-50 px-2 py-0.5 rounded-md">
+                        Tối đa {maxImagesPerSubmission} hình / bài
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {[1, 3, 5, 10].map((num) => {
+                          const active = maxImagesPerSubmission === num;
+                          return (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => updateContestField("maxImagesPerSubmission", num)}
+                              className={`px-2.5 py-1 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                                active
+                                  ? "border-[#EF4444] bg-[#EF4444] text-white"
+                                  : "border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100"
+                              }`}
+                            >
+                              {num} hình
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <div className="flex items-center space-x-1.5 shrink-0">
+                        <span className="text-[11px] text-slate-500">Tùy chỉnh:</span>
                         <input
-                          type="radio"
-                          name="layoutModeRadio"
-                          checked={layoutMode === "horizontal"}
-                          onChange={() => updateContestField("layoutMode", "horizontal")}
-                          className="w-4 h-4 accent-[#DC2626]"
+                          type="number"
+                          min={1}
+                          max={20}
+                          value={maxImagesPerSubmission}
+                          onChange={(e) =>
+                            updateContestField(
+                              "maxImagesPerSubmission",
+                              Math.max(1, Math.min(20, Number(e.target.value) || 1))
+                            )
+                          }
+                          className="w-14 px-2 py-1 rounded-lg border border-slate-200 text-xs text-center font-bold text-slate-800 focus:outline-none focus:border-red-500"
                         />
-                        <span className="font-medium text-slate-800">Bố cục ngang</span>
-                      </label>
+                      </div>
                     </div>
                   </div>
 
@@ -1943,44 +2251,125 @@ export default function MediaContestPublicPage({
                   </div>
                 )}
 
-                {/* Tải ảnh trực tiếp từ máy tính / điện thoại hoặc dán link */}
+                {/* Chọn chiều hiển thị tác phẩm nếu cuộc thi bật cả Bố cục dọc & ngang */}
+                {layoutModes.length >= 2 && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1.5">
+                      Khung hiển thị tác phẩm
+                    </label>
+                    <div className="flex items-center space-x-6">
+                      {[
+                        { id: "vertical" as const, label: "Khung dọc (3:4)" },
+                        { id: "horizontal" as const, label: "Khung ngang (4:3)" },
+                      ].map((opt) => (
+                        <label
+                          key={opt.id}
+                          onClick={() => setSubmitForm({ ...submitForm, orientation: opt.id })}
+                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
+                        >
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center border-2 ${
+                              submitForm.orientation === opt.id
+                                ? "border-[#DC2626] bg-[#DC2626]"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {submitForm.orientation === opt.id && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-white" />
+                            )}
+                          </span>
+                          <span className="text-xs font-medium text-slate-700">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Tải nhiều ảnh trực tiếp từ máy tính / điện thoại (Tối đa maxImagesPerSubmission hình) */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="font-bold text-slate-700">
-                      Hình ảnh / Video tác phẩm <span className="text-red-500">*</span>
+                      Hình ảnh / Video tác phẩm <span className="text-red-500">*</span>{" "}
+                      <span className="text-[11px] font-normal text-slate-500">
+                        (Đã chọn {submitForm.mediaUrls.length}/{maxImagesPerSubmission} hình tối đa)
+                      </span>
                     </label>
                     <button
                       type="button"
+                      disabled={submitForm.mediaUrls.length >= maxImagesPerSubmission}
                       onClick={() => submitFileInputRef.current?.click()}
                       style={{ color: themeColor }}
-                      className="text-xs font-bold hover:underline flex items-center space-x-1 cursor-pointer"
+                      className="text-xs font-bold hover:underline flex items-center space-x-1 cursor-pointer disabled:opacity-40"
                     >
                       <Upload className="w-3.5 h-3.5" />
-                      <span>{isUploadingSubmitImage ? "Đang tải ảnh..." : "Tải ảnh từ máy"}</span>
+                      <span>
+                        {isUploadingSubmitImage
+                          ? "Đang tải ảnh..."
+                          : submitForm.mediaUrls.length > 0
+                            ? "+ Thêm hình"
+                            : "Tải ảnh từ máy"}
+                      </span>
                     </button>
                     <input
                       ref={submitFileInputRef}
                       type="file"
                       accept="image/*"
+                      multiple={maxImagesPerSubmission > 1}
                       onChange={handleSubmissionFileChange}
                       className="hidden"
                     />
                   </div>
 
-                  {submitForm.mediaUrl && (
-                    <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
-                      <img
-                        src={submitForm.mediaUrl}
-                        alt="Xem trước tác phẩm"
-                        className="w-full h-full object-cover"
-                      />
+                  {submitForm.mediaUrls.length > 0 && (
+                    <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
+                      {submitForm.mediaUrls.map((url, idx) => (
+                        <div
+                          key={idx}
+                          className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group"
+                        >
+                          <img
+                            src={url}
+                            alt={`Hình ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const next = submitForm.mediaUrls.filter((_, i) => i !== idx);
+                              setSubmitForm({
+                                ...submitForm,
+                                mediaUrls: next,
+                                mediaUrl: next[0] || "",
+                              });
+                            }}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center text-[10px] hover:bg-red-600 cursor-pointer"
+                            title="Xóa hình này"
+                          >
+                            ✕
+                          </button>
+                          <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.2 rounded">
+                            #{idx + 1}
+                          </span>
+                        </div>
+                      ))}
                     </div>
                   )}
 
                   <input
                     type="text"
                     value={submitForm.mediaUrl}
-                    onChange={(e) => setSubmitForm({ ...submitForm, mediaUrl: e.target.value })}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSubmitForm({
+                        ...submitForm,
+                        mediaUrl: val,
+                        mediaUrls: val
+                          ? submitForm.mediaUrls.length > 0
+                            ? [val, ...submitForm.mediaUrls.slice(1)]
+                            : [val]
+                          : [],
+                      });
+                    }}
                     placeholder="Hoặc dán đường dẫn ảnh/video (https://...)"
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
                   />
@@ -2039,13 +2428,39 @@ export default function MediaContestPublicPage({
             </button>
 
             <div className="grid grid-cols-1 md:grid-cols-2">
-              <div className="bg-slate-950 flex items-center justify-center max-h-[460px] overflow-hidden">
-                <img
-                  src={selectedSubmission.mediaUrl}
-                  alt={selectedSubmission.title}
-                  className="w-full h-full object-contain max-h-[440px]"
-                />
-              </div>
+              {(() => {
+                const imgs =
+                  Array.isArray(selectedSubmission.mediaUrls) &&
+                  selectedSubmission.mediaUrls.length > 0
+                    ? selectedSubmission.mediaUrls
+                    : [selectedSubmission.mediaUrl];
+                const safeIdx = Math.min(selectedSubmissionImageIdx, imgs.length - 1);
+                return (
+                  <div className="bg-slate-950 flex flex-col items-center justify-center max-h-[480px] overflow-hidden p-2">
+                    <img
+                      src={imgs[safeIdx] || selectedSubmission.mediaUrl}
+                      alt={selectedSubmission.title}
+                      className="w-full h-full object-contain max-h-[400px]"
+                    />
+                    {imgs.length > 1 && (
+                      <div className="flex items-center space-x-2 pt-2 overflow-x-auto max-w-full">
+                        {imgs.map((u, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setSelectedSubmissionImageIdx(i)}
+                            className={`w-11 h-11 rounded-lg overflow-hidden border-2 shrink-0 cursor-pointer ${
+                              i === safeIdx ? "border-white scale-105" : "border-transparent opacity-60"
+                            }`}
+                          >
+                            <img src={u} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <div className="p-5 sm:p-6 flex flex-col justify-between space-y-4">
                 <div className="space-y-2.5">
