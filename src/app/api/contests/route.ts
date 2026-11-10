@@ -64,12 +64,37 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Nếu cuộc thi đã tồn tại (do đã lưu nháp ở Bước 1 hoặc đang chỉnh sửa), cập nhật và xuất bản
+    // Nếu cuộc thi đã tồn tại (do đã lưu nháp ở Bước 1 hoặc đang chỉnh sửa), kiểm tra quyền chỉnh sửa trước khi cập nhật
     const existing =
       store.getContestBySlug(body.slug) ||
       (body.originalSlug ? store.getContestBySlug(body.originalSlug) : undefined) ||
       (body.id ? store.getContestById(body.id) : undefined);
     if (existing) {
+      const userRole = req.headers.get("x-user-role") || body.userRole || body.editorRole || "";
+      const userEmail = req.headers.get("x-user-email") || body.userEmail || body.editorEmail || body.creatorEmail || "";
+      const userId = req.headers.get("x-user-id") || body.userId || body.editorId || body.creatorId || "";
+
+      if (userRole !== "ADMIN") {
+        const emailA = (userEmail || "").toLowerCase().trim();
+        const creatorA = (existing.creatorEmail || existing.organizerEmail || "").toLowerCase().trim();
+        const isShared =
+          Array.isArray(existing.sharedEmails) &&
+          existing.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === emailA);
+        const isOwner =
+          (creatorA && emailA && creatorA === emailA) ||
+          (existing.creatorId && userId && existing.creatorId === userId) ||
+          isShared;
+        if (!isOwner) {
+          return NextResponse.json(
+            {
+              error:
+                "Chỉ người tạo, Quản trị viên (Admin) hoặc người được chia sẻ quyền mới được chỉnh sửa cuộc thi này!",
+            },
+            { status: 403 }
+          );
+        }
+      }
+
       const updated = store.upsertContest({
         ...body,
         id: existing.id,

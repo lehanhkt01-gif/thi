@@ -854,6 +854,9 @@ export default function AdminDashboardPage() {
         bannerUrl: cleanBannerUrl,
         editingId: editingMediaContestId || undefined,
         action: editingMediaContestId ? "update" : "create",
+        editorRole: authUser?.role,
+        editorEmail: authUser?.email,
+        editorId: authUser?.id,
         layoutModes: normalizedModes,
         layoutMode: normalizedLayoutMode,
         maxImagesPerSubmission: Number(newMediaForm.maxImagesPerSubmission) > 0 ? Number(newMediaForm.maxImagesPerSubmission) : 5,
@@ -866,10 +869,17 @@ export default function AdminDashboardPage() {
         creatorName: authUser?.name,
       };
 
+      const reqHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-user-role": authUser?.role || "",
+        "x-user-email": authUser?.email || "",
+        "x-user-id": authUser?.id || "",
+      };
+
       // Luôn gửi qua POST /api/media-contests để tương thích 100% với mọi cấu hình Nginx/Cloudflare
       let res = await fetch("/api/media-contests", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: reqHeaders,
         body: JSON.stringify(payload),
       });
       let data = await safeParseMediaResponse(res);
@@ -885,7 +895,7 @@ export default function AdminDashboardPage() {
         };
         res = await fetch("/api/media-contests", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: reqHeaders,
           body: JSON.stringify(retryPayload),
         });
         data = await safeParseMediaResponse(res);
@@ -970,6 +980,10 @@ export default function AdminDashboardPage() {
   };
 
   const handleOpenEditMediaContest = (c: any) => {
+    if (!canUserManageMediaContest(c)) {
+      alert("Chỉ người tạo, Quản trị viên (Admin) hoặc người được chia sẻ quyền mới được chỉnh sửa cuộc thi này!");
+      return;
+    }
     const initModes: ("vertical" | "horizontal")[] =
       Array.isArray(c.layoutModes) && c.layoutModes.length > 0
         ? c.layoutModes

@@ -81,6 +81,29 @@ export async function PATCH(
       return NextResponse.json({ error: "Không tìm thấy cuộc thi!" }, { status: 404 });
     }
 
+    const userRole = req.headers.get("x-user-role") || body.editorRole || body.userRole;
+    const userEmail = req.headers.get("x-user-email") || body.editorEmail || body.userEmail;
+    const userId = req.headers.get("x-user-id") || body.editorId || body.userId;
+
+    if (!userEmail && !userId && userRole !== "ADMIN") {
+      return NextResponse.json(
+        { error: "Vui lòng đăng nhập tài khoản có thẩm quyền để chỉnh sửa cuộc thi!" },
+        { status: 401 }
+      );
+    }
+
+    const canEdit = store.canUserEditMediaContest(contest, {
+      role: userRole,
+      email: userEmail,
+      id: userId,
+    });
+    if (!canEdit) {
+      return NextResponse.json(
+        { error: "Chỉ người tạo, Quản trị viên (Admin) hoặc người được chia sẻ quyền mới được chỉnh sửa cuộc thi này!" },
+        { status: 403 }
+      );
+    }
+
     const updated = store.updateMediaContest(contest.id, body);
     return NextResponse.json({ success: true, contest: updated });
   } catch (error: any) {

@@ -19,6 +19,16 @@ export async function POST(
 
     const body = await req.json();
 
+    // Bắt buộc người dùng phải đăng nhập tài khoản mới được nộp tác phẩm dự thi
+    const submitterEmail = (body.submitterEmail || req.headers.get("x-user-email") || "").trim();
+    const submitterId = (body.submitterId || req.headers.get("x-user-id") || "").trim();
+    if (!submitterEmail && !submitterId) {
+      return NextResponse.json(
+        { error: "Vui lòng đăng nhập tài khoản trước khi nộp tác phẩm dự thi!" },
+        { status: 401 }
+      );
+    }
+
     if (!body.title || !body.authorName || !body.unitName) {
       return NextResponse.json(
         { error: "Vui lòng nhập đầy đủ: Tên tác phẩm, Họ tên tác giả và Đơn vị thôn/buôn!" },

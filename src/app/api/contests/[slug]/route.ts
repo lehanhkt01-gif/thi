@@ -100,11 +100,11 @@ export async function PUT(
       (body.id ? store.getContestById(body.id) : undefined) ||
       store.getContestByAnySlug(slug);
 
-    const userRole = req.headers.get("x-user-role") || body.userRole;
-    const userEmail = req.headers.get("x-user-email") || body.userEmail;
-    const userId = req.headers.get("x-user-id") || body.userId;
+    const userRole = req.headers.get("x-user-role") || body.userRole || body.editorRole || "";
+    const userEmail = req.headers.get("x-user-email") || body.userEmail || body.editorEmail || body.creatorEmail || "";
+    const userId = req.headers.get("x-user-id") || body.userId || body.editorId || body.creatorId || "";
 
-    if (existing && userRole && userRole !== "ADMIN") {
+    if (existing && userRole !== "ADMIN") {
       const emailA = (userEmail || "").toLowerCase().trim();
       const creatorA = (existing.creatorEmail || existing.organizerEmail || "").toLowerCase().trim();
       const isShared = Array.isArray(existing.sharedEmails) && existing.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === emailA);
@@ -114,7 +114,7 @@ export async function PUT(
         isShared;
       if (!isOwner) {
         return NextResponse.json(
-          { error: "Bạn không có quyền chỉnh sửa cuộc thi do người khác tạo!" },
+          { error: "Chỉ người tạo, Quản trị viên (Admin) hoặc người được chia sẻ quyền mới được chỉnh sửa cuộc thi này!" },
           { status: 403 }
         );
       }

@@ -40,9 +40,11 @@ import {
   Save,
   QrCode,
   Eye,
+  LogOut,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { EA_SUP_VILLAGES } from "@/lib/store";
+import LoginModal, { syncAuthSession } from "@/components/LoginModal";
 
 interface MediaContest {
   id: string;
@@ -85,6 +87,7 @@ interface MediaContest {
   creatorEmail?: string;
   creatorId?: string;
   creatorName?: string;
+  sharedEmails?: string[];
 }
 
 interface MediaSubmission {
@@ -146,6 +149,8 @@ export default function MediaContestPublicPage({
 
   // Auth & Admin Dashboard Controls
   const [authUser, setAuthUser] = useState<any>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pendingSubmitAfterLogin, setPendingSubmitAfterLogin] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [openAccordions, setOpenAccordions] = useState<Record<SettingsSectionKey, boolean>>({
@@ -308,19 +313,40 @@ export default function MediaContestPublicPage({
 
   // Kiểm tra đăng nhập & tham số URL (?settings=1)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("cuocthi_admin_auth");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed && parsed.status === "APPROVED") {
-          setAuthUser(parsed);
+    const syncAuth = () => {
+      try {
+        const saved = localStorage.getItem("cuocthi_admin_auth");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed && parsed.status === "APPROVED") {
+            setAuthUser(parsed);
+            setSubmitForm((prev) => ({
+              ...prev,
+              authorName: prev.authorName || parsed.name || "",
+              authorPhone: prev.authorPhone || parsed.phone || "",
+              authorEmail: prev.authorEmail || parsed.email || "",
+            }));
+          } else {
+            setAuthUser(null);
+          }
+        } else {
+          setAuthUser(null);
         }
+      } catch {
+        setAuthUser(null);
       }
+    };
+
+    syncAuth();
+    try {
       const votedSaved = localStorage.getItem(`easup_media_voted_${slug}`);
       if (votedSaved) {
         setVotedMap(JSON.parse(votedSaved));
       }
     } catch {}
+
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener("cuocthi_auth_change", syncAuth);
 
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
@@ -328,15 +354,49 @@ export default function MediaContestPublicPage({
         setShowSettingsDrawer(true);
       }
     }
+
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("cuocthi_auth_change", syncAuth);
+    };
   }, [slug]);
 
+  // Chỉ người tạo, Admin hoặc người được chia sẻ quyền (sharedEmails) mới được chỉnh sửa cuộc thi
   const canManage = (() => {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     const uEmail = (authUser.email || "").toLowerCase().trim();
-    const cEmail = (contest?.creatorEmail || "").toLowerCase().trim();
-    return Boolean((cEmail && uEmail === cEmail) || (contest?.creatorId && contest.creatorId === authUser.id));
+    const cEmail = (contest?.creatorEmail || contest?.organizerEmail || "").toLowerCase().trim();
+    const isCreator = Boolean(
+      (cEmail && uEmail && uEmail === cEmail) ||
+        (contest?.creatorId && authUser.id && contest.creatorId === authUser.id)
+    );
+    if (isCreator) return true;
+    const sharedList = Array.isArray(contest?.sharedEmails) ? contest!.sharedEmails! : [];
+    const isShared = Boolean(
+      uEmail && sharedList.some((em) => String(em || "").toLowerCase().trim() === uEmail)
+    );
+    return isShared;
   })();
+
+  // Bắt buộc đăng nhập tài khoản trước khi mở hộp thoại nộp tác phẩm dự thi
+  const handleOpenSubmitArtwork = () => {
+    if (!authUser) {
+      setPendingSubmitAfterLogin(true);
+      setShowLoginModal(true);
+      return;
+    }
+    if (!showSettingsDrawer) {
+      loadData();
+    }
+    setSubmitForm((prev) => ({
+      ...prev,
+      authorName: prev.authorName || authUser.name || "",
+      authorPhone: prev.authorPhone || authUser.phone || "",
+      authorEmail: prev.authorEmail || authUser.email || "",
+    }));
+    setShowSubmitModal(true);
+  };
 
   // Fetch contest data
   const loadData = async () => {
@@ -500,6 +560,9 @@ export default function MediaContestPublicPage({
           ...contest,
           editingId: contest.id || slug,
           action: "update",
+          editorRole: authUser?.role,
+          editorEmail: authUser?.email,
+          editorId: authUser?.id,
           layoutModes: normalizedModes,
           layoutMode: normalizedLayoutMode,
           maxImagesPerSubmission:
@@ -509,7 +572,12 @@ export default function MediaContestPublicPage({
         };
         const res = await fetch("/api/media-contests", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-role": authUser?.role || "",
+            "x-user-email": authUser?.email || "",
+            "x-user-id": authUser?.id || "",
+          },
           body: JSON.stringify(syncPayload),
         });
         const data = await safeParseResponseJson(res);
@@ -541,6 +609,7 @@ export default function MediaContestPublicPage({
   };
 
   const openSpecificSetting = (key: SettingsSectionKey) => {
+    if (!canManage) return;
     setShowSettingsDrawer(true);
     setOpenAccordions((prev) => ({ ...prev, [key]: true }));
   };
@@ -639,7 +708,10 @@ export default function MediaContestPublicPage({
 
   // Lưu toàn bộ cấu hình cuộc thi ảnh lên máy chủ & đồng bộ 2 chiều về /admin
   const handleSaveContestSettings = async () => {
-    if (!contest) return;
+    if (!contest || !canManage) {
+      alert("Chỉ người tạo, Quản trị viên (Admin) hoặc người được chia sẻ quyền mới được chỉnh sửa cuộc thi này!");
+      return;
+    }
     setIsSavingSettings(true);
     try {
       let cleanBanner = contest.bannerUrl;
@@ -668,6 +740,9 @@ export default function MediaContestPublicPage({
         ...contest,
         editingId: contest.id || slug,
         action: "update",
+        editorRole: authUser?.role,
+        editorEmail: authUser?.email,
+        editorId: authUser?.id,
         bannerUrl: cleanBanner,
         layoutModes: normalizedModes,
         layoutMode: normalizedLayoutMode,
@@ -678,10 +753,17 @@ export default function MediaContestPublicPage({
         displayEndDate: (contest.voteEndDate || contest.endDate || "").slice(0, 10),
       };
 
+      const reqHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+        "x-user-role": authUser?.role || "",
+        "x-user-email": authUser?.email || "",
+        "x-user-id": authUser?.id || "",
+      };
+
       // Gửi qua POST /api/media-contests để tránh lỗi Nginx chặn PATCH trả về HTML
       let res = await fetch("/api/media-contests", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: reqHeaders,
         body: JSON.stringify(payload),
       });
       let data = await safeParseResponseJson(res);
@@ -696,7 +778,7 @@ export default function MediaContestPublicPage({
         };
         res = await fetch("/api/media-contests", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: reqHeaders,
           body: JSON.stringify(retryPayload),
         });
         data = await safeParseResponseJson(res);
@@ -791,6 +873,12 @@ export default function MediaContestPublicPage({
   // Handle Artwork Submission
   const handleSubmitArtwork = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!authUser) {
+      setShowSubmitModal(false);
+      setPendingSubmitAfterLogin(true);
+      setShowLoginModal(true);
+      return;
+    }
     if (!submitForm.title || !submitForm.authorName || !submitForm.unitName) {
       alert("Vui lòng điền đầy đủ tên tác phẩm, tác giả và đơn vị!");
       return;
@@ -835,9 +923,15 @@ export default function MediaContestPublicPage({
 
       const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}/submit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
         body: JSON.stringify({
           ...submitForm,
+          submitterEmail: authUser?.email || "",
+          submitterId: authUser?.id || "",
           mediaType: contest?.type || submitForm.mediaType,
           mediaUrl: finalMediaUrls[0],
           mediaUrls: finalMediaUrls,
@@ -1074,8 +1168,41 @@ export default function MediaContestPublicPage({
             )}
           </div>
 
-          {/* Cụm nút bên phải: [ Hiển thị nhanh / Cài đặt ] + [ Tìm kiếm... ] (Ảnh 4) */}
+          {/* Cụm nút bên phải: [ Đăng nhập / Tài khoản ] + [ Hiển thị nhanh / Cài đặt ] + [ Tìm kiếm... ] */}
           <div className="flex items-center space-x-2">
+            {authUser ? (
+              <div className="inline-flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs">
+                <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                <span className="font-bold text-slate-700 max-w-[110px] truncate">
+                  {authUser.name || authUser.email}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    syncAuthSession(null);
+                    setAuthUser(null);
+                    setShowSettingsDrawer(false);
+                  }}
+                  className="text-slate-400 hover:text-red-600 p-0.5 cursor-pointer"
+                  title="Đăng xuất"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingSubmitAfterLogin(false);
+                  setShowLoginModal(true);
+                }}
+                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:border-slate-400 text-slate-700 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+              >
+                <User className="w-3.5 h-3.5 text-[#DC2626]" />
+                <span>Đăng nhập</span>
+              </button>
+            )}
+
             {canManage && (
               <button
                 type="button"
@@ -1223,16 +1350,11 @@ export default function MediaContestPublicPage({
             </div>
           </div>
 
-          {/* NÚT NỘP TÁC PHẨM >> KÈM ICON BÁNH RĂNG (ẢNH 4) */}
+          {/* NÚT NỘP TÁC PHẨM >> KÈM ICON BÁNH RĂNG (ẢNH 4) - YÊU CẦU ĐĂNG NHẬP TRƯỚC KHI NỘP */}
           <div className="pt-2 flex items-center justify-center space-x-2">
             <button
               type="button"
-              onClick={() => {
-                if (!showSettingsDrawer) {
-                  loadData();
-                }
-                setShowSubmitModal(true);
-              }}
+              onClick={handleOpenSubmitArtwork}
               style={{ backgroundColor: themeColor }}
               className="inline-flex items-center px-7 py-2.5 rounded-full text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md hover:opacity-95 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
@@ -1351,12 +1473,7 @@ export default function MediaContestPublicPage({
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!showSettingsDrawer) {
-                      loadData();
-                    }
-                    setShowSubmitModal(true);
-                  }}
+                  onClick={handleOpenSubmitArtwork}
                   style={{ color: themeColor, borderColor: themeColor }}
                   className="px-4 py-1.5 rounded-full border text-xs font-bold hover:opacity-80 transition-opacity cursor-pointer"
                 >
@@ -1535,7 +1652,7 @@ export default function MediaContestPublicPage({
       {/* ========================================================================= */}
       {/* CỘT PHẢI: DRAWER CÀI ĐẶT CUỘC THI ẢNH 8 MỤC ACCORDION (ẢNH 2 & ẢNH 3) */}
       {/* ========================================================================= */}
-      {showSettingsDrawer && contest && (
+      {showSettingsDrawer && canManage && contest && (
         <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-[370px] bg-white border-l border-slate-200 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
           {/* Header Drawer */}
           <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
@@ -2741,6 +2858,32 @@ export default function MediaContestPublicPage({
           </div>
         </div>
       )}
+      {/* ========================================================================= */}
+      {/* MODAL ĐĂNG NHẬP BẮT BUỘC TRƯỚC KHI NỘP TÁC PHẨM DỰ THI */}
+      {/* ========================================================================= */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false);
+          setPendingSubmitAfterLogin(false);
+        }}
+        onSuccess={(user) => {
+          setAuthUser(user);
+          setSubmitForm((prev) => ({
+            ...prev,
+            authorName: prev.authorName || user.name || "",
+            authorPhone: prev.authorPhone || user.phone || "",
+            authorEmail: prev.authorEmail || user.email || "",
+          }));
+          if (pendingSubmitAfterLogin) {
+            setPendingSubmitAfterLogin(false);
+            if (!showSettingsDrawer) {
+              loadData();
+            }
+            setShowSubmitModal(true);
+          }
+        }}
+      />
     </div>
   );
 }

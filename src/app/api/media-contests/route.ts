@@ -24,6 +24,34 @@ export async function POST(req: NextRequest) {
     // Hỗ trợ cập nhật cuộc thi hiện có qua POST (tránh lỗi Nginx/WAF chặn method PATCH trả về HTML)
     const targetUpdateId = body.editingId || (body.action === "update" ? body.id || body.slug : null);
     if (targetUpdateId) {
+      const existing =
+        store.getMediaContestBySlug(targetUpdateId) ||
+        (body.slug ? store.getMediaContestBySlug(body.slug) : undefined);
+
+      const userRole = req.headers.get("x-user-role") || body.editorRole || body.userRole;
+      const userEmail = req.headers.get("x-user-email") || body.editorEmail || body.userEmail;
+      const userId = req.headers.get("x-user-id") || body.editorId || body.userId;
+
+      if (existing) {
+        if (!userEmail && !userId && userRole !== "ADMIN") {
+          return NextResponse.json(
+            { error: "Vui lòng đăng nhập tài khoản có thẩm quyền để chỉnh sửa cuộc thi!" },
+            { status: 401 }
+          );
+        }
+        const canEdit = store.canUserEditMediaContest(existing, {
+          role: userRole,
+          email: userEmail,
+          id: userId,
+        });
+        if (!canEdit) {
+          return NextResponse.json(
+            { error: "Chỉ người tạo, Quản trị viên (Admin) hoặc người được chia sẻ quyền mới được chỉnh sửa cuộc thi này!" },
+            { status: 403 }
+          );
+        }
+      }
+
       const updated = store.updateMediaContest(targetUpdateId, body);
       if (updated) {
         return NextResponse.json({ success: true, contest: updated, mode: "updated" });

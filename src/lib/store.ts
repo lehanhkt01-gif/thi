@@ -2040,6 +2040,26 @@ class DataStore {
     return { success: true };
   }
 
+  public canUserEditMediaContest(
+    contest: MediaContestModel,
+    user?: { email?: string; role?: string; id?: string }
+  ): boolean {
+    if (!user) return false;
+    if (user.role === "ADMIN") return true;
+    const uEmail = (user.email || "").toLowerCase().trim();
+    const cEmail = (contest.creatorEmail || contest.organizerEmail || "").toLowerCase().trim();
+    if (cEmail && uEmail && uEmail === cEmail) return true;
+    if (contest.creatorId && user.id && contest.creatorId === user.id) return true;
+    if (
+      Array.isArray(contest.sharedEmails) &&
+      uEmail &&
+      contest.sharedEmails.some((e) => (e || "").toLowerCase().trim() === uEmail)
+    ) {
+      return true;
+    }
+    return false;
+  }
+
   public updateMediaContest(id: string, updateData: Partial<MediaContestModel>): MediaContestModel | null {
     this.loadFromDisk(true);
     this.normalizeMediaContestsList();
@@ -2050,7 +2070,19 @@ class DataStore {
     }
     if (idx === -1) return null;
     const existing = this.mediaContests[idx];
-    const { creatorEmail, creatorId, creatorName, id: _ignoreId, ...rest } = updateData as any;
+    const {
+      creatorEmail,
+      creatorId,
+      creatorName,
+      editorEmail: _ignoreEditorEmail,
+      editorRole: _ignoreEditorRole,
+      editorId: _ignoreEditorId,
+      userEmail: _ignoreUserEmail,
+      userRole: _ignoreUserRole,
+      userId: _ignoreUserId,
+      id: _ignoreId,
+      ...rest
+    } = updateData as any;
 
     let layoutModes: ("vertical" | "horizontal")[] = existing.layoutModes || ["vertical"];
     if (Array.isArray(rest.layoutModes) && rest.layoutModes.length > 0) {
@@ -2075,6 +2107,7 @@ class DataStore {
         Number(rest.maxImagesPerSubmission) > 0
           ? Number(rest.maxImagesPerSubmission)
           : existing.maxImagesPerSubmission || 5,
+      sharedEmails: Array.isArray(rest.sharedEmails) ? rest.sharedEmails : existing.sharedEmails,
       // Giữ nguyên người khởi tạo ban đầu
       creatorEmail: existing.creatorEmail || creatorEmail,
       creatorId: existing.creatorId || creatorId,
@@ -2112,6 +2145,7 @@ class DataStore {
             showLeaderboard: updatedContest.showLeaderboard,
             showVoteCount: updatedContest.showVoteCount,
             showShareCount: updatedContest.showShareCount,
+            sharedEmails: updatedContest.sharedEmails,
             updatedAt: updatedContest.updatedAt,
           };
         }
