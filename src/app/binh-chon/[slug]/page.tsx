@@ -200,6 +200,7 @@ export default function MediaContestPublicPage({
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({});
+  const [imageOrientations, setImageOrientations] = useState<Record<string, "vertical" | "horizontal">>({});
 
   // Safe JSON helper chống lỗi Unexpected token '<', "<html>..." is not valid JSON
   const safeParseResponseJson = async (res: Response) => {
@@ -240,13 +241,17 @@ export default function MediaContestPublicPage({
     } catch {}
   };
 
-  // Nén ảnh JPEG < 250KB tương thích iOS Safari & vượt giới hạn 1MB của Nginx
-  const compressImageToJpeg = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
+  // Nén ảnh JPEG < 250KB tương thích iOS Safari & vượt giới hạn 1MB của Nginx + Tự động nhận diện chiều khung hình (dọc/ngang)
+  const compressImageToJpeg = (
+    file: File
+  ): Promise<{ blob: Blob; dataUrl: string; orientation: "vertical" | "horizontal" }> => {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = (readerEvent) => {
         const img = new Image();
         img.onload = () => {
+          const naturalOrientation: "vertical" | "horizontal" =
+            img.width > img.height ? "horizontal" : "vertical";
           const maxWidth = 1280;
           const maxHeight = 720;
           let width = img.width;
@@ -275,17 +280,25 @@ export default function MediaContestPublicPage({
             }
             canvas.toBlob(
               (blob) => {
-                resolve({ blob: blob || file, dataUrl });
+                resolve({ blob: blob || file, dataUrl, orientation: naturalOrientation });
               },
               "image/jpeg",
               quality
             );
           } else {
-            resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+            resolve({
+              blob: file,
+              dataUrl: (readerEvent.target?.result as string) || "",
+              orientation: naturalOrientation,
+            });
           }
         };
         img.onerror = () => {
-          resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+          resolve({
+            blob: file,
+            dataUrl: (readerEvent.target?.result as string) || "",
+            orientation: "vertical",
+          });
         };
         img.src = readerEvent.target?.result as string;
       };
@@ -457,6 +470,72 @@ export default function MediaContestPublicPage({
   const maxImagesPerSubmission = Number(contest?.maxImagesPerSubmission) > 0 ? Number(contest?.maxImagesPerSubmission) : 5;
   const sortBy = contest?.sortBy || "votesCount";
 
+  // Tự động đồng bộ giới hạn hình ảnh trong form nộp bài khi cài đặt số lượng hình tối đa thay đổi
+  useEffect(() => {
+    setSubmitForm((prev) => {
+      if (prev.mediaUrls.length <= maxImagesPerSubmission) return prev;
+      const trimmed = prev.mediaUrls.slice(0, maxImagesPerSubmission);
+      return {
+        ...prev,
+        mediaUrls: trimmed,
+        mediaUrl: trimmed[0] || "",
+      };
+    });
+  }, [maxImagesPerSubmission]);
+
+  // Tự động lưu nháp & đồng bộ 2 chiều ngay khi quản trị viên thay đổi các thông số cài đặt trong Drawer
+  useEffect(() => {
+    if (!showSettingsDrawer || !contest || !canManage) return;
+    const timer = setTimeout(async () => {
+      try {
+        if (contest.bannerUrl && contest.bannerUrl.startsWith("data:")) return;
+        const normalizedModes: ("vertical" | "horizontal")[] =
+          Array.isArray(contest.layoutModes) && contest.layoutModes.length > 0
+            ? contest.layoutModes
+            : ["vertical"];
+        const normalizedLayoutMode: "vertical" | "horizontal" | "both" =
+          normalizedModes.length >= 2 ? "both" : normalizedModes[0] || "vertical";
+
+        const syncPayload = {
+          ...contest,
+          editingId: contest.id || slug,
+          action: "update",
+          layoutModes: normalizedModes,
+          layoutMode: normalizedLayoutMode,
+          maxImagesPerSubmission:
+            Number(contest.maxImagesPerSubmission) > 0
+              ? Number(contest.maxImagesPerSubmission)
+              : 5,
+        };
+        const res = await fetch("/api/media-contests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(syncPayload),
+        });
+        const data = await safeParseResponseJson(res);
+        if (res.ok && data.contest) {
+          broadcastMediaContestSync(data.contest);
+        }
+      } catch {}
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [
+    showSettingsDrawer,
+    canManage,
+    contest?.maxImagesPerSubmission,
+    contest?.requiredParticipantFields,
+    contest?.layoutModes,
+    contest?.themeColor,
+    contest?.sortBy,
+    contest?.enableSocialShare,
+    contest?.sharePlatforms,
+    contest?.requireApproval,
+    contest?.maxVotesPerUser,
+    contest?.showLeaderboard,
+    contest?.showVoteCount,
+    contest?.showShareCount,
+  ]);
+
   const toggleAccordion = (key: SettingsSectionKey) => {
     setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
   };
@@ -494,7 +573,7 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Upload nhiều ảnh tác phẩm (tối đa maxImagesPerSubmission hình) khi thí sinh nộp bài
+  // Upload nhiều ảnh tác phẩm (tối đa maxImagesPerSubmission hình) khi thí sinh nộp bài & Tự động nhận diện chiều khung hình
   const handleSubmissionFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList || fileList.length === 0) return;
@@ -520,9 +599,13 @@ export default function MediaContestPublicPage({
     try {
       setIsUploadingSubmitImage(true);
       const uploadedUrls: string[] = [];
+      let detectedOrientation: "vertical" | "horizontal" | null = null;
 
       for (const file of filesToProcess) {
-        const { blob, dataUrl } = await compressImageToJpeg(file);
+        const { blob, dataUrl, orientation } = await compressImageToJpeg(file);
+        if (!detectedOrientation) {
+          detectedOrientation = orientation;
+        }
         let finalUrl = dataUrl;
         try {
           const formData = new FormData();
@@ -541,6 +624,10 @@ export default function MediaContestPublicPage({
         ...prev,
         mediaUrls: nextUrls,
         mediaUrl: nextUrls[0] || "",
+        orientation:
+          currentUrls.length === 0 && detectedOrientation
+            ? detectedOrientation
+            : prev.orientation,
       }));
     } catch (err) {
       console.warn("Lỗi tải ảnh tác phẩm:", err);
@@ -1130,7 +1217,12 @@ export default function MediaContestPublicPage({
           <div className="pt-2 flex items-center justify-center space-x-2">
             <button
               type="button"
-              onClick={() => setShowSubmitModal(true)}
+              onClick={() => {
+                if (!showSettingsDrawer) {
+                  loadData();
+                }
+                setShowSubmitModal(true);
+              }}
               style={{ backgroundColor: themeColor }}
               className="inline-flex items-center px-7 py-2.5 rounded-full text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md hover:opacity-95 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
             >
@@ -1249,7 +1341,12 @@ export default function MediaContestPublicPage({
                 </p>
                 <button
                   type="button"
-                  onClick={() => setShowSubmitModal(true)}
+                  onClick={() => {
+                    if (!showSettingsDrawer) {
+                      loadData();
+                    }
+                    setShowSubmitModal(true);
+                  }}
                   style={{ color: themeColor, borderColor: themeColor }}
                   className="px-4 py-1.5 rounded-full border text-xs font-bold hover:opacity-80 transition-opacity cursor-pointer"
                 >
@@ -1271,8 +1368,12 @@ export default function MediaContestPublicPage({
                   Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
                     ? sub.mediaUrls
                     : [sub.mediaUrl];
+                // Tự động nhận diện khung hiển thị theo tỷ lệ hình ảnh thực tế của tác phẩm
+                const autoImageOrientation = imageOrientations[sub.id] || sub.orientation;
                 const cardOrientation =
-                  layoutModes.length >= 2 && sub.orientation ? sub.orientation : layoutMode;
+                  layoutModes.length >= 2 && autoImageOrientation
+                    ? autoImageOrientation
+                    : autoImageOrientation || layoutMode;
                 return (
                   <div
                     key={sub.id}
@@ -1281,7 +1382,7 @@ export default function MediaContestPublicPage({
                       cardOrientation === "vertical" ? "flex-col" : "flex-col sm:flex-row gap-3"
                     }`}
                   >
-                    {/* Khung Ảnh / Video tác phẩm */}
+                    {/* Khung Ảnh / Video tác phẩm (Tự động theo tỷ lệ hình) */}
                     <div
                       onClick={() => {
                         setSelectedSubmissionImageIdx(0);
@@ -1296,6 +1397,21 @@ export default function MediaContestPublicPage({
                       <img
                         src={subImages[0] || sub.mediaUrl}
                         alt={sub.title}
+                        onLoad={(e) => {
+                          const imgEl = e.currentTarget;
+                          if (imgEl.naturalWidth && imgEl.naturalHeight) {
+                            const naturalOrient: "vertical" | "horizontal" =
+                              imgEl.naturalWidth > imgEl.naturalHeight
+                                ? "horizontal"
+                                : "vertical";
+                            if (imageOrientations[sub.id] !== naturalOrient) {
+                              setImageOrientations((prev) => ({
+                                ...prev,
+                                [sub.id]: naturalOrient,
+                              }));
+                            }
+                          }
+                        }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       {subImages.length > 1 && (
@@ -2251,41 +2367,20 @@ export default function MediaContestPublicPage({
                   </div>
                 )}
 
-                {/* Chọn chiều hiển thị tác phẩm nếu cuộc thi bật cả Bố cục dọc & ngang */}
-                {layoutModes.length >= 2 && (
+                {reqFields.includes("authorEmail") && (
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1.5">
-                      Khung hiển thị tác phẩm
-                    </label>
-                    <div className="flex items-center space-x-6">
-                      {[
-                        { id: "vertical" as const, label: "Khung dọc (3:4)" },
-                        { id: "horizontal" as const, label: "Khung ngang (4:3)" },
-                      ].map((opt) => (
-                        <label
-                          key={opt.id}
-                          onClick={() => setSubmitForm({ ...submitForm, orientation: opt.id })}
-                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
-                        >
-                          <span
-                            className={`w-4 h-4 rounded-full flex items-center justify-center border-2 ${
-                              submitForm.orientation === opt.id
-                                ? "border-[#DC2626] bg-[#DC2626]"
-                                : "border-slate-300 bg-white"
-                            }`}
-                          >
-                            {submitForm.orientation === opt.id && (
-                              <span className="w-1.5 h-1.5 rounded-full bg-white" />
-                            )}
-                          </span>
-                          <span className="text-xs font-medium text-slate-700">{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
+                    <label className="block font-bold text-slate-700 mb-1">Địa chỉ Email</label>
+                    <input
+                      type="email"
+                      value={submitForm.authorEmail}
+                      onChange={(e) => setSubmitForm({ ...submitForm, authorEmail: e.target.value })}
+                      placeholder="tenban@gmail.com"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
+                    />
                   </div>
                 )}
 
-                {/* Tải nhiều ảnh trực tiếp từ máy tính / điện thoại (Tối đa maxImagesPerSubmission hình) */}
+                {/* Tải nhiều ảnh trực tiếp từ máy tính / điện thoại (Tối đa maxImagesPerSubmission hình - Tự động nhận diện khung hình dọc/ngang theo ảnh) */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="font-bold text-slate-700">
@@ -2330,6 +2425,23 @@ export default function MediaContestPublicPage({
                           <img
                             src={url}
                             alt={`Hình ${idx + 1}`}
+                            onLoad={(e) => {
+                              if (idx === 0) {
+                                const imgEl = e.currentTarget;
+                                if (imgEl.naturalWidth && imgEl.naturalHeight) {
+                                  const autoOrient: "vertical" | "horizontal" =
+                                    imgEl.naturalWidth > imgEl.naturalHeight
+                                      ? "horizontal"
+                                      : "vertical";
+                                  if (submitForm.orientation !== autoOrient) {
+                                    setSubmitForm((prev) => ({
+                                      ...prev,
+                                      orientation: autoOrient,
+                                    }));
+                                  }
+                                }
+                              }
+                            }}
                             className="w-full h-full object-cover"
                           />
                           <button

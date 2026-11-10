@@ -17,6 +17,8 @@ export const revalidate = 0;
 
 export default function HomePage() {
   const contests = store.getContests();
+  // Hiển thị công khai toàn bộ các cuộc thi ảnh/video do bất kỳ ai tạo ra, không giới hạn đăng nhập
+  const mediaContests = store.getMediaContests().filter((c) => c.status !== "CLOSED");
   const stats = store.getSystemStats();
 
   // Cuộc thi nổi bật hiển thị ở cột trái (chính là cuộc thi mới nhất do người dùng tạo)
@@ -168,33 +170,73 @@ export default function HomePage() {
                 Tin tức mới
               </h3>
 
-              {/* Cuộc thi Ảnh/Video Card (Mới - Ảnh 3) */}
-              <div className="bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 rounded-xl border border-emerald-300/80 p-4 text-center mb-4 shadow-xs">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
-                    BÌNH CHỌN TRỰC TUYẾN
-                  </span>
-                </div>
-                <div className="text-xs font-bold text-slate-900 mb-2.5 line-clamp-1">
-                  Cuộc thi Bình Chọn Ảnh &amp; Video 2026
-                </div>
-                <div className="relative rounded-lg overflow-hidden border border-emerald-200 shadow-2xs mb-2.5">
-                  <img
-                    src="/images/contest_stage_banner.jpg"
-                    alt="Cuộc thi bình chọn ảnh video"
-                    className="w-full h-28 object-cover"
-                  />
-                  <div className="absolute bottom-0 inset-x-0 bg-black/60 backdrop-blur-2xs py-1 px-2 text-[10px] text-white font-semibold flex items-center justify-between">
-                    <span>Đếm ngược nộp bài</span>
-                    <span className="text-emerald-400 font-bold">02 ngày : 23 giờ</span>
+              {/* Danh sách công khai toàn bộ các Cuộc thi Ảnh/Video do bất kỳ ai tạo ra (Ảnh 2) */}
+              <div className="space-y-3.5 mb-4">
+                {mediaContests.length === 0 ? (
+                  <div className="bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 rounded-xl border border-emerald-300/80 p-4 text-center shadow-xs">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
+                        BÌNH CHỌN TRỰC TUYẾN
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-600 mb-3">
+                      Chưa có cuộc thi bình chọn ảnh/video nào đang mở.
+                    </p>
+                    <Link
+                      href="/admin?tab=anh-video"
+                      className="w-full inline-flex items-center justify-center py-2 px-3 rounded-xl bg-[#009E60] hover:bg-[#008552] text-white text-xs font-bold shadow-xs transition-colors"
+                    >
+                      + Tạo cuộc thi ảnh mới
+                    </Link>
                   </div>
-                </div>
-                <Link
-                  href="/binh-chon/cuoc-thi-binh-chon-moi"
-                  className="w-full inline-flex items-center justify-center py-2 px-3 rounded-xl bg-[#009E60] hover:bg-[#008552] text-white text-xs font-bold shadow-xs transition-colors"
-                >
-                  Tham gia bình chọn ngay &gt;&gt;
-                </Link>
+                ) : (
+                  mediaContests.map((mc, idx) => (
+                    <div
+                      key={mc.id || mc.slug || idx}
+                      className="bg-gradient-to-br from-emerald-50/80 via-white to-teal-50/60 rounded-xl border border-emerald-300/80 p-3.5 text-center shadow-xs hover:shadow-md transition-shadow"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider">
+                          BÌNH CHỌN TRỰC TUYẾN
+                        </span>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded-full">
+                          {mc.submissionsCount || 0} tác phẩm
+                        </span>
+                      </div>
+                      <Link
+                        href={`/binh-chon/${mc.slug}`}
+                        className="block text-xs font-bold text-slate-900 hover:text-[#009E60] mb-1 line-clamp-2 leading-snug transition-colors"
+                      >
+                        {mc.title}
+                      </Link>
+                      <div className="text-[10px] text-slate-500 mb-2 truncate">
+                        {mc.organizerName || mc.creatorName || "Ban Tổ Chức Xã Ea Súp"}
+                      </div>
+                      <Link
+                        href={`/binh-chon/${mc.slug}`}
+                        className="block relative rounded-lg overflow-hidden border border-emerald-200 shadow-2xs mb-2.5 group"
+                      >
+                        <img
+                          src={mc.bannerUrl || "/images/contest_stage_banner.jpg"}
+                          alt={mc.title}
+                          className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        <div className="absolute bottom-0 inset-x-0 bg-black/65 backdrop-blur-2xs py-1 px-2 text-[10px] text-white font-semibold flex items-center justify-between">
+                          <span>{mc.type === "VIDEO" ? "Thi Video" : "Thi Ảnh đẹp"}</span>
+                          <span className="text-emerald-400 font-bold">
+                            {mc.displayEndDate || (mc.endDate ? mc.endDate.slice(0, 10) : "Đang mở")}
+                          </span>
+                        </div>
+                      </Link>
+                      <Link
+                        href={`/binh-chon/${mc.slug}`}
+                        className="w-full inline-flex items-center justify-center py-2 px-3 rounded-xl bg-[#009E60] hover:bg-[#008552] text-white text-xs font-bold shadow-xs transition-colors"
+                      >
+                        Tham gia bình chọn ngay &gt;&gt;
+                      </Link>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Cuộc Thi AI Card (Ảnh 1) */}

@@ -3814,9 +3814,10 @@ export default function AdminDashboardPage() {
                   <div className="mt-3 p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
                     {[
                       { id: "authorName", label: "Họ và tên tác giả (Bắt buộc)" },
-                      { id: "authorPhone", label: "Số điện thoại liên hệ" },
                       { id: "unitName", label: "Đơn vị / Thôn buôn (20 thôn buôn)" },
+                      { id: "authorPhone", label: "Số điện thoại liên hệ" },
                       { id: "authorCccd", label: "Số Căn cước công dân (CCCD)" },
+                      { id: "authorEmail", label: "Địa chỉ Email" },
                       { id: "description", label: "Lời bình / Mô tả tác phẩm" },
                     ].map((field) => {
                       const checked = newMediaForm.requiredParticipantFields.includes(field.id);

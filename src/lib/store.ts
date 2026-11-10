@@ -2090,6 +2090,34 @@ class DataStore {
       }
     }
 
+    // Đồng bộ cấu hình (số hình tối đa, trường thông tin bắt buộc, bố cục, màu sắc...) cho các bản ghi cùng tên cuộc thi (nếu có trùng tên)
+    const normTitle = (updatedContest.title || "").trim().toLowerCase();
+    if (normTitle) {
+      for (let i = 0; i < this.mediaContests.length; i++) {
+        if (i === idx) continue;
+        const other = this.mediaContests[i];
+        if ((other.title || "").trim().toLowerCase() === normTitle) {
+          this.mediaContests[i] = {
+            ...other,
+            layoutModes: updatedContest.layoutModes,
+            layoutMode: updatedContest.layoutMode,
+            maxImagesPerSubmission: updatedContest.maxImagesPerSubmission,
+            requiredParticipantFields: updatedContest.requiredParticipantFields,
+            themeColor: updatedContest.themeColor,
+            sortBy: updatedContest.sortBy,
+            enableSocialShare: updatedContest.enableSocialShare,
+            sharePlatforms: updatedContest.sharePlatforms,
+            requireApproval: updatedContest.requireApproval,
+            maxVotesPerUser: updatedContest.maxVotesPerUser,
+            showLeaderboard: updatedContest.showLeaderboard,
+            showVoteCount: updatedContest.showVoteCount,
+            showShareCount: updatedContest.showShareCount,
+            updatedAt: updatedContest.updatedAt,
+          };
+        }
+      }
+    }
+
     this.saveToDisk(true);
     return {
       ...updatedContest,
