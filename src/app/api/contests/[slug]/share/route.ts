@@ -11,7 +11,10 @@ export async function GET(
 ) {
   try {
     const { slug } = await params;
-    const contest = store.getContestBySlug(slug) || store.getContestById(slug);
+    const contest =
+      store.getContestBySlug(slug) ||
+      store.getContestById(slug) ||
+      store.getMediaContestBySlug(slug);
     if (!contest) {
       return NextResponse.json({ error: "Cuộc thi không tồn tại!" }, { status: 404 });
     }
@@ -55,7 +58,10 @@ export async function POST(
     const userEmail = req.headers.get("x-user-email") || body.userEmail;
     const userId = req.headers.get("x-user-id") || body.userId;
 
-    const contest = store.getContestBySlug(slug) || store.getContestById(slug);
+    const contest =
+      store.getContestBySlug(slug) ||
+      store.getContestById(slug) ||
+      store.getMediaContestBySlug(slug);
     if (!contest) {
       return NextResponse.json({ error: "Cuộc thi không tồn tại!" }, { status: 404 });
     }

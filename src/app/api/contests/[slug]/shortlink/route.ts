@@ -40,9 +40,14 @@ function resolveBaseUrl(req: NextRequest): string {
 export async function GET(req: NextRequest, { params }: RouteParams) {
   try {
     const { slug } = await params;
-    const contest = store.getContestBySlug(slug) || store.getContestById(slug) || store.getContestByCustomSlug(slug);
+    const contest =
+      store.getContestBySlug(slug) ||
+      store.getContestById(slug) ||
+      store.getContestByCustomSlug(slug);
+    const mediaContest = !contest ? store.getMediaContestBySlug(slug) : undefined;
+    const target = contest || mediaContest;
 
-    if (!contest) {
+    if (!target) {
       return NextResponse.json(
         { success: false, error: "Không tìm thấy cuộc thi." },
         { status: 404 }
@@ -50,17 +55,19 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
     }
 
     const baseUrl = resolveBaseUrl(req);
-    const effectiveSlug = contest.customSlug || contest.slug;
+    const effectiveSlug = target.customSlug || target.slug;
     const shortUrl = `${baseUrl}/r/${effectiveSlug}`;
-    const directUrl = `${baseUrl}/thi/${contest.slug}`;
+    const directUrl = mediaContest
+      ? `${baseUrl}/binh-chon/${target.slug}`
+      : `${baseUrl}/thi/${target.slug}`;
 
     return NextResponse.json({
       success: true,
-      contestId: contest.id,
-      contestTitle: contest.title,
-      slug: contest.slug,
-      customSlug: contest.customSlug || "",
-      clickCount: contest.clickCount || 0,
+      contestId: target.id,
+      contestTitle: target.title,
+      slug: target.slug,
+      customSlug: target.customSlug || "",
+      clickCount: target.clickCount || 0,
       shortUrl,
       directUrl,
     });
@@ -82,7 +89,10 @@ export async function POST(req: NextRequest, { params }: RouteParams) {
     const body = await req.json();
     const { customSlug } = body;
 
-    const contest = store.getContestBySlug(slug) || store.getContestById(slug);
+    const contest =
+      store.getContestBySlug(slug) ||
+      store.getContestById(slug) ||
+      store.getMediaContestBySlug(slug);
     if (!contest) {
       return NextResponse.json(
         { success: false, error: "Không tìm thấy cuộc thi." },
@@ -118,7 +128,10 @@ export async function PUT(req: NextRequest, { params }: RouteParams) {
     const body = await req.json();
     const { customSlug } = body;
 
-    const contest = store.getContestBySlug(slug) || store.getContestById(slug);
+    const contest =
+      store.getContestBySlug(slug) ||
+      store.getContestById(slug) ||
+      store.getMediaContestBySlug(slug);
     if (!contest) {
       return NextResponse.json(
         { success: false, error: "Không tìm thấy cuộc thi." },

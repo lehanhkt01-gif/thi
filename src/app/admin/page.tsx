@@ -152,6 +152,7 @@ export default function AdminDashboardPage() {
 
   // Media Contests State (Ảnh 2)
   const [mediaContests, setMediaContests] = useState<any[]>([]);
+  const [mediaStatusFilter, setMediaStatusFilter] = useState<"ALL" | "PUBLISHED" | "DRAFT">("ALL");
   const [mediaSearchQuery, setMediaSearchQuery] = useState("");
   const [mediaCreatorFilter, setMediaCreatorFilter] = useState<string>("ALL");
   const [selectedMediaContestIds, setSelectedMediaContestIds] = useState<string[]>([]);
@@ -332,7 +333,24 @@ export default function AdminDashboardPage() {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     const userEmail = (authUser.email || "").toLowerCase().trim();
-    const creatorEmail = (c?.creatorEmail || "").toLowerCase().trim();
+    const creatorEmail = (c?.creatorEmail || c?.organizerEmail || "").toLowerCase().trim();
+    const creatorId = c?.creatorId;
+    if (creatorEmail && creatorEmail === userEmail) return true;
+    if (creatorId && creatorId === authUser.id) return true;
+    if (
+      Array.isArray(c?.sharedEmails) &&
+      c.sharedEmails.some((e: string) => (e || "").toLowerCase().trim() === userEmail)
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  const canUserShareMediaContest = (c: any) => {
+    if (!authUser) return false;
+    if (authUser.role === "ADMIN") return true;
+    const userEmail = (authUser.email || "").toLowerCase().trim();
+    const creatorEmail = (c?.creatorEmail || c?.organizerEmail || "").toLowerCase().trim();
     const creatorId = c?.creatorId;
     if (creatorEmail && creatorEmail === userEmail) return true;
     if (creatorId && creatorId === authUser.id) return true;
@@ -951,6 +969,112 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleOpenEditMediaContest = (c: any) => {
+    const initModes: ("vertical" | "horizontal")[] =
+      Array.isArray(c.layoutModes) && c.layoutModes.length > 0
+        ? c.layoutModes
+        : c.layoutMode === "both"
+          ? ["vertical", "horizontal"]
+          : [c.layoutMode || "vertical"];
+    setEditingMediaContestId(c.id || c.slug);
+    setNewMediaForm({
+      title: c.title || "",
+      slug: c.slug || "",
+      type: c.type || "IMAGE",
+      startDate: (c.startDate || "2026-11-10T07:00").slice(0, 16),
+      endDate: (c.endDate || "2026-11-24T07:00").slice(0, 16),
+      submitStartDate: (c.submitStartDate || c.startDate || "2026-11-10T07:00").slice(0, 16),
+      submitEndDate: (c.submitEndDate || "2026-11-18T07:00").slice(0, 16),
+      voteStartDate: (c.voteStartDate || "2026-11-18T08:00").slice(0, 16),
+      voteEndDate: (c.voteEndDate || c.endDate || "2026-11-24T07:00").slice(0, 16),
+      displayStartDate: c.displayStartDate || "10/11/2026",
+      displayEndDate: c.displayEndDate || "24/11/2026",
+      bannerUrl: c.bannerUrl || "/images/contest_stage_banner.jpg",
+      status: c.status || "PUBLISHED",
+      description: c.description || "",
+      themeColor: c.themeColor || "#1B7F5C",
+      layoutMode: initModes.length >= 2 ? "both" : initModes[0] || "vertical",
+      layoutModes: initModes,
+      maxImagesPerSubmission: Number(c.maxImagesPerSubmission) > 0 ? Number(c.maxImagesPerSubmission) : 5,
+      sortBy: c.sortBy || "votesCount",
+      enableSocialShare: c.enableSocialShare ?? true,
+      sharePlatforms: Array.isArray(c.sharePlatforms) ? c.sharePlatforms : ["facebook", "zalo"],
+      requiredParticipantFields: Array.isArray(c.requiredParticipantFields)
+        ? c.requiredParticipantFields
+        : ["authorName", "authorPhone", "unitName", "description"],
+      requireApproval: c.requireApproval ?? false,
+      maxVotesPerUser: c.maxVotesPerUser ?? 3,
+      contestPassword: c.contestPassword || "",
+      showLeaderboard: c.showLeaderboard ?? true,
+      showVoteCount: c.showVoteCount ?? true,
+      showShareCount: c.showShareCount ?? true,
+      rulesHtml: c.rulesHtml || c.description || "",
+      rulesFileUrl: c.rulesFileUrl || "",
+      announcement: c.announcement || "",
+      organizerName: c.organizerName || "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
+      organizerAddress: c.organizerAddress || "72 Hùng Vương, xã Ea Súp, Tỉnh Đắk Lắk",
+      organizerPhone: c.organizerPhone || "0888023023",
+      organizerEmail: c.organizerEmail || "Easupsohoa@gmail.com",
+    });
+    setMediaSettingsSection("config");
+    setShowCreateMediaModal(true);
+  };
+
+  const handleExportMediaContestExcel = async (c: any) => {
+    try {
+      const res = await fetch(`/api/media-contests/${c.slug}?t=${Date.now()}`, { cache: "no-store" });
+      const data = await safeParseMediaResponse(res);
+      const list = Array.isArray(data.submissions) ? [...data.submissions] : [];
+      list.sort((a: any, b: any) => (b.votesCount || 0) - (a.votesCount || 0));
+
+      const rows =
+        list.length > 0
+          ? list.map((s: any, idx: number) => ({
+              "Hạng": idx + 1,
+              "Mã bài": s.id,
+              "Tên tác phẩm": s.title || "",
+              "Tác giả": s.authorName || "",
+              "Đơn vị / Thôn buôn": s.unitName || "",
+              "Số điện thoại": s.authorPhone || "",
+              "CCCD": s.authorCccd || "",
+              "Số lượng ảnh": Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls.length : 1,
+              "Bố cục": s.orientation === "horizontal" ? "Bố cục ngang" : "Bố cục dọc",
+              "Lượt bình chọn": s.votesCount || 0,
+              "Lượt chia sẻ": s.sharesCount || 0,
+              "Điểm BTC": s.score || 0,
+              "Trạng thái": s.status === "APPROVED" ? "Đã duyệt" : s.status === "PENDING" ? "Chờ duyệt" : "Từ chối",
+              "Ngày nộp": s.createdAt ? new Date(s.createdAt).toLocaleString("vi-VN") : "",
+              "Mô tả tác phẩm": s.description || "",
+            }))
+          : [
+              {
+                "Hạng": "",
+                "Mã bài": "",
+                "Tên tác phẩm": "Chưa có tác phẩm dự thi nào",
+                "Tác giả": "",
+                "Đơn vị / Thôn buôn": "",
+                "Số điện thoại": "",
+                "CCCD": "",
+                "Số lượng ảnh": 0,
+                "Bố cục": "",
+                "Lượt bình chọn": 0,
+                "Lượt chia sẻ": 0,
+                "Điểm BTC": 0,
+                "Trạng thái": "",
+                "Ngày nộp": "",
+                "Mô tả tác phẩm": "",
+              },
+            ];
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "KetQuaBinhChon");
+      XLSX.writeFile(wb, `ket_qua_binh_chon_${c.slug || "cuoc_thi_anh"}.xlsx`);
+    } catch (err: any) {
+      alert("Lỗi xuất file Excel: " + (err?.message || "Vui lòng thử lại"));
+    }
+  };
+
   // User Management State (Chỉ Quản trị viên - Admin)
   const [usersList, setUsersList] = useState<any[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState("");
@@ -1426,17 +1550,32 @@ export default function AdminDashboardPage() {
   }, [visibleMediaContests, usersList]);
 
   const filteredMediaContests = visibleMediaContests.filter((c) => {
+    const q = mediaSearchQuery.toLowerCase().trim();
     const matchesSearch =
-      !mediaSearchQuery ||
-      c.title.toLowerCase().includes(mediaSearchQuery.toLowerCase()) ||
-      (c.creatorName && c.creatorName.toLowerCase().includes(mediaSearchQuery.toLowerCase())) ||
-      (c.creatorEmail && c.creatorEmail.toLowerCase().includes(mediaSearchQuery.toLowerCase()));
+      !q ||
+      (c.title && c.title.toLowerCase().includes(q)) ||
+      (c.slug && c.slug.toLowerCase().includes(q)) ||
+      (c.customSlug && c.customSlug.toLowerCase().includes(q)) ||
+      (c.organizerName && c.organizerName.toLowerCase().includes(q)) ||
+      (c.creatorName && c.creatorName.toLowerCase().includes(q)) ||
+      (c.creatorEmail && c.creatorEmail.toLowerCase().includes(q));
 
-    if (mediaCreatorFilter === "ALL") return matchesSearch;
+    const matchesStatus =
+      mediaStatusFilter === "ALL" ||
+      (mediaStatusFilter === "PUBLISHED" && c.status === "PUBLISHED") ||
+      (mediaStatusFilter === "DRAFT" && c.status !== "PUBLISHED");
+
+    if (mediaCreatorFilter === "ALL") return matchesSearch && matchesStatus;
 
     const info = getMediaContestCreatorInfo(c);
     const targetKey = mediaCreatorFilter.toLowerCase().trim();
-    return matchesSearch && (info.filterKey === targetKey || (info.email && info.email.toLowerCase() === targetKey));
+    const matchesCreator =
+      info.filterKey === targetKey ||
+      (info.email && info.email.toLowerCase() === targetKey) ||
+      (c.creatorEmail && c.creatorEmail.toLowerCase() === targetKey) ||
+      (c.creatorId && c.creatorId === mediaCreatorFilter);
+
+    return matchesSearch && matchesStatus && matchesCreator;
   });
 
   return (
@@ -2182,464 +2321,460 @@ export default function AdminDashboardPage() {
             )}
 
             {/* ========================================================= */}
-            {/* TAB NỘI DUNG 2: CUỘC THI ẢNH / VIDEO (Ảnh 2) */}
+            {/* TAB NỘI DUNG 2: CUỘC THI ẢNH / VIDEO (Đồng bộ giao diện thẻ ngang như Trắc nghiệm - Ảnh 2) */}
             {/* ========================================================= */}
             {authUser && activeTab === "anh-video" && (
               <div className="space-y-4">
-                {/* TOP ACTION BAR: Mẫu kế hoạch ↓ + Tìm kiếm... + Hướng dẫn [avatar] (Ảnh 2) */}
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-3 sm:px-5 sm:py-3 rounded-2xl border border-slate-200 shadow-2xs">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                      Phân hệ: Cuộc thi Bình chọn
-                    </span>
+                {/* TIÊU ĐỀ & KHỐI TẠO MỚI CUỘC THI ẢNH / VIDEO */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <div>
+                    <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight uppercase">
+                      TỔ CHỨC CUỘC THI ẢNH / VIDEO TRỰC TUYẾN
+                    </h1>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Quản lý, điều hành và bình chọn tác phẩm ảnh đẹp, video tuyên truyền của các cơ quan, đơn vị xã Ea Súp
+                    </p>
                   </div>
 
-                  <div className="flex items-center space-x-3 self-end sm:self-center">
-                    {/* Nút Mẫu kế hoạch ↓ */}
+                  <div className="flex flex-wrap items-center gap-2 self-start sm:self-center">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingMediaContestId(null);
+                        setNewMediaForm(defaultMediaFormState);
+                        setMediaSettingsSection("config");
+                        setShowCreateMediaModal(true);
+                      }}
+                      className="inline-flex items-center space-x-1.5 px-4 py-2 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                    >
+                      <Plus className="w-4 h-4 stroke-[2.5]" />
+                      <span>Thêm mới cuộc thi ảnh</span>
+                    </button>
+
                     <button
                       type="button"
                       onClick={() => setShowPlanTemplateModal(true)}
-                      className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-xs transition-all cursor-pointer"
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-2xs transition-all cursor-pointer"
                     >
+                      <Download className="w-3.5 h-3.5 text-[#DC2626]" />
                       <span>Mẫu kế hoạch</span>
-                      <Download className="w-3.5 h-3.5" />
                     </button>
 
-                    {/* Input Tìm kiếm... (pill) */}
-                    <div className="relative">
-                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                      <input
-                        type="text"
-                        value={mediaSearchQuery}
-                        onChange={(e) => setMediaSearchQuery(e.target.value)}
-                        placeholder="Tìm kiếm..."
-                        className="pl-8 pr-3 py-1.5 text-xs rounded-full border border-slate-200 focus:outline-none focus:border-red-500 bg-white w-32 sm:w-44 text-slate-700"
-                      />
-                    </div>
-
-                    {/* Hướng dẫn + Avatar */}
                     <button
                       type="button"
                       onClick={() => setShowGuideModal(true)}
-                      className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 transition-colors pl-1 cursor-pointer"
+                      className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs shadow-2xs transition-all cursor-pointer"
                     >
+                      <BookOpen className="w-3.5 h-3.5 text-[#7C3AED]" />
                       <span>Hướng dẫn</span>
-                      <div className="w-6 h-6 rounded-full overflow-hidden border border-slate-200 bg-slate-100 flex items-center justify-center shrink-0">
-                        <img
-                          src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=80&q=80"
-                          alt="Avatar Admin"
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
                     </button>
                   </div>
                 </div>
 
-                {/* MAIN CARD: DANH SÁCH CUỘC THI (Ảnh 2) */}
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm space-y-5">
-                  {/* Tiêu đề & Nút [ Xóa ] [ + Thêm mới ] [ Tìm kiếm cuộc thi... ] (Ảnh 2) */}
-                  <div>
-                    <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight mb-4">
-                      Danh sách cuộc thi
-                    </h2>
+                {/* HEADER DANH SÁCH CUỘC THI & FILTER TABS (Đồng bộ 100% với Ảnh 2) */}
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-200 gap-2 pt-1">
+                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
+                    DANH SÁCH CUỘC THI
+                  </h2>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      {/* Left Action Buttons */}
-                      <div className="flex items-center space-x-2">
-                        {/* Nút Xóa (border đỏ, icon thùng rác) */}
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteMediaContests()}
-                          className="inline-flex items-center space-x-1.5 px-4 py-1.5 rounded-lg border border-red-300 text-red-600 bg-white hover:bg-red-50 text-xs font-semibold shadow-2xs transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-red-500" />
-                          <span>Xóa</span>
-                        </button>
-
-                        {/* Nút + Thêm mới (nền đỏ nổi bật) - Chỉ khi đã đăng nhập */}
-                        {authUser && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingMediaContestId(null);
-                              setNewMediaForm(defaultMediaFormState);
-                              setMediaSettingsSection("config");
-                              setShowCreateMediaModal(true);
-                            }}
-                            className="inline-flex items-center space-x-1 px-4 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
-                          >
-                            <Plus className="w-3.5 h-3.5" />
-                            <span>Thêm mới</span>
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Right Filter & Input */}
-                      <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
-                        {/* Media Creator Filter */}
-                        <div className="relative min-w-[200px]">
-                          <select
-                            value={mediaCreatorFilter}
-                            onChange={(e) => setMediaCreatorFilter(e.target.value)}
-                            className="w-full pl-3 pr-8 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 bg-white focus:outline-none focus:border-red-500 appearance-none cursor-pointer"
-                            title="Lọc cuộc thi theo người tạo"
-                          >
-                            <option value="ALL">👤 Tất cả người tạo ({visibleMediaContests.length})</option>
-                            {mediaContestCreators.map((cr) => (
-                              <option key={cr.key} value={cr.key}>
-                                {cr.name} ({cr.count})
-                              </option>
-                            ))}
-                          </select>
-                          <div className="absolute inset-y-0 right-0 pr-2.5 flex items-center pointer-events-none">
-                            <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
-                          </div>
-                        </div>
-
-                        {/* Search Input: Tìm kiếm cuộc thi... */}
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={mediaSearchQuery}
-                            onChange={(e) => setMediaSearchQuery(e.target.value)}
-                            placeholder="Tìm kiếm cuộc thi..."
-                            className="px-3.5 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-700 w-full sm:w-52 focus:outline-none focus:border-red-500 bg-white"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* BẢNG DỮ LIỆU CUỘC THI ẢNH/VIDEO CHUẨN XÁC THEO ẢNH 2 */}
-                  <div className="border border-slate-200 rounded-xl overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#F8FAFC] text-slate-600 font-bold border-b border-slate-200">
-                        <tr>
-                          <th className="py-3 px-3 w-10 text-center">
-                            <input
-                              type="checkbox"
-                              checked={
-                                visibleMediaContests.length > 0 &&
-                                selectedMediaContestIds.length === visibleMediaContests.length
-                              }
-                              onChange={(e) => {
-                                if (e.target.checked) {
-                                  setSelectedMediaContestIds(visibleMediaContests.map((c) => c.id));
-                                } else {
-                                  setSelectedMediaContestIds([]);
-                                }
-                              }}
-                              className="rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
-                            />
-                          </th>
-                          <th className="py-3 px-2 w-12 text-slate-700"># ⇅</th>
-                          <th className="py-3 px-3 text-slate-700">Tên cuộc thi ⇅</th>
-                          <th className="py-3 px-3 text-slate-700">Người tạo ⇅</th>
-                          <th className="py-3 px-3 text-slate-700">Ngày bắt đầu ⇅</th>
-                          <th className="py-3 px-3 text-slate-700">Ngày kết thúc ⇅</th>
-                          <th className="py-3 px-3 text-center text-slate-700">Tổng số tác phẩm ⇅</th>
-                          <th className="py-3 px-3 text-center text-slate-700">Loại bình chọn ⇅</th>
-                          <th className="py-3 px-3 text-center text-slate-700">Trạng thái ⇅</th>
-                          <th className="py-3 px-3 text-center text-slate-700">Thao tác</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {filteredMediaContests
-                          .map((c, idx) => {
-                            const isSelected = selectedMediaContestIds.includes(c.id);
-                            const mediaCreatorInfo = getMediaContestCreatorInfo(c);
-                            return (
-                              <tr
-                                key={c.id}
-                                className={`hover:bg-slate-50/80 transition-colors ${
-                                  isSelected ? "bg-red-50/30" : ""
-                                }`}
-                              >
-                                {/* Checkbox */}
-                                <td className="py-3 px-3 text-center">
-                                  <input
-                                    type="checkbox"
-                                    checked={isSelected}
-                                    onChange={(e) => {
-                                      if (e.target.checked) {
-                                        setSelectedMediaContestIds([...selectedMediaContestIds, c.id]);
-                                      } else {
-                                        setSelectedMediaContestIds(
-                                          selectedMediaContestIds.filter((id) => id !== c.id)
-                                        );
-                                      }
-                                    }}
-                                    className="rounded border-slate-300 text-red-600 focus:ring-red-500 cursor-pointer"
-                                  />
-                                </td>
-
-                                {/* # */}
-                                <td className="py-3 px-2 text-slate-500 font-mono">
-                                  {idx + 1}
-                                </td>
-
-                                {/* Tên cuộc thi + Thumbnail (Ảnh 2) */}
-                                <td className="py-3 px-3">
-                                  <div className="flex items-center space-x-3">
-                                    <div className="w-14 h-9 rounded-md overflow-hidden bg-slate-100 shrink-0 border border-slate-200">
-                                      <img
-                                        src={c.bannerUrl || "/images/contest_stage_banner.jpg"}
-                                        alt={c.title}
-                                        className="w-full h-full object-cover"
-                                      />
-                                    </div>
-                                    <div>
-                                      <Link
-                                        href={`/binh-chon/${c.slug}`}
-                                        target="_blank"
-                                        className="font-bold text-slate-900 uppercase hover:text-[#DC2626] transition-colors line-clamp-1"
-                                      >
-                                        {c.title}
-                                      </Link>
-                                      <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                                        <span className="text-[10px] text-slate-400 font-mono">
-                                          /binh-chon/{c.slug}
-                                        </span>
-                                        <span className="text-[10px] text-slate-500 inline-flex items-center">
-                                          • Tạo lúc: <strong className="ml-0.5 text-slate-700">{formatContestCreatedAt(c)}</strong>
-                                        </span>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </td>
-
-                                {/* Tài khoản tạo */}
-                                <td className="py-3 px-3 text-slate-700">
-                                  <div className="font-semibold text-slate-900">{mediaCreatorInfo.name}</div>
-                                  {mediaCreatorInfo.email && (
-                                    <div className="text-[11px] text-slate-400 font-mono">{mediaCreatorInfo.email}</div>
-                                  )}
-                                </td>
-
-                                {/* Ngày bắt đầu */}
-                                <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
-                                  {c.displayStartDate || "2 thg 11, 2026"}
-                                </td>
-
-                                {/* Ngày kết thúc */}
-                                <td className="py-3 px-3 text-slate-600 whitespace-nowrap">
-                                  {c.displayEndDate || "5 thg 11, 2026"}
-                                </td>
-
-                                {/* Tổng số tác phẩm */}
-                                <td className="py-3 px-3 text-center font-bold text-slate-800">
-                                  {c.submissionsCount ?? 0}
-                                </td>
-
-                                {/* Loại bình chọn: [ Hình ảnh ] hoặc [ Video ] */}
-                                <td className="py-3 px-3 text-center">
-                                  <span className="inline-block px-2.5 py-0.5 rounded-md border border-sky-400 text-sky-600 bg-sky-50/50 text-[11px] font-medium whitespace-nowrap">
-                                    {c.type === "VIDEO" ? "Video clip" : "Hình ảnh"}
-                                  </span>
-                                </td>
-
-                                {/* Trạng thái: [ Nháp ] hoặc [ Đang diễn ra ] */}
-                                <td className="py-3 px-3 text-center">
-                                  {c.status === "PUBLISHED" ? (
-                                    <span className="inline-block px-2.5 py-0.5 rounded-md border border-emerald-400 text-emerald-600 bg-emerald-50/50 text-[11px] font-medium whitespace-nowrap">
-                                      Đang diễn ra
-                                    </span>
-                                  ) : (
-                                    <span className="inline-block px-2.5 py-0.5 rounded-md border border-amber-400 text-amber-600 bg-amber-50/50 text-[11px] font-medium whitespace-nowrap">
-                                      Nháp
-                                    </span>
-                                  )}
-                                </td>
-
-                                {/* Thao tác: Edit, Settings Dashboard, Submissions, Link, Download, Trash (Ảnh 2) */}
-                                <td className="py-3 px-3">
-                                  <div className="flex items-center justify-center space-x-1.5 text-slate-500">
-                                    {/* Edit / Cài đặt nhanh (Chỉ hiển thị nếu là người tạo hoặc Admin) */}
-                                    {canUserManageMediaContest(c) && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            const initModes: ("vertical" | "horizontal")[] =
-                                              Array.isArray(c.layoutModes) && c.layoutModes.length > 0
-                                                ? c.layoutModes
-                                                : c.layoutMode === "both"
-                                                  ? ["vertical", "horizontal"]
-                                                  : [c.layoutMode || "vertical"];
-                                            setEditingMediaContestId(c.id || c.slug);
-                                            setNewMediaForm({
-                                              title: c.title || "",
-                                              slug: c.slug || "",
-                                              type: c.type || "IMAGE",
-                                              startDate: (c.startDate || "2026-11-10T07:00").slice(0, 16),
-                                              endDate: (c.endDate || "2026-11-24T07:00").slice(0, 16),
-                                              submitStartDate: (c.submitStartDate || c.startDate || "2026-11-10T07:00").slice(0, 16),
-                                              submitEndDate: (c.submitEndDate || "2026-11-18T07:00").slice(0, 16),
-                                              voteStartDate: (c.voteStartDate || "2026-11-18T08:00").slice(0, 16),
-                                              voteEndDate: (c.voteEndDate || c.endDate || "2026-11-24T07:00").slice(0, 16),
-                                              displayStartDate: c.displayStartDate || "10/11/2026",
-                                              displayEndDate: c.displayEndDate || "24/11/2026",
-                                              bannerUrl: c.bannerUrl || "/images/contest_stage_banner.jpg",
-                                              status: c.status || "PUBLISHED",
-                                              description: c.description || "",
-                                              themeColor: c.themeColor || "#1B7F5C",
-                                              layoutMode: initModes.length >= 2 ? "both" : initModes[0] || "vertical",
-                                              layoutModes: initModes,
-                                              maxImagesPerSubmission: Number(c.maxImagesPerSubmission) > 0 ? Number(c.maxImagesPerSubmission) : 5,
-                                              sortBy: c.sortBy || "votesCount",
-                                              enableSocialShare: c.enableSocialShare ?? true,
-                                              sharePlatforms: Array.isArray(c.sharePlatforms) ? c.sharePlatforms : ["facebook", "zalo"],
-                                              requiredParticipantFields: Array.isArray(c.requiredParticipantFields)
-                                                ? c.requiredParticipantFields
-                                                : ["authorName", "authorPhone", "unitName", "description"],
-                                              requireApproval: c.requireApproval ?? false,
-                                              maxVotesPerUser: c.maxVotesPerUser ?? 3,
-                                              contestPassword: c.contestPassword || "",
-                                              showLeaderboard: c.showLeaderboard ?? true,
-                                              showVoteCount: c.showVoteCount ?? true,
-                                              showShareCount: c.showShareCount ?? true,
-                                              rulesHtml: c.rulesHtml || c.description || "",
-                                              rulesFileUrl: c.rulesFileUrl || "",
-                                              announcement: c.announcement || "",
-                                              organizerName: c.organizerName || "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
-                                              organizerAddress: c.organizerAddress || "72 Hùng Vương, xã Ea Súp, Tỉnh Đắk Lắk",
-                                              organizerPhone: c.organizerPhone || "0888023023",
-                                              organizerEmail: c.organizerEmail || "Easupsohoa@gmail.com",
-                                            });
-                                            setMediaSettingsSection("config");
-                                            setShowCreateMediaModal(true);
-                                          }}
-                                          className="p-1 hover:text-slate-800 rounded hover:bg-slate-100 transition-colors cursor-pointer"
-                                          title="Cài đặt cấu hình cuộc thi ảnh"
-                                        >
-                                          <Edit className="w-3.5 h-3.5" />
-                                        </button>
-
-                                        <Link
-                                          href={`/binh-chon/${c.slug}?settings=1`}
-                                          target="_blank"
-                                          className="p-1 hover:text-[#DC2626] rounded hover:bg-red-50 transition-colors"
-                                          title="Mở giao diện Dashboard & Cài đặt trực quan (Ảnh 2, 3, 4)"
-                                        >
-                                          <Settings className="w-3.5 h-3.5" />
-                                        </Link>
-                                      </>
-                                    )}
-
-                                    {/* Submissions List */}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleViewSubmissions(c)}
-                                      className="p-1 hover:text-slate-800 rounded hover:bg-slate-100 transition-colors cursor-pointer"
-                                      title="Xem danh sách tác phẩm nộp"
-                                    >
-                                      <List className="w-3.5 h-3.5" />
-                                    </button>
-
-                                    {/* Copy / Open Link (Ảnh 4) */}
-                                    <Link
-                                      href={`/binh-chon/${c.slug}`}
-                                      target="_blank"
-                                      className="p-1 hover:text-sky-600 rounded hover:bg-sky-50 transition-colors"
-                                      title="Xem trang bình chọn công khai (Ảnh 4)"
-                                    >
-                                      <ExternalLink className="w-3.5 h-3.5" />
-                                    </Link>
-
-                                    {/* Download (Chỉ khi đã đăng nhập) */}
-                                    {authUser && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          alert(`Đang xuất dữ liệu bình chọn cuộc thi: ${c.title}`);
-                                        }}
-                                        className="p-1 hover:text-emerald-600 rounded hover:bg-emerald-50 transition-colors cursor-pointer"
-                                        title="Tải dữ liệu báo cáo"
-                                      >
-                                        <Download className="w-3.5 h-3.5" />
-                                      </button>
-                                    )}
-
-                                    {/* Delete (Chỉ hiển thị nếu là người tạo hoặc Admin) */}
-                                    {canUserManageMediaContest(c) ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => handleDeleteMediaContests(c.id)}
-                                        className="p-1 hover:text-red-600 rounded hover:bg-red-50 transition-colors cursor-pointer"
-                                        title="Xóa cuộc thi"
-                                      >
-                                        <Trash2 className="w-3.5 h-3.5" />
-                                      </button>
-                                    ) : (
-                                      <span
-                                        className="p-1 text-slate-300 select-none"
-                                        title="Chỉ xem (Đơn vị khác tạo)"
-                                      >
-                                        <Lock className="w-3.5 h-3.5 text-slate-300" />
-                                      </span>
-                                    )}
-                                  </div>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* PHÂN TRANG BÊN DƯỚI (Ảnh 2) */}
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 text-xs text-slate-500">
-                    <div className="flex items-center space-x-2">
-                      <span>
-                        Hiển thị từ 1 đến {mediaContests.length} trong tổng số{" "}
-                        {mediaContests.length} tác phẩm
-                      </span>
-                      <select className="border border-slate-200 rounded px-2 py-1 bg-white text-xs text-slate-700">
-                        <option value="10">10 ⌄</option>
-                        <option value="20">20 ⌄</option>
-                        <option value="50">50 ⌄</option>
-                      </select>
-                    </div>
-
-                    {/* Pagination Buttons with Red Active Circle (Ảnh 2) */}
-                    <div className="flex items-center space-x-1.5 self-end sm:self-center">
-                      <button
-                        type="button"
-                        disabled
-                        className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs opacity-60 cursor-not-allowed"
-                      >
-                        «
-                      </button>
-                      <button
-                        type="button"
-                        disabled
-                        className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs opacity-60 cursor-not-allowed"
-                      >
-                        ‹
-                      </button>
-                      <button
-                        type="button"
-                        className="w-7 h-7 rounded-full bg-[#DC2626] text-white flex items-center justify-center text-xs font-bold shadow-xs"
-                      >
-                        1
-                      </button>
-                      <button
-                        type="button"
-                        disabled
-                        className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs opacity-60 cursor-not-allowed"
-                      >
-                        ›
-                      </button>
-                      <button
-                        type="button"
-                        disabled
-                        className="w-7 h-7 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center text-xs opacity-60 cursor-not-allowed"
-                      >
-                        »
-                      </button>
-                    </div>
+                  {/* Filter Status Tabs */}
+                  <div className="flex items-center space-x-1 bg-white border border-slate-200 p-1 rounded-xl text-xs font-semibold">
+                    <button
+                      type="button"
+                      onClick={() => setMediaStatusFilter("ALL")}
+                      className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                        mediaStatusFilter === "ALL"
+                          ? "bg-[#DC2626] text-white"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Tất cả ({visibleMediaContests.length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaStatusFilter("PUBLISHED")}
+                      className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                        mediaStatusFilter === "PUBLISHED"
+                          ? "bg-[#DC2626] text-white"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Đang diễn ra ({visibleMediaContests.filter((c) => c.status === "PUBLISHED").length})
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setMediaStatusFilter("DRAFT")}
+                      className={`px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
+                        mediaStatusFilter === "DRAFT"
+                          ? "bg-[#DC2626] text-white"
+                          : "text-slate-600 hover:text-slate-900"
+                      }`}
+                    >
+                      Bản nháp ({visibleMediaContests.filter((c) => c.status !== "PUBLISHED").length})
+                    </button>
                   </div>
                 </div>
+
+                {/* Search Bar & Bộ lọc người tạo (Đồng bộ 100% với Ảnh 2) */}
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 items-center">
+                  {/* Search Bar */}
+                  <div className="relative sm:col-span-7 lg:col-span-8">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      value={mediaSearchQuery}
+                      onChange={(e) => setMediaSearchQuery(e.target.value)}
+                      placeholder="Tìm kiếm theo tên cuộc thi, đường dẫn slug hoặc người tạo..."
+                      className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white outline-none focus:border-red-600 shadow-2xs"
+                    />
+                  </div>
+
+                  {/* Dropdown Bộ lọc danh sách người tạo */}
+                  <div className="sm:col-span-5 lg:col-span-4 flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <User className="w-4 h-4 text-slate-400" />
+                      </div>
+                      <select
+                        value={mediaCreatorFilter}
+                        onChange={(e) => setMediaCreatorFilter(e.target.value)}
+                        className="w-full pl-9 pr-8 py-2 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white outline-none focus:border-red-600 appearance-none font-medium text-slate-700 cursor-pointer shadow-2xs truncate"
+                        title="Lọc danh sách theo tài khoản người tạo"
+                      >
+                        <option value="ALL">👤 Tất cả người tạo ({visibleMediaContests.length})</option>
+                        {mediaContestCreators.map((cr) => (
+                          <option key={cr.key} value={cr.key}>
+                            {cr.name} ({cr.count} cuộc thi)
+                          </option>
+                        ))}
+                      </select>
+                      <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                        <ChevronDown className="w-4 h-4 text-slate-400" />
+                      </div>
+                    </div>
+
+                    {mediaCreatorFilter !== "ALL" && (
+                      <button
+                        type="button"
+                        onClick={() => setMediaCreatorFilter("ALL")}
+                        className="px-2.5 py-2 text-xs font-bold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-xl transition-colors cursor-pointer shrink-0"
+                        title="Bỏ lọc người tạo"
+                      >
+                        Xóa lọc
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Filter tags summary nếu đang lọc theo người tạo */}
+                {mediaCreatorFilter !== "ALL" && (
+                  <div className="flex items-center gap-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                    <Filter className="w-3.5 h-3.5 text-red-600 shrink-0" />
+                    <span>Đang lọc theo người tạo:</span>
+                    <span className="font-bold text-slate-900 bg-white px-2 py-0.5 rounded-lg border border-slate-200">
+                      {mediaContestCreators.find((cr) => cr.key === mediaCreatorFilter)?.name || mediaCreatorFilter}
+                    </span>
+                    <span className="text-slate-400">({filteredMediaContests.length} cuộc thi)</span>
+                    <button
+                      type="button"
+                      onClick={() => setMediaCreatorFilter("ALL")}
+                      className="ml-auto text-red-600 hover:text-red-700 font-semibold hover:underline cursor-pointer"
+                    >
+                      Bỏ lọc
+                    </button>
+                  </div>
+                )}
+
+                {/* Danh sách thẻ ngang Cuộc thi Ảnh / Video (Đồng bộ 100% bố cục Ảnh 2) */}
+                {filteredMediaContests.length === 0 ? (
+                  <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-400 text-xs sm:text-sm">
+                    {authUser?.role === "ADMIN"
+                      ? "Không tìm thấy cuộc thi ảnh/video nào phù hợp với bộ lọc hiện tại. Hãy thử chọn Tất cả người tạo hoặc bấm nút Thêm mới!"
+                      : "Bạn chưa tạo cuộc thi ảnh/video nào. Hãy bấm nút Thêm mới cuộc thi ảnh để bắt đầu khởi tạo!"}
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-2.5">
+                    {filteredMediaContests.map((c) => {
+                      const mediaCreatorInfo = getMediaContestCreatorInfo(c);
+                      const creatorEmail =
+                        mediaCreatorInfo.email ||
+                        c.creatorEmail ||
+                        c.organizerEmail ||
+                        "hethong@easupso.com";
+                      return (
+                        <div
+                          key={c.id}
+                          className="bg-white rounded-xl border border-slate-200 p-2.5 sm:p-3 shadow-2xs hover:border-slate-300 hover:shadow-xs transition-all space-y-2"
+                        >
+                          {/* HÀNG 1: THUMBNAIL + THÔNG TIN CHÍNH + CỤM NÚT HÀNH ĐỘNG GỌN GÀNG */}
+                          <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-2">
+                            {/* Trái: Ảnh và Tiêu đề, Đơn vị, Email người tạo */}
+                            <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                              {/* Contest Thumbnail gọn gàng 40x40 */}
+                              <div className="w-10 h-10 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200 shadow-2xs">
+                                <img
+                                  src={c.bannerUrl || "/images/contest_stage_banner.jpg"}
+                                  alt={c.title}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    e.currentTarget.src = "/images/contest_stage_banner.jpg";
+                                  }}
+                                />
+                              </div>
+
+                              {/* Contest Info */}
+                              <div className="min-w-0 flex-1">
+                                {/* Meta: Trạng thái • Đơn vị • Email người tạo */}
+                                <div className="flex items-center gap-1.5 text-xs overflow-hidden whitespace-nowrap">
+                                  <span
+                                    className={`shrink-0 text-[10px] font-bold px-1.5 py-0.2 rounded-md ${
+                                      c.status === "PUBLISHED"
+                                        ? "bg-emerald-100 text-emerald-800"
+                                        : "bg-slate-100 text-slate-600"
+                                    }`}
+                                  >
+                                    {c.status === "PUBLISHED" ? "ĐANG DIỄN RA" : "BẢN NHÁP"}
+                                  </span>
+                                  <span className="shrink-0 text-slate-300">•</span>
+                                  <span
+                                    className="font-semibold text-slate-700 truncate max-w-[130px] sm:max-w-[200px]"
+                                    title={c.organizerName || mediaCreatorInfo.name}
+                                  >
+                                    {c.organizerName || mediaCreatorInfo.name || "UBND Xã Ea Súp"}
+                                  </span>
+                                  <span className="shrink-0 text-slate-300">•</span>
+
+                                  {/* Rút gọn thông tin người tạo chỉ cần email đăng nhập */}
+                                  <button
+                                    type="button"
+                                    onClick={() => setMediaCreatorFilter(mediaCreatorInfo.filterKey)}
+                                    title={`Bấm để lọc cuộc thi do ${creatorEmail} tạo`}
+                                    className="inline-flex items-center text-[11px] font-mono text-slate-600 hover:text-red-700 bg-slate-100 hover:bg-red-50 px-1.5 py-0.2 rounded border border-slate-200 transition-colors cursor-pointer shrink-0 truncate max-w-[150px] sm:max-w-[190px]"
+                                  >
+                                    <Mail className="w-3 h-3 mr-1 text-slate-400 shrink-0" />
+                                    <span className="truncate">{creatorEmail}</span>
+                                  </button>
+
+                                  {/* Badge thông báo nếu user hiện tại là người được chia sẻ quyền */}
+                                  {authUser &&
+                                    Array.isArray(c.sharedEmails) &&
+                                    c.sharedEmails.some(
+                                      (e: string) =>
+                                        (e || "").toLowerCase().trim() ===
+                                        (authUser.email || "").toLowerCase().trim()
+                                    ) && (
+                                      <span
+                                        className="shrink-0 inline-flex items-center text-[10px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.2 rounded border border-amber-200 select-none"
+                                        title="Bạn được chia sẻ quyền quản lý, chỉnh sửa cuộc thi này"
+                                      >
+                                        🤝 Được chia sẻ
+                                      </span>
+                                    )}
+                                </div>
+
+                                {/* Tiêu đề cuộc thi: Rõ nét, đầy đủ như Ảnh 2 */}
+                                <h3
+                                  className="text-sm font-bold text-slate-900 leading-snug truncate mt-0.5 uppercase"
+                                  title={c.title}
+                                >
+                                  <Link
+                                    href={`/binh-chon/${c.slug}`}
+                                    target="_blank"
+                                    className="hover:text-[#DC2626] transition-colors"
+                                  >
+                                    {c.title}
+                                  </Link>
+                                </h3>
+                              </div>
+                            </div>
+
+                            {/* Phải: Cụm nút hành động chuẩn Ảnh 2 (Phòng thi, Xếp hạng, Xuất Excel, Chia sẻ, Sửa, Xóa) */}
+                            <div className="flex items-center gap-1 shrink-0 self-end xl:self-center">
+                              <Link
+                                href={`/binh-chon/${c.slug}`}
+                                target="_blank"
+                                className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs"
+                                title="Xem giao diện phòng bình chọn ảnh/video"
+                              >
+                                <Eye className="w-3.5 h-3.5 sm:mr-1 text-slate-500" />
+                                <span className="hidden sm:inline">Phòng thi</span>
+                              </Link>
+
+                              <button
+                                type="button"
+                                onClick={() => handleViewSubmissions(c)}
+                                className="px-2 py-1 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs cursor-pointer"
+                                title="Xem bảng xếp hạng & danh sách tác phẩm dự thi"
+                              >
+                                <BarChart2 className="w-3.5 h-3.5 sm:mr-1 text-slate-500" />
+                                <span className="hidden sm:inline">Xếp hạng</span>
+                              </button>
+
+                              {authUser && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleExportMediaContestExcel(c)}
+                                  className="px-2 py-1 rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs cursor-pointer"
+                                  title="Tải file Excel kết quả bình chọn (.xlsx)"
+                                >
+                                  <Download className="w-3.5 h-3.5 sm:mr-1 text-emerald-600" />
+                                  <span className="hidden sm:inline">Xuất Excel</span>
+                                </button>
+                              )}
+
+                              {/* NÚT CHIA SẺ QUYỀN QUẢN LÝ / CHỈNH SỬA CUỘC THI CHO NGƯỜI KHÁC */}
+                              {canUserShareMediaContest(c) && (
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedContestForShare(c)}
+                                  className="px-2 py-1 rounded-lg border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold transition-colors inline-flex items-center shadow-2xs cursor-pointer"
+                                  title="Thiết lập chia sẻ quyền quản lý, chỉnh sửa cuộc thi cho người khác"
+                                >
+                                  <Share2 className="w-3.5 h-3.5 sm:mr-1 text-indigo-600" />
+                                  <span className="hidden sm:inline">Chia sẻ</span>
+                                  {Array.isArray(c.sharedEmails) && c.sharedEmails.length > 0 && (
+                                    <span className="ml-1 px-1.5 py-0.2 text-[10px] rounded-full bg-indigo-600 text-white font-mono font-bold">
+                                      {c.sharedEmails.length}
+                                    </span>
+                                  )}
+                                </button>
+                              )}
+
+                              {canUserManageMediaContest(c) ? (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleOpenEditMediaContest(c)}
+                                    className="px-2.5 py-1 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold transition-colors inline-flex items-center shadow-xs cursor-pointer"
+                                    title={`Chỉnh sửa & cài đặt cuộc thi: ${c.title}`}
+                                  >
+                                    <Edit className="w-3.5 h-3.5 mr-1" /> Sửa
+                                  </button>
+
+                                  {canUserShareMediaContest(c) && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteMediaContests(c.id)}
+                                      className="p-1 rounded-lg border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 text-xs font-bold transition-colors inline-flex items-center cursor-pointer"
+                                      title="Xóa cuộc thi này khỏi hệ thống"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <span
+                                  className="px-2 py-1 rounded-lg bg-slate-50 text-slate-400 text-xs font-medium border border-slate-200 inline-flex items-center select-none"
+                                  title="Cuộc thi này do đơn vị khác tạo"
+                                >
+                                  <Lock className="w-3.5 h-3.5 mr-1" /> Khóa
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* HÀNG 2: THÔNG SỐ VÀ CỤM TIỆN ÍCH LINK RÚT GỌN / QR CODE TRÊN CÙNG 1 DÒNG */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1.5 border-t border-slate-100 text-xs text-slate-500">
+                            {/* Thông số cuộc thi */}
+                            <div className="flex flex-wrap items-center gap-3">
+                              <span
+                                className="inline-flex items-center text-slate-600 bg-slate-100/80 px-2 py-0.5 rounded-md border border-slate-200/80"
+                                title="Thời điểm khởi tạo cuộc thi"
+                              >
+                                <Calendar className="w-3.5 h-3.5 mr-1 text-[#DC2626] shrink-0" />
+                                <span>
+                                  Tạo lúc:{" "}
+                                  <strong className="font-semibold text-slate-800">
+                                    {formatContestCreatedAt(c)}
+                                  </strong>
+                                </span>
+                              </span>
+
+                              <span className="flex items-center">
+                                <Clock className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                                {c.displayStartDate || "10/11/2026"} - {c.displayEndDate || "24/11/2026"}
+                              </span>
+
+                              <span className="flex items-center">
+                                <Users className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                                {c.submissionsCount ?? 0} tác phẩm dự thi
+                              </span>
+
+                              <span className="flex items-center">
+                                <ImageIcon className="w-3.5 h-3.5 mr-1 text-slate-400" />
+                                Tối đa {c.maxImagesPerSubmission || 5} hình/bài
+                              </span>
+
+                              {c.clickCount ? (
+                                <span
+                                  className="flex items-center font-semibold text-slate-600"
+                                  title="Số lượt click qua link rút gọn"
+                                >
+                                  <Eye className="w-3 h-3 mr-1 text-slate-400" />
+                                  {c.clickCount} lượt truy cập
+                                </span>
+                              ) : null}
+                            </div>
+
+                            {/* Cụm Link rút gọn & QR Code nhỏ gọn, liền mạch chuẩn Ảnh 2 */}
+                            <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 rounded-xl px-2 py-1 shadow-2xs">
+                              <span className="text-[11px] text-slate-400 font-semibold hidden sm:inline">
+                                Link:
+                              </span>
+                              <span
+                                className="font-mono text-xs font-bold text-red-600 max-w-[200px] truncate"
+                                title={`https://thi.easupso.com/r/${c.customSlug || c.slug}`}
+                              >
+                                /r/{c.customSlug || c.slug}
+                              </span>
+
+                              {/* Nút Sao chép link 1-chạm */}
+                              <button
+                                type="button"
+                                onClick={() => handleCopyContestShortlink(c)}
+                                className="p-1 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                title="Sao chép link rút gọn 1-chạm"
+                              >
+                                {copiedContestSlug === c.slug ? (
+                                  <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                ) : (
+                                  <Copy className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+
+                              {/* Nút Mã QR */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedContestForShortlink(c);
+                                  setShortlinkModalTab("qr-code");
+                                }}
+                                className="p-1 rounded-lg hover:bg-white text-slate-500 hover:text-slate-800 transition-colors cursor-pointer"
+                                title="Tạo mã QR và tải ảnh PNG in ấn"
+                              >
+                                <QrCode className="w-3.5 h-3.5" />
+                              </button>
+
+                              {/* Nút Tùy chỉnh link */}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedContestForShortlink(c);
+                                  setShortlinkModalTab("custom-link");
+                                }}
+                                className="px-2 py-0.5 rounded-lg bg-white border border-slate-200 hover:border-red-300 text-[11px] font-bold text-red-700 hover:bg-red-50 transition-colors cursor-pointer"
+                                title="Tùy chỉnh link rút gọn"
+                              >
+                                <Link2 className="w-3 h-3 inline mr-1" />
+                                Tùy chỉnh
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             )}
 
@@ -4913,7 +5048,16 @@ export default function AdminDashboardPage() {
           onSuccess={(newSlug) => {
             setContests((prev) =>
               prev.map((c) =>
-                c.slug === selectedContestForShortlink.slug ? { ...c, customSlug: newSlug } : c
+                c.slug === selectedContestForShortlink.slug || c.id === selectedContestForShortlink.id
+                  ? { ...c, customSlug: newSlug }
+                  : c
+              )
+            );
+            setMediaContests((prev) =>
+              prev.map((c) =>
+                c.slug === selectedContestForShortlink.slug || c.id === selectedContestForShortlink.id
+                  ? { ...c, customSlug: newSlug }
+                  : c
               )
             );
           }}
@@ -4930,6 +5074,13 @@ export default function AdminDashboardPage() {
           usersList={usersList}
           onSuccess={(newSharedEmails) => {
             setContests((prev) =>
+              prev.map((c) =>
+                c.slug === selectedContestForShare.slug || c.id === selectedContestForShare.id
+                  ? { ...c, sharedEmails: newSharedEmails }
+                  : c
+              )
+            );
+            setMediaContests((prev) =>
               prev.map((c) =>
                 c.slug === selectedContestForShare.slug || c.id === selectedContestForShare.id
                   ? { ...c, sharedEmails: newSharedEmails }

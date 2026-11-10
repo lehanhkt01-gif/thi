@@ -174,6 +174,9 @@ export interface MediaContestModel {
   creatorEmail?: string;
   creatorId?: string;
   creatorName?: string;
+  sharedEmails?: string[];
+  customSlug?: string;
+  clickCount?: number;
   createdAt: string;
   updatedAt?: string;
 }
@@ -1495,14 +1498,16 @@ class DataStore {
     }
   }
 
-  // Chia sẻ quyền quản lý, chỉnh sửa cuộc thi cho người khác
+  // Chia sẻ quyền quản lý, chỉnh sửa cuộc thi cho người khác (Hỗ trợ cả Trắc nghiệm & Ảnh/Video)
   public shareContest(
     slugOrId: string,
     sharedEmails: string[],
     user?: { email?: string; role?: string; id?: string }
-  ): { success: boolean; error?: string; contest?: ContestModel } {
+  ): { success: boolean; error?: string; contest?: ContestModel | MediaContestModel } {
     this.loadFromDisk(true);
-    const contest = this.contests.find((c) => c.slug === slugOrId || c.id === slugOrId);
+    const contest: ContestModel | MediaContestModel | undefined =
+      this.contests.find((c) => c.slug === slugOrId || c.id === slugOrId) ||
+      this.mediaContests.find((c) => c.slug === slugOrId || c.id === slugOrId);
     if (!contest) {
       return { success: false, error: "Không tìm thấy cuộc thi!" };
     }
@@ -1597,14 +1602,22 @@ class DataStore {
       return { available: false, reason: `Từ khóa "${clean}" là từ khóa hệ thống, vui lòng chọn tên khác.` };
     }
 
-    // Check collision with other contests
-    const conflict = this.contests.find((c) => {
-      if (this.isContestDeleted(c)) return false;
-      if (currentContestIdOrSlug && (c.id === currentContestIdOrSlug || c.slug === currentContestIdOrSlug)) {
-        return false;
-      }
-      return c.customSlug?.toLowerCase() === clean || c.slug.toLowerCase() === clean;
-    });
+    // Check collision with other contests (both Trắc nghiệm & Ảnh/Video)
+    const conflict =
+      this.contests.find((c) => {
+        if (this.isContestDeleted(c)) return false;
+        if (currentContestIdOrSlug && (c.id === currentContestIdOrSlug || c.slug === currentContestIdOrSlug)) {
+          return false;
+        }
+        return c.customSlug?.toLowerCase() === clean || c.slug.toLowerCase() === clean;
+      }) ||
+      this.mediaContests.find((c) => {
+        if (this.isMediaContestDeleted(c)) return false;
+        if (currentContestIdOrSlug && (c.id === currentContestIdOrSlug || c.slug === currentContestIdOrSlug)) {
+          return false;
+        }
+        return c.customSlug?.toLowerCase() === clean || c.slug.toLowerCase() === clean;
+      });
 
     if (conflict) {
       return {
@@ -1616,14 +1629,16 @@ class DataStore {
     return { available: true };
   }
 
-  public updateContestCustomSlug(contestIdOrSlug: string, customSlug: string): { success: boolean; contest?: ContestModel; error?: string } {
+  public updateContestCustomSlug(contestIdOrSlug: string, customSlug: string): { success: boolean; contest?: ContestModel | MediaContestModel; error?: string } {
     this.loadFromDisk(true);
     const check = this.checkCustomSlugAvailable(customSlug, contestIdOrSlug);
     if (!check.available) {
       return { success: false, error: check.reason };
     }
 
-    const contest = this.contests.find((c) => c.id === contestIdOrSlug || c.slug === contestIdOrSlug);
+    const contest: ContestModel | MediaContestModel | undefined =
+      this.contests.find((c) => c.id === contestIdOrSlug || c.slug === contestIdOrSlug) ||
+      this.mediaContests.find((c) => c.id === contestIdOrSlug || c.slug === contestIdOrSlug);
     if (!contest) {
       return { success: false, error: "Không tìm thấy cuộc thi cần cập nhật link rút gọn." };
     }
@@ -1635,11 +1650,17 @@ class DataStore {
 
   public incrementContestClickCount(contestIdOrSlug: string): number {
     this.loadFromDisk(true);
-    const contest = this.contests.find((c) =>
-      c.id === contestIdOrSlug ||
-      c.slug === contestIdOrSlug ||
-      c.customSlug?.toLowerCase() === contestIdOrSlug.toLowerCase()
-    );
+    const contest: ContestModel | MediaContestModel | undefined =
+      this.contests.find((c) =>
+        c.id === contestIdOrSlug ||
+        c.slug === contestIdOrSlug ||
+        c.customSlug?.toLowerCase() === contestIdOrSlug.toLowerCase()
+      ) ||
+      this.mediaContests.find((c) =>
+        c.id === contestIdOrSlug ||
+        c.slug === contestIdOrSlug ||
+        c.customSlug?.toLowerCase() === contestIdOrSlug.toLowerCase()
+      );
     if (!contest) return 0;
     contest.clickCount = (contest.clickCount || 0) + 1;
     this.saveToDisk();
@@ -1891,10 +1912,15 @@ class DataStore {
   public getMediaContestBySlug(slug: string): MediaContestModel | undefined {
     this.loadFromDisk();
     this.normalizeMediaContestsList();
+    if (!slug) return undefined;
+    const clean = slug.trim().toLowerCase();
     // Ưu tiên khớp chính xác ID trước để tránh trùng slug
     let contest = this.mediaContests.find((c) => c.id === slug && !this.isMediaContestDeleted(c));
     if (!contest) {
-      contest = this.mediaContests.find((c) => c.slug === slug && !this.isMediaContestDeleted(c));
+      contest = this.mediaContests.find((c) => c.slug.toLowerCase() === clean && !this.isMediaContestDeleted(c));
+    }
+    if (!contest) {
+      contest = this.mediaContests.find((c) => c.customSlug?.toLowerCase() === clean && !this.isMediaContestDeleted(c));
     }
     if (!contest && slug === "cuoc-thi-binh-chon-moi") {
       contest = this.mediaContests.find((c) => !this.isMediaContestDeleted(c));

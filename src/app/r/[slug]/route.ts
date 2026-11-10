@@ -67,6 +67,17 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
       return NextResponse.redirect(targetUrl, 302);
     }
 
+    // Kiểm tra thêm Cuộc thi Ảnh / Video (Bình chọn)
+    const mediaContest = store.getMediaContestBySlug(cleanSlug);
+    if (mediaContest) {
+      store.incrementContestClickCount(mediaContest.id);
+      const targetUrl = new URL(`/binh-chon/${mediaContest.slug}`, baseUrl);
+      req.nextUrl.searchParams.forEach((value, key) => {
+        targetUrl.searchParams.set(key, value);
+      });
+      return NextResponse.redirect(targetUrl, 302);
+    }
+
     // Nếu không tìm thấy cuộc thi, chuyển hướng về trang chủ kèm thông báo
     const homeUrl = new URL("/", baseUrl);
     homeUrl.searchParams.set("error", "shortlink_not_found");
