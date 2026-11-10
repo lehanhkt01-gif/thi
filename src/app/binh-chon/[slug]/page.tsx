@@ -146,7 +146,7 @@ export default function MediaContestPublicPage({
 
   // Auth & Admin Dashboard Controls
   const [authUser, setAuthUser] = useState<any>(null);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [openAccordions, setOpenAccordions] = useState<Record<SettingsSectionKey, boolean>>({
     "cau-hinh": true,
@@ -252,8 +252,8 @@ export default function MediaContestPublicPage({
         img.onload = () => {
           const naturalOrientation: "vertical" | "horizontal" =
             img.width > img.height ? "horizontal" : "vertical";
-          const maxWidth = 1280;
-          const maxHeight = 720;
+          const maxWidth = 1600;
+          const maxHeight = 900;
           let width = img.width;
           let height = img.height;
           if (width > maxWidth) {
@@ -1104,32 +1104,42 @@ export default function MediaContestPublicPage({
         </div>
 
         {/* ========================================================================= */}
-        {/* 1. ẢNH BÌA CUỘC THI (BANNER - ẢNH 2 & ẢNH 4) */}
+        {/* 1. ẢNH BÌA CUỘC THI RỘNG & ĐẦY ĐỦ NHƯ CUỘC THI TRẮC NGHIỆM TRỰC TUYẾN */}
         {/* ========================================================================= */}
-        <div className="max-w-4xl w-full mx-auto px-4 pt-2">
-          <div className="relative w-full h-44 sm:h-64 md:h-72 rounded-2xl overflow-hidden bg-slate-900 shadow-md border border-slate-200 group">
-            <img
-              src={contest?.bannerUrl || "/images/contest_stage_banner.jpg"}
-              alt={contest?.title || "Ảnh bìa cuộc thi"}
-              className="w-full h-full object-cover object-center"
-            />
-            {canManage && (
-              <button
-                type="button"
-                onClick={() => openSpecificSetting("cau-hinh")}
-                className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              >
-                <ImageIcon className="w-3.5 h-3.5" />
-                <span>Thay ảnh bìa</span>
-              </button>
-            )}
+        <section
+          className="relative w-full overflow-hidden py-1 sm:py-1.5 md:py-2 px-1 sm:px-2 md:px-3 shadow-md transition-colors duration-300"
+          style={{
+            backgroundColor: themeColor,
+            backgroundImage: `radial-gradient(ellipse at 50% 30%, ${themeColor} 0%, #0f172a 100%)`,
+          }}
+        >
+          <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-amber-300 via-transparent to-transparent"></div>
+
+          <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl w-full mx-auto relative z-10 flex justify-center">
+            <div className="relative w-full rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl border-2 border-amber-400/40 bg-black/15 backdrop-blur-xs flex items-center justify-center group">
+              <img
+                src={contest?.bannerUrl || "/images/contest_stage_banner.jpg"}
+                alt={contest?.title || "Ảnh bìa cuộc thi"}
+                className="w-full h-auto block object-contain object-center transform group-hover:scale-[1.002] transition-transform duration-300"
+              />
+              {canManage && (
+                <button
+                  type="button"
+                  onClick={() => openSpecificSetting("cau-hinh")}
+                  className="absolute bottom-3 right-3 px-3.5 py-1.5 rounded-xl bg-black/70 hover:bg-black/85 text-white text-xs font-bold backdrop-blur-xs flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer shadow-md"
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span>Thay ảnh bìa</span>
+                </button>
+              )}
+            </div>
           </div>
-        </div>
+        </section>
 
         {/* ========================================================================= */}
         {/* 2. TIÊU ĐỀ CUỘC THI & ĐỒNG HỒ FLIP CLOCK 8 Ô SỐ (ẢNH 4) */}
         {/* ========================================================================= */}
-        <div className="max-w-4xl w-full mx-auto px-4 pt-6 pb-4 text-center space-y-5">
+        <div className="max-w-5xl lg:max-w-6xl w-full mx-auto px-4 pt-6 pb-4 text-center space-y-5">
           {/* Tên cuộc thi với icon cây bút chỉnh sửa giống Ảnh 4 */}
           <div className="flex items-center justify-center gap-2 flex-wrap">
             <h1
@@ -1244,7 +1254,7 @@ export default function MediaContestPublicPage({
         {/* ========================================================================= */}
         {/* 3. DANH SÁCH TÁC PHẨM & BỘ LỌC TÌM KIẾM (ẢNH 4) */}
         {/* ========================================================================= */}
-        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-6 flex-1">
+        <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-6 flex-1">
           {/* Header: DANH SÁCH TÁC PHẨM (Trái) & Ô Tìm kiếm tác phẩm (Phải) */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200">
             <div>
@@ -1568,12 +1578,12 @@ export default function MediaContestPublicPage({
                     <div className="font-bold text-slate-800">Ảnh bìa</div>
                     <div
                       onClick={() => bannerInputRef.current?.click()}
-                      className="relative w-full h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group"
+                      className="relative w-full rounded-xl overflow-hidden bg-slate-900 border border-slate-200 cursor-pointer group flex items-center justify-center"
                     >
                       <img
                         src={contest.bannerUrl || "/images/contest_stage_banner.jpg"}
                         alt="Ảnh bìa"
-                        className="w-full h-full object-cover"
+                        className="w-full h-auto max-h-44 object-contain block"
                       />
                       <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                         <span className="px-3 py-1.5 rounded-lg bg-white text-slate-900 font-bold text-xs shadow">
