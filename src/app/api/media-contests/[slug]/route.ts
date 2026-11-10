@@ -83,3 +83,10 @@ export async function PATCH(
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(
+  req: NextRequest,
+  context: { params: Promise<{ slug: string }> }
+) {
+  return PATCH(req, context);
+}

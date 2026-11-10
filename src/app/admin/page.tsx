@@ -43,6 +43,8 @@ import {
   List,
   Navigation,
   User,
+  Settings,
+  Sliders,
   UserCheck,
   UserX,
   ShieldAlert,
@@ -159,19 +161,66 @@ export default function AdminDashboardPage() {
   const [activeMediaContestForSubmissions, setActiveMediaContestForSubmissions] = useState<any>(null);
   const [currentMediaSubmissions, setCurrentMediaSubmissions] = useState<any[]>([]);
 
-  // Form State for creating Media Contest
-  const [newMediaForm, setNewMediaForm] = useState({
-    title: "CUỘC THI BÌNH CHỌN MỚI",
-    slug: "cuoc-thi-binh-chon-moi",
+  // Form State for creating / editing Media Contest (MyAloha Photo Voting Settings - Ảnh 2 & Ảnh 3)
+  const [editingMediaContestId, setEditingMediaContestId] = useState<string | null>(null);
+  const [mediaSettingsSection, setMediaSettingsSection] = useState<string>("config");
+  const [uploadingMediaBanner, setUploadingMediaBanner] = useState(false);
+
+  const defaultMediaFormState = {
+    title: "Nét đẹp văn hóa các dân tộc - Ea Súp năm 2026",
+    slug: "",
     type: "IMAGE" as "IMAGE" | "VIDEO",
-    startDate: "2026-11-02",
-    endDate: "2026-11-05",
-    displayStartDate: "2 thg 11, 2026",
-    displayEndDate: "5 thg 11, 2026",
+    startDate: "2026-11-10T07:00",
+    endDate: "2026-11-24T07:00",
+    submitStartDate: "2026-11-10T07:00",
+    submitEndDate: "2026-11-18T07:00",
+    voteStartDate: "2026-11-18T08:00",
+    voteEndDate: "2026-11-24T07:00",
+    displayStartDate: "10/11/2026",
+    displayEndDate: "24/11/2026",
     bannerUrl: "/images/contest_stage_banner.jpg",
-    status: "DRAFT" as "DRAFT" | "PUBLISHED",
+    status: "PUBLISHED" as "DRAFT" | "PUBLISHED",
     description: "Cuộc thi bình chọn tác phẩm hình ảnh/video trực tuyến",
-  });
+    themeColor: "#1B7F5C",
+    layoutMode: "vertical" as "vertical" | "horizontal",
+    sortBy: "votesCount" as "createdAt" | "votesCount" | "score",
+    enableSocialShare: true,
+    sharePlatforms: ["facebook", "zalo"] as string[],
+    requiredParticipantFields: ["authorName", "authorPhone", "unitName", "description"] as string[],
+    requireApproval: false,
+    maxVotesPerUser: 3,
+    contestPassword: "",
+    showLeaderboard: true,
+    showVoteCount: true,
+    showShareCount: true,
+    rulesHtml: "",
+    rulesFileUrl: "",
+    announcement: "",
+    organizerName: "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
+    organizerAddress: "72 Hùng Vương, xã Ea Súp, Tỉnh Đắk Lắk",
+    organizerPhone: "0888023023",
+    organizerEmail: "Easupsohoa@gmail.com",
+  };
+
+  const [newMediaForm, setNewMediaForm] = useState(defaultMediaFormState);
+
+  // Sync URL query params (?tab=anh-video&create=1)
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      if (tabParam === "anh-video") {
+        setActiveTab("anh-video");
+      }
+      if (params.get("create") === "1") {
+        setActiveTab("anh-video");
+        setEditingMediaContestId(null);
+        setNewMediaForm(defaultMediaFormState);
+        setMediaSettingsSection("config");
+        setShowCreateMediaModal(true);
+      }
+    }
+  }, []);
 
   // Synchronize Authentication with Server
   useEffect(() => {
@@ -573,26 +622,79 @@ export default function AdminDashboardPage() {
     }
   };
 
-  const handleCreateMediaContest = async (e: React.FormEvent) => {
+  const handleMediaBannerUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingMediaBanner(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data.url) {
+        setNewMediaForm((prev) => ({ ...prev, bannerUrl: data.url }));
+      } else {
+        const reader = new FileReader();
+        reader.onload = () => {
+          setNewMediaForm((prev) => ({ ...prev, bannerUrl: reader.result as string }));
+        };
+        reader.readAsDataURL(file);
+      }
+    } catch {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setNewMediaForm((prev) => ({ ...prev, bannerUrl: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploadingMediaBanner(false);
+    }
+  };
+
+  const handleCreateMediaContest = async (e: React.FormEvent, openDashboardAfter = false) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/media-contests", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...newMediaForm,
-          creatorEmail: authUser?.email,
-          creatorId: authUser?.id,
-          creatorName: authUser?.name,
-        }),
-      });
+      const formatDisplayDate = (dt: string) => {
+        if (!dt) return "";
+        const d = dt.split("T")[0];
+        const parts = d.split("-");
+        if (parts.length === 3) return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        return dt;
+      };
+
+      const payload = {
+        ...newMediaForm,
+        startDate: newMediaForm.submitStartDate || newMediaForm.startDate,
+        endDate: newMediaForm.voteEndDate || newMediaForm.endDate,
+        displayStartDate: formatDisplayDate(newMediaForm.submitStartDate || newMediaForm.startDate),
+        displayEndDate: formatDisplayDate(newMediaForm.voteEndDate || newMediaForm.endDate),
+        creatorEmail: authUser?.email,
+        creatorId: authUser?.id,
+        creatorName: authUser?.name,
+      };
+
+      const targetSlugOrId = editingMediaContestId;
+      const res = await fetch(
+        targetSlugOrId ? `/api/media-contests/${targetSlugOrId}` : "/api/media-contests",
+        {
+          method: targetSlugOrId ? "PATCH" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        }
+      );
       const data = await res.json();
-      if (data.success) {
+      if (data.success || data.contest) {
         setShowCreateMediaModal(false);
-        loadMediaContests();
-        alert("Khởi tạo cuộc thi bình chọn mới thành công!");
+        setEditingMediaContestId(null);
+        await loadMediaContests();
+        const savedSlug = data.contest?.slug || targetSlugOrId;
+        if (openDashboardAfter && savedSlug) {
+          window.open(`/binh-chon/${savedSlug}?settings=1`, "_blank");
+        } else {
+          alert(targetSlugOrId ? "Đã lưu cài đặt cuộc thi ảnh thành công!" : "Khởi tạo cuộc thi bình chọn mới thành công!");
+        }
       } else {
-        alert(data.error || "Lỗi tạo cuộc thi");
+        alert(data.error || "Lỗi lưu cuộc thi");
       }
     } catch (err: any) {
       alert("Lỗi: " + err.message);
@@ -1962,7 +2064,12 @@ export default function AdminDashboardPage() {
                         {authUser && (
                           <button
                             type="button"
-                            onClick={() => setShowCreateMediaModal(true)}
+                            onClick={() => {
+                              setEditingMediaContestId(null);
+                              setNewMediaForm(defaultMediaFormState);
+                              setMediaSettingsSection("config");
+                              setShowCreateMediaModal(true);
+                            }}
                             className="inline-flex items-center space-x-1 px-4 py-1.5 rounded-lg bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
                           >
                             <Plus className="w-3.5 h-3.5" />
@@ -2148,33 +2255,71 @@ export default function AdminDashboardPage() {
                                   )}
                                 </td>
 
-                                {/* Thao tác: Edit, Submissions, Link, Download, Trash (Ảnh 2) */}
+                                {/* Thao tác: Edit, Settings Dashboard, Submissions, Link, Download, Trash (Ảnh 2) */}
                                 <td className="py-3 px-3">
                                   <div className="flex items-center justify-center space-x-1.5 text-slate-500">
-                                    {/* Edit (Chỉ hiển thị nếu là người tạo hoặc Admin) */}
+                                    {/* Edit / Cài đặt nhanh (Chỉ hiển thị nếu là người tạo hoặc Admin) */}
                                     {canUserManageMediaContest(c) && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setNewMediaForm({
-                                            title: c.title,
-                                            slug: c.slug,
-                                            type: c.type || "IMAGE",
-                                            startDate: c.startDate || "2026-11-02",
-                                            endDate: c.endDate || "2026-11-05",
-                                            displayStartDate: c.displayStartDate || "2 thg 11, 2026",
-                                            displayEndDate: c.displayEndDate || "5 thg 11, 2026",
-                                            bannerUrl: c.bannerUrl || "/images/contest_stage_banner.jpg",
-                                            status: c.status || "DRAFT",
-                                            description: c.description || "",
-                                          });
-                                          setShowCreateMediaModal(true);
-                                        }}
-                                        className="p-1 hover:text-slate-800 rounded hover:bg-slate-100 transition-colors cursor-pointer"
-                                        title="Chỉnh sửa thông tin"
-                                      >
-                                        <Edit className="w-3.5 h-3.5" />
-                                      </button>
+                                      <>
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            setEditingMediaContestId(c.slug || c.id);
+                                            setNewMediaForm({
+                                              title: c.title || "",
+                                              slug: c.slug || "",
+                                              type: c.type || "IMAGE",
+                                              startDate: (c.startDate || "2026-11-10T07:00").slice(0, 16),
+                                              endDate: (c.endDate || "2026-11-24T07:00").slice(0, 16),
+                                              submitStartDate: (c.submitStartDate || c.startDate || "2026-11-10T07:00").slice(0, 16),
+                                              submitEndDate: (c.submitEndDate || "2026-11-18T07:00").slice(0, 16),
+                                              voteStartDate: (c.voteStartDate || "2026-11-18T08:00").slice(0, 16),
+                                              voteEndDate: (c.voteEndDate || c.endDate || "2026-11-24T07:00").slice(0, 16),
+                                              displayStartDate: c.displayStartDate || "10/11/2026",
+                                              displayEndDate: c.displayEndDate || "24/11/2026",
+                                              bannerUrl: c.bannerUrl || "/images/contest_stage_banner.jpg",
+                                              status: c.status || "PUBLISHED",
+                                              description: c.description || "",
+                                              themeColor: c.themeColor || "#1B7F5C",
+                                              layoutMode: c.layoutMode || "vertical",
+                                              sortBy: c.sortBy || "votesCount",
+                                              enableSocialShare: c.enableSocialShare ?? true,
+                                              sharePlatforms: Array.isArray(c.sharePlatforms) ? c.sharePlatforms : ["facebook", "zalo"],
+                                              requiredParticipantFields: Array.isArray(c.requiredParticipantFields)
+                                                ? c.requiredParticipantFields
+                                                : ["authorName", "authorPhone", "unitName", "description"],
+                                              requireApproval: c.requireApproval ?? false,
+                                              maxVotesPerUser: c.maxVotesPerUser ?? 3,
+                                              contestPassword: c.contestPassword || "",
+                                              showLeaderboard: c.showLeaderboard ?? true,
+                                              showVoteCount: c.showVoteCount ?? true,
+                                              showShareCount: c.showShareCount ?? true,
+                                              rulesHtml: c.rulesHtml || c.description || "",
+                                              rulesFileUrl: c.rulesFileUrl || "",
+                                              announcement: c.announcement || "",
+                                              organizerName: c.organizerName || "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
+                                              organizerAddress: c.organizerAddress || "72 Hùng Vương, xã Ea Súp, Tỉnh Đắk Lắk",
+                                              organizerPhone: c.organizerPhone || "0888023023",
+                                              organizerEmail: c.organizerEmail || "Easupsohoa@gmail.com",
+                                            });
+                                            setMediaSettingsSection("config");
+                                            setShowCreateMediaModal(true);
+                                          }}
+                                          className="p-1 hover:text-slate-800 rounded hover:bg-slate-100 transition-colors cursor-pointer"
+                                          title="Cài đặt cấu hình cuộc thi ảnh"
+                                        >
+                                          <Edit className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        <Link
+                                          href={`/binh-chon/${c.slug}?settings=1`}
+                                          target="_blank"
+                                          className="p-1 hover:text-[#DC2626] rounded hover:bg-red-50 transition-colors"
+                                          title="Mở giao diện Dashboard & Cài đặt trực quan (Ảnh 2, 3, 4)"
+                                        >
+                                          <Settings className="w-3.5 h-3.5" />
+                                        </Link>
+                                      </>
                                     )}
 
                                     {/* Submissions List */}
@@ -2187,12 +2332,12 @@ export default function AdminDashboardPage() {
                                       <List className="w-3.5 h-3.5" />
                                     </button>
 
-                                    {/* Copy / Open Link (Ảnh 3) */}
+                                    {/* Copy / Open Link (Ảnh 4) */}
                                     <Link
                                       href={`/binh-chon/${c.slug}`}
                                       target="_blank"
                                       className="p-1 hover:text-sky-600 rounded hover:bg-sky-50 transition-colors"
-                                      title="Xem trang bình chọn công khai (Ảnh 3)"
+                                      title="Xem trang bình chọn công khai (Ảnh 4)"
                                     >
                                       <ExternalLink className="w-3.5 h-3.5" />
                                     </Link>
@@ -3049,177 +3194,815 @@ export default function AdminDashboardPage() {
       )}
 
       {/* ========================================================= */}
-      {/* MODAL 1: TẠO MỚI / THÊM MỚI CUỘC THI ẢNH/VIDEO */}
+      {/* MODAL 1: CÀI ĐẶT & KHỞI TẠO CUỘC THI ẢNH/VIDEO (CHUẨN MYALOHA - ẢNH 2 & ẢNH 3) */}
       {/* ========================================================= */}
       {showCreateMediaModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative my-8 border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-            <button
-              type="button"
-              onClick={() => setShowCreateMediaModal(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            <div className="flex items-center space-x-3 mb-5">
-              <div className="w-10 h-10 rounded-2xl bg-red-100 text-[#DC2626] flex items-center justify-center shrink-0">
-                <Navigation className="w-5 h-5 fill-current rotate-45" />
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex justify-end overflow-hidden">
+          <div className="bg-white w-full max-w-[460px] h-full shadow-2xl border-l border-slate-200 flex flex-col animate-in slide-in-from-right duration-200">
+            {/* Drawer Header */}
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between bg-white shrink-0">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-red-50 text-[#DC2626] flex items-center justify-center shrink-0">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">
+                    {editingMediaContestId ? "Cài đặt cuộc thi bình chọn" : "Thiết lập cuộc thi ảnh / video mới"}
+                  </h3>
+                  <p className="text-[11px] text-slate-500">
+                    Cấu hình giao diện & thể lệ bình chọn trực tuyến
+                  </p>
+                </div>
               </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-900">
-                  Thêm Mới Cuộc Thi Bình Chọn
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Khởi tạo cuộc thi bình chọn hình ảnh / video clip trực tuyến
-                </p>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCreateMediaModal(false);
+                  setEditingMediaContestId(null);
+                }}
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <form onSubmit={handleCreateMediaContest} className="space-y-4 text-xs">
-              {/* Tên cuộc thi */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Tên cuộc thi <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={newMediaForm.title}
-                  onChange={(e) =>
-                    setNewMediaForm({ ...newMediaForm, title: e.target.value })
-                  }
-                  placeholder="VD: CUỘC THI BÌNH CHỌN MỚI"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-600 bg-white"
-                />
-              </div>
-
-              {/* Loại bình chọn & Trạng thái */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Loại bình chọn
-                  </label>
-                  <select
-                    value={newMediaForm.type}
-                    onChange={(e) =>
-                      setNewMediaForm({
-                        ...newMediaForm,
-                        type: e.target.value as "IMAGE" | "VIDEO",
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-600 bg-white"
-                  >
-                    <option value="IMAGE">Hình ảnh (Ảnh đẹp)</option>
-                    <option value="VIDEO">Video clip (Tiểu phẩm)</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Trạng thái
-                  </label>
-                  <select
-                    value={newMediaForm.status}
-                    onChange={(e) =>
-                      setNewMediaForm({
-                        ...newMediaForm,
-                        status: e.target.value as "DRAFT" | "PUBLISHED",
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-600 bg-white"
-                  >
-                    <option value="DRAFT">Bản nháp</option>
-                    <option value="PUBLISHED">Đang diễn ra (Công khai)</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Ngày bắt đầu & Ngày kết thúc */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Ngày bắt đầu
-                  </label>
-                  <input
-                    type="date"
-                    value={newMediaForm.startDate}
-                    onChange={(e) =>
-                      setNewMediaForm({
-                        ...newMediaForm,
-                        startDate: e.target.value,
-                        displayStartDate: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-600 bg-white"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Ngày kết thúc
-                  </label>
-                  <input
-                    type="date"
-                    value={newMediaForm.endDate}
-                    onChange={(e) =>
-                      setNewMediaForm({
-                        ...newMediaForm,
-                        endDate: e.target.value,
-                        displayEndDate: e.target.value,
-                      })
-                    }
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-600 bg-white"
-                  />
-                </div>
-              </div>
-
-              {/* Ảnh Banner */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Đường dẫn Banner sân khấu / lễ hội
-                </label>
-                <input
-                  type="text"
-                  value={newMediaForm.bannerUrl}
-                  onChange={(e) =>
-                    setNewMediaForm({ ...newMediaForm, bannerUrl: e.target.value })
-                  }
-                  placeholder="/images/contest_stage_banner.jpg"
-                  className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-600 bg-white"
-                />
-              </div>
-
-              {/* Mô tả */}
-              <div>
-                <label className="block font-bold text-slate-700 mb-1">
-                  Mô tả / Thể lệ tóm tắt
-                </label>
-                <textarea
-                  rows={2}
-                  value={newMediaForm.description}
-                  onChange={(e) =>
-                    setNewMediaForm({ ...newMediaForm, description: e.target.value })
-                  }
-                  placeholder="Mô tả mục đích, ý nghĩa và hướng dẫn gửi ảnh/video..."
-                  className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-600 bg-white resize-none"
-                ></textarea>
-              </div>
-
-              <div className="pt-2 flex items-center justify-end space-x-3">
+            {/* Scrollable 8-Section Accordion Body (Chuẩn Ảnh 2 & Ảnh 3) */}
+            <form
+              onSubmit={(e) => handleCreateMediaContest(e, false)}
+              className="flex-1 overflow-y-auto divide-y divide-slate-100 text-xs"
+            >
+              {/* 1. CẤU HÌNH (Ảnh 2) */}
+              <div className="px-5 py-4">
                 <button
                   type="button"
-                  onClick={() => setShowCreateMediaModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition-colors"
+                  onClick={() =>
+                    setMediaSettingsSection(mediaSettingsSection === "config" ? "" : "config")
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
                 >
-                  Hủy bỏ
+                  <span>Cấu hình</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "config" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
                 </button>
+
+                {mediaSettingsSection === "config" && (
+                  <div className="mt-3 space-y-3.5">
+                    {/* Ảnh bìa + Radio Bình chọn ảnh / Bình chọn video */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="block font-bold text-slate-800 text-xs">Ảnh bìa</label>
+                        <label className="text-[11px] font-semibold text-[#DC2626] hover:underline cursor-pointer">
+                          {uploadingMediaBanner ? "Đang tải ảnh..." : "Đổi ảnh bìa"}
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleMediaBannerUpload}
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      <label className="block relative rounded-xl overflow-hidden border border-slate-200 bg-slate-100 aspect-[16/9] cursor-pointer group">
+                        <img
+                          src={newMediaForm.bannerUrl || "/images/contest_stage_banner.jpg"}
+                          alt="Ảnh bìa cuộc thi"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <span className="px-3 py-1.5 rounded-lg bg-white/95 text-slate-900 font-bold text-xs shadow">
+                            Nhấn để tải ảnh bìa mới
+                          </span>
+                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleMediaBannerUpload}
+                          className="hidden"
+                        />
+                      </label>
+
+                      <input
+                        type="text"
+                        value={newMediaForm.bannerUrl}
+                        onChange={(e) =>
+                          setNewMediaForm({ ...newMediaForm, bannerUrl: e.target.value })
+                        }
+                        placeholder="Hoặc dán đường dẫn URL ảnh bìa..."
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-600 focus:outline-none focus:border-red-500"
+                      />
+
+                      {/* Radio: Bình chọn ảnh / Bình chọn video (Ảnh 2) */}
+                      <div className="flex items-center space-x-8 pt-1">
+                        <label
+                          onClick={() => setNewMediaForm({ ...newMediaForm, type: "IMAGE" })}
+                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
+                        >
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                              newMediaForm.type === "IMAGE"
+                                ? "border-[#EF4444] bg-[#EF4444]"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {newMediaForm.type === "IMAGE" && (
+                              <span className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                          </span>
+                          <span className="text-xs font-medium text-slate-800">Bình chọn ảnh</span>
+                        </label>
+
+                        <label
+                          onClick={() => setNewMediaForm({ ...newMediaForm, type: "VIDEO" })}
+                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
+                        >
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                              newMediaForm.type === "VIDEO"
+                                ? "border-[#EF4444] bg-[#EF4444]"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {newMediaForm.type === "VIDEO" && (
+                              <span className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                          </span>
+                          <span className="text-xs font-medium text-slate-800">Bình chọn video</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Tên cuộc thi (Ảnh 2) */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2">
+                      <label className="block font-bold text-slate-800 text-xs">Tên cuộc thi</label>
+                      <input
+                        type="text"
+                        required
+                        value={newMediaForm.title}
+                        onChange={(e) =>
+                          setNewMediaForm({ ...newMediaForm, title: e.target.value })
+                        }
+                        placeholder="Nét đẹp văn hóa các dân tộc - Ea Súp năm 2026"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-red-500"
+                      />
+                    </div>
+
+                    {/* Thời gian nộp tác phẩm (Ảnh 2) */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2">
+                      <label className="block font-bold text-slate-800 text-xs">
+                        Thời gian nộp tác phẩm
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="datetime-local"
+                          value={newMediaForm.submitStartDate}
+                          onChange={(e) =>
+                            setNewMediaForm({
+                              ...newMediaForm,
+                              submitStartDate: e.target.value,
+                              startDate: e.target.value,
+                            })
+                          }
+                          className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-slate-200 text-[11px] text-slate-800 focus:outline-none focus:border-red-500"
+                        />
+                        <span className="text-slate-400 font-bold">→</span>
+                        <input
+                          type="datetime-local"
+                          value={newMediaForm.submitEndDate}
+                          onChange={(e) =>
+                            setNewMediaForm({ ...newMediaForm, submitEndDate: e.target.value })
+                          }
+                          className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-slate-200 text-[11px] text-slate-800 focus:outline-none focus:border-red-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Thời gian bình chọn (Ảnh 2) */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2">
+                      <label className="block font-bold text-slate-800 text-xs">
+                        Thời gian bình chọn
+                      </label>
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="datetime-local"
+                          value={newMediaForm.voteStartDate}
+                          onChange={(e) =>
+                            setNewMediaForm({ ...newMediaForm, voteStartDate: e.target.value })
+                          }
+                          className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-slate-200 text-[11px] text-slate-800 focus:outline-none focus:border-red-500"
+                        />
+                        <span className="text-slate-400 font-bold">→</span>
+                        <input
+                          type="datetime-local"
+                          value={newMediaForm.voteEndDate}
+                          onChange={(e) =>
+                            setNewMediaForm({
+                              ...newMediaForm,
+                              voteEndDate: e.target.value,
+                              endDate: e.target.value,
+                            })
+                          }
+                          className="flex-1 min-w-0 px-2.5 py-2 rounded-lg border border-slate-200 text-[11px] text-slate-800 focus:outline-none focus:border-red-500"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Màu chủ đề (7 ô màu chuẩn Ảnh 2) */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                      <label className="block font-bold text-slate-800 text-xs">Màu chủ đề</label>
+                      <div className="flex items-center space-x-2.5">
+                        {[
+                          "#DC2626",
+                          "#264653",
+                          "#2A9D8F",
+                          "#0284C7",
+                          "#F4A261",
+                          "#E76F51",
+                          "#1B7F5C",
+                        ].map((color) => {
+                          const isSelected =
+                            (newMediaForm.themeColor || "#1B7F5C").toLowerCase() ===
+                            color.toLowerCase();
+                          return (
+                            <button
+                              key={color}
+                              type="button"
+                              onClick={() =>
+                                setNewMediaForm({ ...newMediaForm, themeColor: color })
+                              }
+                              style={{ backgroundColor: color }}
+                              className={`w-9 h-9 rounded-lg transition-transform flex items-center justify-center cursor-pointer ${
+                                isSelected
+                                  ? "ring-2 ring-offset-2 ring-slate-800 scale-105"
+                                  : "hover:scale-105"
+                              }`}
+                              title={`Màu ${color}`}
+                            >
+                              {color === "#1B7F5C" && (
+                                <Sliders className="w-4 h-4 text-white/90" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 2. YÊU CẦU NGƯỜI THAM GIA NHẬP THÔNG TIN (Ảnh 3) */}
+              <div className="px-5 py-3.5">
                 <button
-                  type="submit"
-                  className="px-6 py-2.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                  type="button"
+                  onClick={() =>
+                    setMediaSettingsSection(
+                      mediaSettingsSection === "participant" ? "" : "participant"
+                    )
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
                 >
-                  Tạo cuộc thi ngay
+                  <span>Yêu cầu người tham gia nhập thông tin</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "participant" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
                 </button>
+
+                {mediaSettingsSection === "participant" && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                    {[
+                      { id: "authorName", label: "Họ và tên tác giả (Bắt buộc)" },
+                      { id: "authorPhone", label: "Số điện thoại liên hệ" },
+                      { id: "unitName", label: "Đơn vị / Thôn buôn (20 thôn buôn)" },
+                      { id: "authorCccd", label: "Số Căn cước công dân (CCCD)" },
+                      { id: "description", label: "Lời bình / Mô tả tác phẩm" },
+                    ].map((field) => {
+                      const checked = newMediaForm.requiredParticipantFields.includes(field.id);
+                      return (
+                        <label
+                          key={field.id}
+                          className="flex items-center space-x-2.5 cursor-pointer select-none"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              const next = e.target.checked
+                                ? [...newMediaForm.requiredParticipantFields, field.id]
+                                : newMediaForm.requiredParticipantFields.filter(
+                                    (f) => f !== field.id
+                                  );
+                              setNewMediaForm({
+                                ...newMediaForm,
+                                requiredParticipantFields: next,
+                              });
+                            }}
+                            className="w-4 h-4 rounded border-slate-300 text-[#DC2626] focus:ring-red-500"
+                          />
+                          <span className="text-xs text-slate-700 font-medium">{field.label}</span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. BẢO MẬT (Ảnh 3) */}
+              <div className="px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMediaSettingsSection(mediaSettingsSection === "security" ? "" : "security")
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
+                >
+                  <span>Bảo mật</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "security" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+
+                {mediaSettingsSection === "security" && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-700">
+                        Trạng thái xuất bản cuộc thi
+                      </span>
+                      <select
+                        value={newMediaForm.status}
+                        onChange={(e) =>
+                          setNewMediaForm({
+                            ...newMediaForm,
+                            status: e.target.value as "DRAFT" | "PUBLISHED",
+                          })
+                        }
+                        className="px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs font-semibold text-slate-800 bg-white"
+                      >
+                        <option value="PUBLISHED">Đang diễn ra (Công khai)</option>
+                        <option value="DRAFT">Bản nháp (Nội bộ)</option>
+                      </select>
+                    </div>
+
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-xs font-medium text-slate-700">
+                        Duyệt bài trước khi hiển thị công khai
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={newMediaForm.requireApproval}
+                        onChange={(e) =>
+                          setNewMediaForm({
+                            ...newMediaForm,
+                            requireApproval: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 rounded border-slate-300 text-[#DC2626]"
+                      />
+                    </label>
+
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-medium text-slate-700">
+                        Số lượt bình chọn tối đa / người
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={100}
+                        value={newMediaForm.maxVotesPerUser}
+                        onChange={(e) =>
+                          setNewMediaForm({
+                            ...newMediaForm,
+                            maxVotesPerUser: Number(e.target.value) || 1,
+                          })
+                        }
+                        className="w-20 px-2.5 py-1 rounded-lg border border-slate-200 text-xs text-center font-bold"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 4. CÀI ĐẶT BÀI DỰ THI (Ảnh 3) */}
+              <div className="px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMediaSettingsSection(
+                      mediaSettingsSection === "submissions" ? "" : "submissions"
+                    )
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
+                >
+                  <span>Cài đặt bài dự thi</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "submissions" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+
+                {mediaSettingsSection === "submissions" && (
+                  <div className="mt-3 space-y-3">
+                    {/* Bố cục: Bố cục dọc / Bố cục ngang (Ảnh 3) */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                      <label className="block font-bold text-slate-800 text-xs">Bố cục</label>
+                      <div className="flex items-center space-x-8">
+                        <label
+                          onClick={() =>
+                            setNewMediaForm({ ...newMediaForm, layoutMode: "vertical" })
+                          }
+                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
+                        >
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                              newMediaForm.layoutMode === "vertical"
+                                ? "border-[#EF4444] bg-[#EF4444]"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {newMediaForm.layoutMode === "vertical" && (
+                              <span className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                          </span>
+                          <span className="text-xs font-medium text-slate-800">Bố cục dọc</span>
+                        </label>
+
+                        <label
+                          onClick={() =>
+                            setNewMediaForm({ ...newMediaForm, layoutMode: "horizontal" })
+                          }
+                          className="inline-flex items-center space-x-2 cursor-pointer select-none"
+                        >
+                          <span
+                            className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                              newMediaForm.layoutMode === "horizontal"
+                                ? "border-[#EF4444] bg-[#EF4444]"
+                                : "border-slate-300 bg-white"
+                            }`}
+                          >
+                            {newMediaForm.layoutMode === "horizontal" && (
+                              <span className="w-2 h-2 rounded-full bg-white" />
+                            )}
+                          </span>
+                          <span className="text-xs font-medium text-slate-800">Bố cục ngang</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Sắp xếp bài dự thi theo: Ngày nộp / Số lượt bình chọn / Số điểm (Ảnh 3) */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                      <label className="block font-bold text-slate-800 text-xs">
+                        Sắp xếp bài dự thi theo
+                      </label>
+                      <div className="space-y-2">
+                        {[
+                          { id: "createdAt", label: "Ngày nộp" },
+                          { id: "votesCount", label: "Số lượt bình chọn" },
+                          { id: "score", label: "Số điểm" },
+                        ].map((opt) => (
+                          <label
+                            key={opt.id}
+                            onClick={() =>
+                              setNewMediaForm({
+                                ...newMediaForm,
+                                sortBy: opt.id as "createdAt" | "votesCount" | "score",
+                              })
+                            }
+                            className="flex items-center space-x-2.5 cursor-pointer select-none"
+                          >
+                            <span
+                              className={`w-5 h-5 rounded-full flex items-center justify-center border-2 transition-colors ${
+                                newMediaForm.sortBy === opt.id
+                                  ? "border-[#EF4444] bg-[#EF4444]"
+                                  : "border-slate-300 bg-white"
+                              }`}
+                            >
+                              {newMediaForm.sortBy === opt.id && (
+                                <span className="w-2 h-2 rounded-full bg-white" />
+                              )}
+                            </span>
+                            <span className="text-xs font-medium text-slate-800">{opt.label}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Chia sẻ mạng xã hội: Toggle + Facebook / Zalo (Ảnh 3) */}
+                    <div className="p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setNewMediaForm({
+                              ...newMediaForm,
+                              enableSocialShare: !newMediaForm.enableSocialShare,
+                            })
+                          }
+                          className={`w-11 h-6 rounded-full border transition-colors flex items-center px-0.5 cursor-pointer ${
+                            newMediaForm.enableSocialShare
+                              ? "border-[#EF4444] bg-white justify-end"
+                              : "border-slate-300 bg-slate-100 justify-start"
+                          }`}
+                        >
+                          <span
+                            className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                              newMediaForm.enableSocialShare
+                                ? "bg-[#EF4444] text-white"
+                                : "bg-slate-400 text-white"
+                            }`}
+                          >
+                            {newMediaForm.enableSocialShare ? "✓" : ""}
+                          </span>
+                        </button>
+                        <span className="font-bold text-slate-800 text-xs">
+                          Chia sẻ mạng xã hội
+                        </span>
+                      </div>
+
+                      {newMediaForm.enableSocialShare && (
+                        <div className="space-y-2 pl-1">
+                          {[
+                            { id: "facebook", label: "Facebook" },
+                            { id: "zalo", label: "Zalo" },
+                          ].map((plat) => {
+                            const checked = newMediaForm.sharePlatforms.includes(plat.id);
+                            return (
+                              <label
+                                key={plat.id}
+                                className="flex items-center space-x-2.5 cursor-pointer select-none"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={checked}
+                                  onChange={(e) => {
+                                    const next = e.target.checked
+                                      ? [...newMediaForm.sharePlatforms, plat.id]
+                                      : newMediaForm.sharePlatforms.filter((p) => p !== plat.id);
+                                    setNewMediaForm({ ...newMediaForm, sharePlatforms: next });
+                                  }}
+                                  className="w-4 h-4 rounded border-slate-300 text-[#EF4444] focus:ring-red-500"
+                                />
+                                <span className="text-xs text-slate-700 font-medium">
+                                  {plat.label}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 5. CÀI ĐẶT BẢNG XẾP HẠNG (Ảnh 3) */}
+              <div className="px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMediaSettingsSection(
+                      mediaSettingsSection === "leaderboard" ? "" : "leaderboard"
+                    )
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
+                >
+                  <span>Cài đặt bảng xếp hạng</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "leaderboard" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+
+                {mediaSettingsSection === "leaderboard" && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-xs text-slate-700 font-medium">
+                        Hiển thị bảng xếp hạng công khai
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={newMediaForm.showLeaderboard}
+                        onChange={(e) =>
+                          setNewMediaForm({ ...newMediaForm, showLeaderboard: e.target.checked })
+                        }
+                        className="w-4 h-4 rounded border-slate-300 text-[#DC2626]"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-xs text-slate-700 font-medium">
+                        Hiển thị số lượt bình chọn trên từng tác phẩm
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={newMediaForm.showVoteCount}
+                        onChange={(e) =>
+                          setNewMediaForm({ ...newMediaForm, showVoteCount: e.target.checked })
+                        }
+                        className="w-4 h-4 rounded border-slate-300 text-[#DC2626]"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between cursor-pointer">
+                      <span className="text-xs text-slate-700 font-medium">
+                        Hiển thị số lượt chia sẻ trên từng tác phẩm
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={newMediaForm.showShareCount}
+                        onChange={(e) =>
+                          setNewMediaForm({ ...newMediaForm, showShareCount: e.target.checked })
+                        }
+                        className="w-4 h-4 rounded border-slate-300 text-[#DC2626]"
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              {/* 6. THỂ LỆ CUỘC THI (Ảnh 3) */}
+              <div className="px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMediaSettingsSection(mediaSettingsSection === "rules" ? "" : "rules")
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
+                >
+                  <span>Thể lệ cuộc thi</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "rules" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+
+                {mediaSettingsSection === "rules" && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                    <textarea
+                      rows={4}
+                      value={newMediaForm.description}
+                      onChange={(e) =>
+                        setNewMediaForm({
+                          ...newMediaForm,
+                          description: e.target.value,
+                          rulesHtml: e.target.value,
+                        })
+                      }
+                      placeholder="Nhập nội dung thể lệ, quy định đối tượng tham gia, cơ cấu giải thưởng..."
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 7. THÔNG BÁO (Ảnh 3) */}
+              <div className="px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMediaSettingsSection(
+                      mediaSettingsSection === "announcement" ? "" : "announcement"
+                    )
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
+                >
+                  <span>Thông báo</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "announcement" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+
+                {mediaSettingsSection === "announcement" && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2">
+                    <textarea
+                      rows={3}
+                      value={newMediaForm.announcement}
+                      onChange={(e) =>
+                        setNewMediaForm({ ...newMediaForm, announcement: e.target.value })
+                      }
+                      placeholder="Nhập thông báo từ Ban tổ chức gửi tới người tham gia..."
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* 8. THÔNG TIN BAN TỔ CHỨC (Ảnh 3) */}
+              <div className="px-5 py-3.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setMediaSettingsSection(mediaSettingsSection === "organizer" ? "" : "organizer")
+                  }
+                  className="w-full flex items-center justify-between text-left font-bold text-sm text-slate-900 py-1 cursor-pointer"
+                >
+                  <span>Thông tin ban tổ chức</span>
+                  <ChevronDown
+                    className={`w-4 h-4 text-slate-500 transition-transform ${
+                      mediaSettingsSection === "organizer" ? "rotate-180" : "-rotate-90"
+                    }`}
+                  />
+                </button>
+
+                {mediaSettingsSection === "organizer" && (
+                  <div className="mt-3 p-3.5 rounded-xl border border-dashed border-slate-200 bg-white space-y-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Đơn vị tổ chức
+                      </label>
+                      <input
+                        type="text"
+                        value={newMediaForm.organizerName}
+                        onChange={(e) =>
+                          setNewMediaForm({ ...newMediaForm, organizerName: e.target.value })
+                        }
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                        Địa chỉ liên hệ
+                      </label>
+                      <input
+                        type="text"
+                        value={newMediaForm.organizerAddress}
+                        onChange={(e) =>
+                          setNewMediaForm({ ...newMediaForm, organizerAddress: e.target.value })
+                        }
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Điện thoại
+                        </label>
+                        <input
+                          type="text"
+                          value={newMediaForm.organizerPhone}
+                          onChange={(e) =>
+                            setNewMediaForm({ ...newMediaForm, organizerPhone: e.target.value })
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                          Email
+                        </label>
+                        <input
+                          type="email"
+                          value={newMediaForm.organizerEmail}
+                          onChange={(e) =>
+                            setNewMediaForm({ ...newMediaForm, organizerEmail: e.target.value })
+                          }
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sticky Footer Actions */}
+              <div className="px-5 py-4 bg-slate-50 border-t border-slate-200 flex flex-col gap-2 sticky bottom-0">
+                <div className="flex items-center justify-between gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowCreateMediaModal(false);
+                      setEditingMediaContestId(null);
+                    }}
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 hover:bg-slate-100 font-bold text-xs transition-colors cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={(e) => handleCreateMediaContest(e as any, true)}
+                      className="px-3.5 py-2.5 rounded-xl border border-[#1B7F5C] text-[#1B7F5C] bg-emerald-50/60 hover:bg-emerald-100 font-bold text-xs transition-all cursor-pointer inline-flex items-center space-x-1"
+                    >
+                      <span>Lưu & Mở Dashboard</span>
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="px-5 py-2.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-md transition-all cursor-pointer"
+                    >
+                      {editingMediaContestId ? "Lưu cài đặt" : "Tạo cuộc thi"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </form>
           </div>

@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useEffect, use } from "react";
+import React, { useState, useEffect, useRef, use } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   Clock,
   Calendar,
@@ -14,6 +13,8 @@ import {
   Heart,
   ExternalLink,
   ChevronRight,
+  ChevronDown,
+  ChevronLeft,
   Settings,
   Image as ImageIcon,
   Video,
@@ -24,10 +25,21 @@ import {
   Phone,
   FileText,
   AlertCircle,
-  FolderOpen,
   ArrowLeft,
   LayoutGrid,
   List,
+  Edit,
+  Plus,
+  Home,
+  ShieldCheck,
+  SlidersHorizontal,
+  Star,
+  Trophy,
+  Bell,
+  Lock,
+  Save,
+  QrCode,
+  Eye,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { EA_SUP_VILLAGES } from "@/lib/store";
@@ -40,12 +52,37 @@ interface MediaContest {
   type: "IMAGE" | "VIDEO";
   startDate: string;
   endDate: string;
+  submitStartDate?: string;
+  submitEndDate?: string;
+  voteStartDate?: string;
+  voteEndDate?: string;
   displayStartDate?: string;
   displayEndDate?: string;
   submissionsCount: number;
   status: "DRAFT" | "PUBLISHED" | "CLOSED";
   description?: string;
+  rulesHtml?: string;
+  rulesFileUrl?: string;
+  announcement?: string;
+  themeColor?: string;
+  layoutMode?: "vertical" | "horizontal";
+  sortBy?: "createdAt" | "votesCount" | "score";
+  enableSocialShare?: boolean;
+  sharePlatforms?: ("facebook" | "zalo")[];
+  requiredParticipantFields?: string[];
+  requireApproval?: boolean;
+  maxVotesPerUser?: number;
+  contestPassword?: string;
+  showLeaderboard?: boolean;
+  showVoteCount?: boolean;
+  showShareCount?: boolean;
   organizerName: string;
+  organizerAddress?: string;
+  organizerPhone?: string;
+  organizerEmail?: string;
+  creatorEmail?: string;
+  creatorId?: string;
+  creatorName?: string;
 }
 
 interface MediaSubmission {
@@ -56,14 +93,37 @@ interface MediaSubmission {
   authorName: string;
   authorPhone?: string;
   authorCccd?: string;
+  authorEmail?: string;
   unitName: string;
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
   description: string;
   votesCount: number;
+  sharesCount?: number;
+  score?: number;
   status: string;
   createdAt: string;
 }
+
+const THEME_SWATCHES = [
+  "#DC2626", // Đỏ hành chính (Ảnh 2)
+  "#264653", // Xanh than đậm (Ảnh 2)
+  "#2A9D8F", // Xanh ngọc lục bảo (Ảnh 2 & Ảnh 4)
+  "#0284C7", // Xanh dương (Ảnh 2)
+  "#F4A261", // Cam vàng (Ảnh 2)
+  "#E76F51", // Cam đất (Ảnh 2)
+  "#1B7F5C", // Xanh lá đậm chuẩn MyAloha (Ảnh 4)
+];
+
+type SettingsSectionKey =
+  | "cau-hinh"
+  | "yeu-cau-thong-tin"
+  | "bao-mat"
+  | "cai-dat-bai-du-thi"
+  | "bang-xep-hang"
+  | "the-le"
+  | "thong-bao"
+  | "ban-to-chuc";
 
 export default function MediaContestPublicPage({
   params,
@@ -76,14 +136,43 @@ export default function MediaContestPublicPage({
   const [submissions, setSubmissions] = useState<MediaSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
+  const [topSearchQuery, setTopSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const ITEMS_PER_PAGE = 8;
 
-  // Countdown timer state
+  // Auth & Admin Dashboard Controls
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [openAccordions, setOpenAccordions] = useState<Record<SettingsSectionKey, boolean>>({
+    "cau-hinh": true,
+    "yeu-cau-thong-tin": false,
+    "bao-mat": false,
+    "cai-dat-bai-du-thi": true,
+    "bang-xep-hang": false,
+    "the-le": false,
+    "thong-bao": false,
+    "ban-to-chuc": false,
+  });
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [saveToast, setSaveToast] = useState("");
+  const [isUploadingBanner, setIsUploadingBanner] = useState(false);
+  const [isUploadingSubmitImage, setIsUploadingSubmitImage] = useState(false);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+  const submitFileInputRef = useRef<HTMLInputElement>(null);
+  const colorPickerRef = useRef<HTMLInputElement>(null);
+
+  // Lightbox / Detail Modal for viewing a submission
+  const [selectedSubmission, setSelectedSubmission] = useState<MediaSubmission | null>(null);
+  // Rules / Announcement Modal
+  const [infoModalTab, setInfoModalTab] = useState<"rules" | "announcement" | "leaderboard" | null>(null);
+
+  // Countdown timer state (Ảnh 4: 07 : 20 : 19 : 38)
   const [timeLeft, setTimeLeft] = useState({
-    days: "02",
-    hours: "23",
-    minutes: "55",
-    seconds: "10",
+    days: "07",
+    hours: "20",
+    minutes: "19",
+    seconds: "38",
   });
 
   // Modal State for Submitting artwork
@@ -93,6 +182,7 @@ export default function MediaContestPublicPage({
     authorName: "",
     authorPhone: "",
     authorCccd: "",
+    authorEmail: "",
     unitName: EA_SUP_VILLAGES[0],
     mediaType: "IMAGE" as "IMAGE" | "VIDEO",
     mediaUrl: "",
@@ -103,13 +193,119 @@ export default function MediaContestPublicPage({
   const [copiedLink, setCopiedLink] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({});
 
+  // Nén ảnh JPEG < 250KB tương thích iOS Safari & vượt giới hạn 1MB của Nginx
+  const compressImageToJpeg = (file: File): Promise<{ blob: Blob; dataUrl: string }> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (readerEvent) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxWidth = 1280;
+          const maxHeight = 720;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          if (height > maxHeight) {
+            width = Math.round((width * maxHeight) / height);
+            height = maxHeight;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (ctx) {
+            ctx.fillStyle = "#FFFFFF";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+            let quality = 0.82;
+            let dataUrl = canvas.toDataURL("image/jpeg", quality);
+            while (dataUrl.length > 450000 && quality > 0.45) {
+              quality -= 0.12;
+              dataUrl = canvas.toDataURL("image/jpeg", quality);
+            }
+            canvas.toBlob(
+              (blob) => {
+                resolve({ blob: blob || file, dataUrl });
+              },
+              "image/jpeg",
+              quality
+            );
+          } else {
+            resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+          }
+        };
+        img.onerror = () => {
+          resolve({ blob: file, dataUrl: (readerEvent.target?.result as string) || "" });
+        };
+        img.src = readerEvent.target?.result as string;
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  // Kiểm tra đăng nhập & tham số URL (?settings=1)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("cuocthi_admin_auth");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.status === "APPROVED") {
+          setAuthUser(parsed);
+        }
+      }
+      const votedSaved = localStorage.getItem(`easup_media_voted_${slug}`);
+      if (votedSaved) {
+        setVotedMap(JSON.parse(votedSaved));
+      }
+    } catch {}
+
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("settings") === "1" || params.get("edit") === "1") {
+        setShowSettingsDrawer(true);
+      }
+    }
+  }, [slug]);
+
+  const canManage = (() => {
+    if (!authUser) return false;
+    if (authUser.role === "ADMIN") return true;
+    const uEmail = (authUser.email || "").toLowerCase().trim();
+    const cEmail = (contest?.creatorEmail || "").toLowerCase().trim();
+    return Boolean((cEmail && uEmail === cEmail) || (contest?.creatorId && contest.creatorId === authUser.id));
+  })();
+
   // Fetch contest data
   const loadData = async () => {
     try {
-      const res = await fetch(`/api/media-contests/${slug}`);
-      const data = await res.json();
+      const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}?t=${Date.now()}`, {
+        cache: "no-store",
+      });
+      const rawText = await res.text();
+      const data = rawText ? JSON.parse(rawText) : {};
       if (data.contest) {
-        setContest(data.contest);
+        const c: MediaContest = {
+          themeColor: "#1B7F5C",
+          layoutMode: "vertical",
+          sortBy: "votesCount",
+          enableSocialShare: true,
+          sharePlatforms: ["facebook", "zalo"],
+          requiredParticipantFields: ["authorName", "unitName", "authorPhone", "description"],
+          requireApproval: false,
+          maxVotesPerUser: 5,
+          showLeaderboard: true,
+          showVoteCount: true,
+          showShareCount: true,
+          submitStartDate: data.contest.submitStartDate || data.contest.startDate?.slice(0, 16) || "2026-11-10T07:00",
+          submitEndDate: data.contest.submitEndDate || "2026-11-18T07:00",
+          voteStartDate: data.contest.voteStartDate || "2026-11-18T08:00",
+          voteEndDate: data.contest.voteEndDate || data.contest.endDate?.slice(0, 16) || "2026-11-24T07:00",
+          ...data.contest,
+        };
+        setContest(c);
         setSubmissions(data.submissions || []);
       }
     } catch (err) {
@@ -126,29 +322,26 @@ export default function MediaContestPublicPage({
   // Real-time countdown calculator
   useEffect(() => {
     const calculateCountdown = () => {
-      if (!contest?.endDate) {
-        // Fallback demo matching Image 3 (2 days 23 hours 55 mins 10 secs)
-        return;
-      }
+      const targetDateStr = contest?.submitEndDate || contest?.voteEndDate || contest?.endDate;
+      if (!targetDateStr) return;
 
-      const target = new Date(contest.endDate).getTime();
-      const now = new Date().getTime();
+      const target = new Date(targetDateStr).getTime();
+      const now = Date.now();
       const difference = target - now;
 
-      if (difference > 0) {
+      if (!isNaN(target) && difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
         setTimeLeft({
-          days: String(days).padStart(2, "0"),
+          days: String(Math.min(days, 99)).padStart(2, "0"),
           hours: String(hours).padStart(2, "0"),
           minutes: String(minutes).padStart(2, "0"),
           seconds: String(seconds).padStart(2, "0"),
         });
       } else {
-        // Fallback default
         setTimeLeft({ days: "00", hours: "00", minutes: "00", seconds: "00" });
       }
     };
@@ -156,7 +349,126 @@ export default function MediaContestPublicPage({
     calculateCountdown();
     const interval = setInterval(calculateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [contest]);
+  }, [contest?.submitEndDate, contest?.voteEndDate, contest?.endDate]);
+
+  const themeColor = contest?.themeColor || "#1B7F5C";
+  const layoutMode = contest?.layoutMode || "vertical";
+  const sortBy = contest?.sortBy || "votesCount";
+
+  const toggleAccordion = (key: SettingsSectionKey) => {
+    setOpenAccordions((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const openSpecificSetting = (key: SettingsSectionKey) => {
+    setShowSettingsDrawer(true);
+    setOpenAccordions((prev) => ({ ...prev, [key]: true }));
+  };
+
+  const updateContestField = <K extends keyof MediaContest>(field: K, value: MediaContest[K]) => {
+    setContest((prev) => (prev ? { ...prev, [field]: value } : prev));
+  };
+
+  // Upload Ảnh bìa trong Cài đặt
+  const handleBannerFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingBanner(true);
+      const { blob, dataUrl } = await compressImageToJpeg(file);
+      updateContestField("bannerUrl", dataUrl);
+
+      const formData = new FormData();
+      formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const raw = await res.text();
+      const data = raw ? JSON.parse(raw) : {};
+      if (res.ok && data.success && data.url) {
+        updateContestField("bannerUrl", data.url);
+      }
+    } catch (err) {
+      console.warn("Lỗi tải ảnh bìa:", err);
+    } finally {
+      setIsUploadingBanner(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  // Upload Ảnh tác phẩm khi thí sinh nộp bài
+  const handleSubmissionFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setIsUploadingSubmitImage(true);
+      const { blob, dataUrl } = await compressImageToJpeg(file);
+      setSubmitForm((prev) => ({ ...prev, mediaUrl: dataUrl }));
+
+      const formData = new FormData();
+      formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
+      const res = await fetch("/api/upload", { method: "POST", body: formData });
+      const raw = await res.text();
+      const data = raw ? JSON.parse(raw) : {};
+      if (res.ok && data.success && data.url) {
+        setSubmitForm((prev) => ({ ...prev, mediaUrl: data.url }));
+      }
+    } catch (err) {
+      console.warn("Lỗi tải ảnh tác phẩm:", err);
+    } finally {
+      setIsUploadingSubmitImage(false);
+      if (e.target) e.target.value = "";
+    }
+  };
+
+  // Lưu toàn bộ cấu hình cuộc thi ảnh lên máy chủ
+  const handleSaveContestSettings = async () => {
+    if (!contest) return;
+    setIsSavingSettings(true);
+    try {
+      let cleanBanner = contest.bannerUrl;
+      if (cleanBanner && cleanBanner.startsWith("data:")) {
+        try {
+          const upRes = await fetch("/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64: cleanBanner, name: "banner-photo.jpg" }),
+          });
+          const upRaw = await upRes.text();
+          const upData = upRaw ? JSON.parse(upRaw) : {};
+          if (upRes.ok && upData.success && upData.url) {
+            cleanBanner = upData.url;
+          }
+        } catch {}
+      }
+
+      const payload = {
+        ...contest,
+        bannerUrl: cleanBanner,
+        startDate: contest.submitStartDate || contest.startDate,
+        endDate: contest.voteEndDate || contest.endDate,
+        displayStartDate: (contest.submitStartDate || contest.startDate || "").slice(0, 10),
+        displayEndDate: (contest.voteEndDate || contest.endDate || "").slice(0, 10),
+      };
+
+      const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const rawText = await res.text();
+      const data = rawText ? JSON.parse(rawText) : {};
+      if (!res.ok) {
+        throw new Error(data.error || "Không thể lưu cài đặt cuộc thi!");
+      }
+      if (data.contest) {
+        setContest((prev) => ({ ...prev, ...data.contest }));
+      }
+      setSaveToast("Đã lưu cài đặt cuộc thi ảnh thành công!");
+      setTimeout(() => setSaveToast(""), 3000);
+    } catch (err: any) {
+      alert("Lỗi khi lưu cài đặt: " + (err?.message || "Vui lòng thử lại"));
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
 
   // Handle Share / Copy link
   const handleCopyLink = () => {
@@ -167,29 +479,57 @@ export default function MediaContestPublicPage({
     }
   };
 
+  // Chia sẻ tác phẩm lên Facebook / Zalo
+  const handleShareSubmission = (sub: MediaSubmission, platform?: "facebook" | "zalo") => {
+    const shareUrl = typeof window !== "undefined" ? window.location.href : `https://thi.easupso.com/binh-chon/${slug}`;
+    setSubmissions((prev) =>
+      prev.map((s) => (s.id === sub.id ? { ...s, sharesCount: (s.sharesCount || 0) + 1 } : s))
+    );
+    if (platform === "facebook") {
+      window.open(
+        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+        "_blank",
+        "width=600,height=450"
+      );
+    } else if (platform === "zalo") {
+      window.open(`https://zalo.me/share?url=${encodeURIComponent(shareUrl)}`, "_blank");
+    } else {
+      navigator.clipboard?.writeText(shareUrl);
+      setSaveToast(`Đã sao chép liên kết chia sẻ tác phẩm "${sub.title}"!`);
+      setTimeout(() => setSaveToast(""), 2500);
+    }
+  };
+
   // Handle Voting
   const handleVote = async (submissionId: string) => {
     if (votedMap[submissionId]) return;
 
     try {
-      const res = await fetch(`/api/media-contests/${slug}/vote`, {
+      const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}/vote`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ submissionId }),
       });
       const data = await res.json();
       if (data.success) {
-        setVotedMap((prev) => ({ ...prev, [submissionId]: true }));
+        const nextVoted = { ...votedMap, [submissionId]: true };
+        setVotedMap(nextVoted);
+        try {
+          localStorage.setItem(`easup_media_voted_${slug}`, JSON.stringify(nextVoted));
+        } catch {}
+
         setSubmissions((prev) =>
           prev.map((s) => (s.id === submissionId ? { ...s, votesCount: data.votesCount } : s))
         );
+        if (selectedSubmission?.id === submissionId) {
+          setSelectedSubmission((prev) => (prev ? { ...prev, votesCount: data.votesCount } : prev));
+        }
 
-        // Confetti celebration
         confetti({
-          particleCount: 60,
-          spread: 70,
+          particleCount: 55,
+          spread: 65,
           origin: { y: 0.7 },
-          colors: ["#10B981", "#DC2626", "#F59E0B", "#3B82F6"],
+          colors: [themeColor, "#DC2626", "#F59E0B", "#0284C7"],
         });
       }
     } catch (err) {
@@ -207,17 +547,35 @@ export default function MediaContestPublicPage({
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/media-contests/${slug}/submit`, {
+      let finalMediaUrl = submitForm.mediaUrl;
+      if (finalMediaUrl && finalMediaUrl.startsWith("data:")) {
+        try {
+          const upRes = await fetch("/api/upload", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ base64: finalMediaUrl, name: "tac-pham.jpg" }),
+          });
+          const upRaw = await upRes.text();
+          const upData = upRaw ? JSON.parse(upRaw) : {};
+          if (upRes.ok && upData.success && upData.url) {
+            finalMediaUrl = upData.url;
+          }
+        } catch {}
+      }
+
+      const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}/submit`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...submitForm,
+          mediaType: contest?.type || submitForm.mediaType,
           mediaUrl:
-            submitForm.mediaUrl ||
+            finalMediaUrl ||
             "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
         }),
       });
-      const data = await res.json();
+      const rawText = await res.text();
+      const data = rawText ? JSON.parse(rawText) : {};
       if (data.success) {
         setSubmitSuccess(true);
         loadData();
@@ -229,16 +587,17 @@ export default function MediaContestPublicPage({
             authorName: "",
             authorPhone: "",
             authorCccd: "",
+            authorEmail: "",
             unitName: EA_SUP_VILLAGES[0],
-            mediaType: "IMAGE",
+            mediaType: contest?.type || "IMAGE",
             mediaUrl: "",
             description: "",
           });
-        }, 1500);
+        }, 1400);
 
         confetti({
-          particleCount: 80,
-          spread: 80,
+          particleCount: 70,
+          spread: 75,
           origin: { y: 0.6 },
         });
       } else {
@@ -251,320 +610,1221 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Filtered submissions
-  const filteredSubmissions = submissions.filter((s) => {
-    const q = searchQuery.toLowerCase().trim();
-    if (!q) return true;
-    return (
-      s.title.toLowerCase().includes(q) ||
-      s.authorName.toLowerCase().includes(q) ||
-      s.unitName.toLowerCase().includes(q)
-    );
-  });
+  // Filtered & Sorted submissions (theo cài đặt Cài đặt bài dự thi - Ảnh 3)
+  const effectiveQuery = (searchQuery || topSearchQuery).toLowerCase().trim();
+  const filteredSubmissions = submissions
+    .filter((s) => {
+      if (!effectiveQuery) return true;
+      return (
+        s.title.toLowerCase().includes(effectiveQuery) ||
+        s.authorName.toLowerCase().includes(effectiveQuery) ||
+        s.unitName.toLowerCase().includes(effectiveQuery)
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === "createdAt") {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+      if (sortBy === "score") {
+        return (b.score || b.votesCount || 0) - (a.score || a.votesCount || 0);
+      }
+      return (b.votesCount || 0) - (a.votesCount || 0);
+    });
+
+  const totalPages = Math.max(1, Math.ceil(filteredSubmissions.length / ITEMS_PER_PAGE));
+  const paginatedSubmissions = filteredSubmissions.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
+
+  const reqFields = contest?.requiredParticipantFields || [
+    "authorName",
+    "unitName",
+    "authorPhone",
+    "description",
+  ];
+
+  const toggleRequiredField = (fieldKey: string) => {
+    if (fieldKey === "authorName") return; // Họ tên tác giả luôn bắt buộc
+    const current = contest?.requiredParticipantFields || [
+      "authorName",
+      "unitName",
+      "authorPhone",
+      "description",
+    ];
+    if (current.includes(fieldKey)) {
+      updateContestField(
+        "requiredParticipantFields",
+        current.filter((k) => k !== fieldKey)
+      );
+    } else {
+      updateContestField("requiredParticipantFields", [...current, fieldKey]);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-white text-slate-800">
-      {/* Top Floating Mini Header */}
-      <div className="bg-slate-900 text-white py-2 px-4 text-xs">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex relative overflow-x-clip">
+      {/* Toast thông báo lưu cài đặt */}
+      {saveToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-full shadow-xl text-xs font-bold flex items-center space-x-2 animate-in fade-in slide-in-from-top-2">
+          <Check className="w-4 h-4 text-emerald-400" />
+          <span>{saveToast}</span>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* CỘT TRÁI: SIDEBAR ĐIỀU HƯỚNG DASHBOARD MÔ PHỎNG MYALOHA (ẢNH 4) */}
+      {/* ========================================================================= */}
+      {authUser && (
+        <aside
+          className={`hidden lg:flex flex-col justify-between bg-white border-r border-slate-200 shrink-0 transition-all duration-200 z-30 ${
+            sidebarCollapsed ? "w-14" : "w-52"
+          }`}
+        >
+          <div className="p-3 space-y-4">
+            {/* Logo & Nút thu gọn Sidebar */}
+            <div className="flex items-center justify-between px-1">
+              {!sidebarCollapsed && (
+                <Link href="/" className="flex items-center space-x-1.5 font-black text-base tracking-tight text-slate-900">
+                  <span>EaSúp</span>
+                  <span className="w-5 h-5 rounded-full bg-[#DC2626] text-white text-[10px] flex items-center justify-center font-bold">
+                    Số
+                  </span>
+                </Link>
+              )}
+              <button
+                type="button"
+                onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-500 cursor-pointer"
+                title={sidebarCollapsed ? "Mở rộng menu" : "Thu gọn menu"}
+              >
+                <ChevronLeft className={`w-4 h-4 transition-transform ${sidebarCollapsed ? "rotate-180" : ""}`} />
+              </button>
+            </div>
+
+            {/* Menu điều hướng */}
+            <nav className="space-y-1.5 text-xs">
+              <Link
+                href="/"
+                className="flex items-center space-x-2.5 px-3 py-2 rounded-xl text-slate-600 hover:bg-slate-50 hover:text-slate-900 font-semibold transition-colors"
+              >
+                <Home className="w-4 h-4 text-[#DC2626] shrink-0" />
+                {!sidebarCollapsed && <span>Trang chủ</span>}
+              </Link>
+
+              <Link
+                href="/admin?tab=anh-video"
+                className="flex items-center space-x-2.5 px-3 py-2 rounded-xl bg-red-50 text-[#DC2626] font-bold transition-colors"
+              >
+                <ImageIcon className="w-4 h-4 text-[#DC2626] shrink-0" />
+                {!sidebarCollapsed && <span>Cuộc thi Ảnh/Video</span>}
+              </Link>
+
+              {!sidebarCollapsed && (
+                <Link
+                  href="/admin?tab=anh-video&create=1"
+                  className="mt-2 w-full flex items-center justify-center space-x-1.5 py-2 px-3 rounded-xl border border-dashed border-red-400 text-[#DC2626] hover:bg-red-50/60 font-bold text-xs transition-colors"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tạo mới</span>
+                </Link>
+              )}
+            </nav>
+
+            {/* Thẻ hỗ trợ đỏ giống hệt Ảnh 4 */}
+            {!sidebarCollapsed && (
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-[#EF4444] to-[#DC2626] text-white space-y-2 shadow-sm">
+                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+                  <Phone className="w-3.5 h-3.5 text-white" />
+                </div>
+                <div className="text-xs font-bold leading-snug">Chào mừng khách hàng</div>
+                <p className="text-[10px] text-red-100 leading-relaxed">
+                  Hãy liên hệ ngay với Ban Tổ Chức khi cần hỗ trợ kỹ thuật
+                </p>
+                <a
+                  href={`tel:${contest?.organizerPhone || "0888023023"}`}
+                  className="block text-center py-1.5 px-2 rounded-lg bg-white text-[#DC2626] font-extrabold text-[11px] shadow-2xs hover:bg-red-50 transition-colors"
+                >
+                  {contest?.organizerPhone || "0888.023.023"}
+                </a>
+              </div>
+            )}
+          </div>
+
+          {/* Chứng nhận an toàn thông tin phía dưới (Ảnh 4) */}
+          {!sidebarCollapsed && (
+            <div className="p-3 border-t border-slate-100 space-y-2 text-[10px] text-slate-500">
+              <div className="font-bold text-slate-700">An toàn thông tin</div>
+              <div className="flex items-center space-x-1.5 bg-slate-50 p-2 rounded-xl border border-slate-200/80">
+                <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+                <span className="leading-tight font-medium text-slate-600">
+                  ISO/IEC 27001 • Cổng số Ea Súp
+                </span>
+              </div>
+            </div>
+          )}
+        </aside>
+      )}
+
+      {/* ========================================================================= */}
+      {/* VÙNG CHÍNH GIỮA: GIAO DIỆN CUỘC THI ẢNH (ẢNH 4) */}
+      {/* ========================================================================= */}
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Thanh công cụ phía trên (Nút quay lại + Nút Hiển thị nhanh / Cài đặt + Ô tìm kiếm giống Ảnh 4) */}
+        <div className="w-full px-4 sm:px-6 pt-3 pb-2 flex items-center justify-between gap-2">
+          <div className="flex items-center space-x-2 text-xs">
             <Link
-              href="/"
-              className="inline-flex items-center text-slate-300 hover:text-white transition-colors"
+              href={authUser ? "/admin?tab=anh-video" : "/"}
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:text-[#DC2626] font-semibold shadow-2xs transition-colors"
             >
-              <ArrowLeft className="w-3.5 h-3.5 mr-1" /> Cổng Cuộc Thi Ea Súp
+              <ArrowLeft className="w-3.5 h-3.5 mr-1" />
+              <span>{authUser ? "Quản lý Thi Ảnh" : "Cổng Cuộc Thi Ea Súp"}</span>
             </Link>
-            <span className="text-slate-600">|</span>
-            <span className="text-slate-400">Hệ sinh thái số easupso.com</span>
+
+            <button
+              type="button"
+              onClick={() => setInfoModalTab("rules")}
+              className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-semibold shadow-2xs transition-colors cursor-pointer"
+            >
+              <FileText className="w-3.5 h-3.5 mr-1 text-slate-400" />
+              <span>Thể lệ</span>
+            </button>
+
+            {contest?.showLeaderboard !== false && (
+              <button
+                type="button"
+                onClick={() => setInfoModalTab("leaderboard")}
+                className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-semibold shadow-2xs transition-colors cursor-pointer"
+              >
+                <Trophy className="w-3.5 h-3.5 mr-1 text-amber-500" />
+                <span>Bảng xếp hạng</span>
+              </button>
+            )}
           </div>
 
-          <Link
-            href="/admin"
-            className="text-slate-300 hover:text-white text-[11px] underline underline-offset-2"
-          >
-            Bảng điều khiển Ban Tổ Chức
-          </Link>
-        </div>
-      </div>
+          {/* Cụm nút bên phải: [ Hiển thị nhanh / Cài đặt ] + [ Tìm kiếm... ] (Ảnh 4) */}
+          <div className="flex items-center space-x-2">
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => setShowSettingsDrawer(!showSettingsDrawer)}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span>{showSettingsDrawer ? "Đóng cài đặt" : "Cài đặt cuộc thi"}</span>
+              </button>
+            )}
 
-      {/* ========================================================================= */}
-      {/* 1. BIG BANNER AT TOP (Ảnh 3) */}
-      {/* ========================================================================= */}
-      <div className="relative w-full h-56 sm:h-72 md:h-96 lg:h-[420px] bg-slate-950 overflow-hidden">
-        <img
-          src={contest?.bannerUrl || "/images/contest_stage_banner.jpg"}
-          alt={contest?.title || "Banner Cuộc thi bình chọn"}
-          className="w-full h-full object-cover object-center"
-        />
-        {/* Neon Green Accent Divider under banner matching Image 3 */}
-        <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-emerald-500 via-teal-400 to-green-500 shadow-[0_0_12px_rgba(16,185,129,0.8)]"></div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 2. CONTEST TITLE & FLIP COUNTDOWN CLOCK (Ảnh 3) */}
-      {/* ========================================================================= */}
-      <div className="max-w-4xl mx-auto px-4 pt-8 pb-6 text-center space-y-6">
-        {/* Contest Title with Share Link Icon */}
-        <div className="flex items-center justify-center space-x-2">
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-extrabold text-[#009E60] tracking-tight">
-            &quot;{contest?.title || "CUỘC THI BÌNH CHỌN MỚI"}&quot;
-          </h1>
-          <button
-            type="button"
-            onClick={handleCopyLink}
-            className="p-1.5 text-[#009E60] hover:text-emerald-700 hover:bg-emerald-50 rounded-full transition-all"
-            title="Sao chép liên kết chia sẻ cuộc thi"
-          >
-            {copiedLink ? <Check className="w-5 h-5 text-emerald-600" /> : <ExternalLink className="w-5 h-5" />}
-          </button>
-        </div>
-
-        {copiedLink && (
-          <div className="inline-block text-xs font-semibold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full animate-fade-in">
-            ✓ Đã sao chép liên kết cuộc thi vào bộ nhớ tạm!
-          </div>
-        )}
-
-        {/* Subtitle: THỜI GIAN NỘP BÀI KẾT THÚC SAU */}
-        <div className="text-xs sm:text-sm font-extrabold uppercase tracking-widest text-slate-800">
-          THỜI GIAN NỘP BÀI KẾT THÚC SAU
-        </div>
-
-        {/* FLIP COUNTDOWN CLOCK CONTAINER (Dark Slate Gray Background - Image 3) */}
-        <div className="inline-block bg-[#5A6570] text-white p-4 sm:p-5 rounded-2xl shadow-xl border border-slate-500/40 relative max-w-md w-full mx-auto">
-          {/* Settings icon on top right */}
-          <div className="absolute top-2.5 right-3 text-slate-300 opacity-60 hover:opacity-100 transition-opacity cursor-pointer">
-            <Settings className="w-3.5 h-3.5" />
-          </div>
-
-          {/* Column Headers: NGÀY | GIỜ | PHÚT | GIÂY */}
-          <div className="grid grid-cols-4 gap-3 sm:gap-4 text-[10px] sm:text-xs font-black tracking-wider uppercase text-slate-200 mb-2">
-            <div>NGÀY</div>
-            <div>GIỜ</div>
-            <div>PHÚT</div>
-            <div>GIÂY</div>
-          </div>
-
-          {/* Flip Number Cards: 02 : 23 : 55 : 10 */}
-          <div className="grid grid-cols-4 gap-2 sm:gap-3 items-center">
-            {/* Box 1: NGÀY */}
-            <div className="bg-white text-slate-900 font-extrabold text-2xl sm:text-3xl md:text-4xl py-2.5 sm:py-3 rounded-lg shadow-inner flex items-center justify-center font-mono border border-slate-300">
-              {timeLeft.days}
-            </div>
-
-            {/* Box 2: GIỜ */}
-            <div className="bg-white text-slate-900 font-extrabold text-2xl sm:text-3xl md:text-4xl py-2.5 sm:py-3 rounded-lg shadow-inner flex items-center justify-center font-mono border border-slate-300">
-              {timeLeft.hours}
-            </div>
-
-            {/* Box 3: PHÚT */}
-            <div className="bg-white text-slate-900 font-extrabold text-2xl sm:text-3xl md:text-4xl py-2.5 sm:py-3 rounded-lg shadow-inner flex items-center justify-center font-mono border border-slate-300">
-              {timeLeft.minutes}
-            </div>
-
-            {/* Box 4: GIÂY */}
-            <div className="bg-white text-slate-900 font-extrabold text-2xl sm:text-3xl md:text-4xl py-2.5 sm:py-3 rounded-lg shadow-inner flex items-center justify-center font-mono border border-slate-300">
-              {timeLeft.seconds}
+            <div className="relative hidden sm:block">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2 text-slate-400" />
+              <input
+                type="text"
+                value={topSearchQuery}
+                onChange={(e) => {
+                  setTopSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Tìm kiếm..."
+                className="pl-8 pr-3 py-1 text-xs rounded-full border border-slate-200 bg-white focus:outline-none focus:border-slate-400 w-36 lg:w-44"
+              />
             </div>
           </div>
         </div>
 
-        {/* CTA BUTTON: NỘP TÁC PHẨM >> (Ảnh 3) */}
-        <div className="pt-2 flex items-center justify-center space-x-2">
-          <button
-            type="button"
-            onClick={() => setShowSubmitModal(true)}
-            className="inline-flex items-center px-8 py-3 rounded-full bg-[#009E60] hover:bg-[#008552] text-white font-extrabold text-sm sm:text-base uppercase tracking-wider shadow-lg hover:shadow-xl transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
-          >
-            NỘP TÁC PHẨM &gt;&gt;
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowSubmitModal(true)}
-            className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
-            title="Cài đặt tác phẩm"
-          >
-            <Settings className="w-4 h-4" />
-          </button>
+        {/* ========================================================================= */}
+        {/* 1. ẢNH BÌA CUỘC THI (BANNER - ẢNH 2 & ẢNH 4) */}
+        {/* ========================================================================= */}
+        <div className="max-w-4xl w-full mx-auto px-4 pt-2">
+          <div className="relative w-full h-44 sm:h-64 md:h-72 rounded-2xl overflow-hidden bg-slate-900 shadow-md border border-slate-200 group">
+            <img
+              src={contest?.bannerUrl || "/images/contest_stage_banner.jpg"}
+              alt={contest?.title || "Ảnh bìa cuộc thi"}
+              className="w-full h-full object-cover object-center"
+            />
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => openSpecificSetting("cau-hinh")}
+                className="absolute bottom-3 right-3 px-3 py-1.5 rounded-xl bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center space-x-1.5 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
+              >
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>Thay ảnh bìa</span>
+              </button>
+            )}
+          </div>
         </div>
-      </div>
 
-      {/* ========================================================================= */}
-      {/* 3. SECTION: DANH SÁCH TÁC PHẨM & TÌM KIẾM (Ảnh 3) */}
-      {/* ========================================================================= */}
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20 space-y-6">
-        {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200">
-          {/* Left: DANH SÁCH TÁC PHẨM with green accent */}
-          <div>
-            <div className="w-12 h-1 bg-[#009E60] rounded-full mb-1.5"></div>
-            <div className="flex items-center space-x-2">
-              <h2 className="text-base sm:text-lg font-black uppercase text-slate-900 tracking-wide">
-                DANH SÁCH TÁC PHẨM
-              </h2>
-              <div className="flex items-center text-slate-400 space-x-1 ml-2">
+        {/* ========================================================================= */}
+        {/* 2. TIÊU ĐỀ CUỘC THI & ĐỒNG HỒ FLIP CLOCK 8 Ô SỐ (ẢNH 4) */}
+        {/* ========================================================================= */}
+        <div className="max-w-4xl w-full mx-auto px-4 pt-6 pb-4 text-center space-y-5">
+          {/* Tên cuộc thi với icon cây bút chỉnh sửa giống Ảnh 4 */}
+          <div className="flex items-center justify-center gap-2 flex-wrap">
+            <h1
+              className="text-xl sm:text-2xl md:text-3xl font-extrabold uppercase tracking-tight leading-snug"
+              style={{ color: themeColor }}
+            >
+              &quot;{contest?.title || "NÉT ĐẸP VĂN HÓA CÁC DÂN TỘC - EA SÚP NĂM 2026"}&quot;
+            </h1>
+            {canManage ? (
+              <button
+                type="button"
+                onClick={() => openSpecificSetting("cau-hinh")}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Đổi tên cuộc thi"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCopyLink}
+                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Sao chép liên kết cuộc thi"
+              >
+                {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
+              </button>
+            )}
+          </div>
+
+          {/* Dòng chữ: THỜI GIAN NỘP BÀI KẾT THÚC SAU */}
+          <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700">
+            THỜI GIAN NỘP BÀI KẾT THÚC SAU
+          </div>
+
+          {/* ĐỒNG HỒ ĐẾM NGƯỢC FLIP-CLOCK 8 LÁ SỐ TÁCH ĐÔI CHUẨN ẢNH 4 */}
+          <div className="inline-block bg-[#6C757D] text-white px-4 sm:px-6 pt-3 pb-4 rounded-xl shadow-lg relative mx-auto">
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => openSpecificSetting("cau-hinh")}
+                className="absolute top-2 right-2 text-white/70 hover:text-white transition-colors cursor-pointer"
+                title="Cài đặt thời gian nộp tác phẩm & bình chọn"
+              >
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+            )}
+
+            <div className="flex items-center justify-center gap-1.5 sm:gap-2.5">
+              {[
+                { label: "NGÀY", val: timeLeft.days },
+                { label: "GIỜ", val: timeLeft.hours },
+                { label: "PHÚT", val: timeLeft.minutes },
+                { label: "GIÂY", val: timeLeft.seconds },
+              ].map((unit, idx) => {
+                const d1 = unit.val[0] || "0";
+                const d2 = unit.val[1] || "0";
+                return (
+                  <React.Fragment key={unit.label}>
+                    <div className="flex flex-col items-center">
+                      <span className="text-[10px] sm:text-[11px] font-bold uppercase tracking-wider text-slate-100 mb-1.5">
+                        {unit.label}
+                      </span>
+                      <div className="flex items-center gap-1">
+                        {[d1, d2].map((digit, dIdx) => (
+                          <div
+                            key={dIdx}
+                            className="relative w-7 sm:w-10 h-11 sm:h-14 bg-white text-slate-900 rounded-md shadow-inner flex items-center justify-center font-extrabold text-xl sm:text-3xl font-mono overflow-hidden"
+                          >
+                            <div className="absolute inset-x-0 top-1/2 h-[1px] bg-slate-300/80" />
+                            <span className="relative z-10">{digit}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    {idx < 3 && (
+                      <div className="text-xl sm:text-2xl font-black text-white pt-5 select-none">:</div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* NÚT NỘP TÁC PHẨM >> KÈM ICON BÁNH RĂNG (ẢNH 4) */}
+          <div className="pt-2 flex items-center justify-center space-x-2">
+            <button
+              type="button"
+              onClick={() => setShowSubmitModal(true)}
+              style={{ backgroundColor: themeColor }}
+              className="inline-flex items-center px-7 py-2.5 rounded-full text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md hover:opacity-95 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+            >
+              NỘP TÁC PHẨM &gt;&gt;
+            </button>
+            {canManage && (
+              <button
+                type="button"
+                onClick={() => openSpecificSetting("yeu-cau-thong-tin")}
+                className="p-1.5 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer"
+                title="Cài đặt thông tin người tham gia nộp tác phẩm"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* 3. DANH SÁCH TÁC PHẨM & BỘ LỌC TÌM KIẾM (ẢNH 4) */}
+        {/* ========================================================================= */}
+        <div className="max-w-5xl w-full mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-6 flex-1">
+          {/* Header: DANH SÁCH TÁC PHẨM (Trái) & Ô Tìm kiếm tác phẩm (Phải) */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200">
+            <div>
+              <div
+                className="w-14 h-1 rounded-full mb-1.5"
+                style={{ backgroundColor: themeColor }}
+              />
+              <div className="flex items-center space-x-2">
+                <h2 className="text-sm sm:text-base font-extrabold uppercase text-slate-800 tracking-wide">
+                  DANH SÁCH TÁC PHẨM
+                </h2>
                 <button
                   type="button"
-                  onClick={() => setViewMode("grid")}
-                  className={`p-1 rounded ${viewMode === "grid" ? "text-[#009E60] bg-emerald-50" : "hover:text-slate-600"}`}
-                  title="Xem dạng lưới"
+                  onClick={() =>
+                    updateContestField(
+                      "layoutMode",
+                      layoutMode === "vertical" ? "horizontal" : "vertical"
+                    )
+                  }
+                  className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                  title={layoutMode === "vertical" ? "Đang xem: Bố cục dọc" : "Đang xem: Bố cục ngang"}
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setViewMode("list")}
-                  className={`p-1 rounded ${viewMode === "list" ? "text-[#009E60] bg-emerald-50" : "hover:text-slate-600"}`}
-                  title="Xem dạng danh sách"
-                >
-                  <List className="w-4 h-4" />
-                </button>
-                <Settings className="w-3.5 h-3.5 ml-1" />
+                {canManage && (
+                  <button
+                    type="button"
+                    onClick={() => openSpecificSetting("cai-dat-bai-du-thi")}
+                    className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                    title="Cài đặt bố cục & sắp xếp bài dự thi"
+                  >
+                    <Settings className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
-          </div>
 
-          {/* Right: Search Input with Green Button (Ảnh 3) */}
-          <div className="flex items-center max-w-sm w-full">
-            <div className="relative flex-1">
+            {/* Ô tìm kiếm tác phẩm + Nút Tìm kiếm bo tròn theo màu chủ đề (Ảnh 4) */}
+            <div className="flex items-center gap-2 max-w-sm w-full">
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
                 placeholder="Tìm kiếm tác phẩm"
-                className="w-full pl-3 pr-3 py-2 text-xs rounded-l-full border border-slate-300 focus:outline-none focus:border-emerald-500 bg-white"
+                className="flex-1 px-4 py-1.5 text-xs rounded-full border border-slate-300 bg-white focus:outline-none focus:border-slate-500"
               />
-            </div>
-            <button
-              type="button"
-              className="px-5 py-2 bg-[#009E60] hover:bg-[#008552] text-white text-xs font-bold rounded-r-full transition-colors shrink-0"
-            >
-              Tìm kiếm
-            </button>
-          </div>
-        </div>
-
-        {/* Content: Empty state arch (Ảnh 3) OR Submissions Grid */}
-        {filteredSubmissions.length === 0 ? (
-          /* ========================================================= */
-          /* EMPTY STATE ARCH GRAPHIC EXACTLY AS IN IMAGE 3 */
-          /* ========================================================= */
-          <div className="pt-10 pb-16 flex flex-col items-center justify-center">
-            {/* Curved dome arch */}
-            <div className="w-full max-w-md sm:max-w-lg bg-gradient-to-b from-[#EEF2FF] to-white rounded-t-[180px] sm:rounded-t-[220px] pt-14 pb-10 px-6 flex flex-col items-center justify-center text-center shadow-xs border-t border-x border-slate-100">
-              {/* Document / Folder Icon */}
-              <div className="w-16 h-16 sm:w-20 sm:h-20 mb-4 flex items-center justify-center opacity-85">
-                <div className="w-16 h-14 bg-white rounded-xl shadow-md border border-slate-200 relative flex items-center justify-center">
-                  <div className="w-10 h-7 bg-slate-100 rounded border border-slate-300 space-y-1 p-1">
-                    <div className="w-6 h-0.5 bg-slate-300 rounded"></div>
-                    <div className="w-8 h-0.5 bg-slate-300 rounded"></div>
-                    <div className="w-4 h-0.5 bg-slate-300 rounded"></div>
-                  </div>
-                  <div className="absolute -top-1.5 left-2 w-5 h-2 bg-slate-200 rounded-t border-t border-x border-slate-300"></div>
-                </div>
-              </div>
-
-              {/* Text from Image 3 */}
-              <p className="text-xs sm:text-sm font-medium text-slate-500">
-                Chưa có tác phẩm nào cho cuộc thi bình chọn này!
-              </p>
-
               <button
                 type="button"
-                onClick={() => setShowSubmitModal(true)}
-                className="mt-4 px-4 py-1.5 rounded-full border border-emerald-500 text-[#009E60] hover:bg-emerald-50 text-xs font-bold transition-colors"
+                style={{ backgroundColor: themeColor }}
+                className="px-4 py-1.5 text-white text-xs font-bold rounded-full shadow-2xs hover:opacity-95 transition-opacity shrink-0 cursor-pointer"
               >
-                + Hãy là người nộp tác phẩm đầu tiên
+                Tìm kiếm
               </button>
             </div>
           </div>
-        ) : (
-          /* ========================================================= */
-          /* SUBMISSIONS GALLERY GRID WITH VOTING */
-          /* ========================================================= */
-          <div
-            className={
-              viewMode === "grid"
-                ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6"
-                : "space-y-4"
-            }
-          >
-            {filteredSubmissions.map((sub) => {
-              const hasVoted = votedMap[sub.id];
-              return (
-                <div
-                  key={sub.id}
-                  className={`bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-all flex ${
-                    viewMode === "grid" ? "flex-col" : "flex-col sm:flex-row"
-                  }`}
+
+          {/* Danh sách bài dự thi (Chuẩn thẻ khung viền màu chủ đề như Ảnh 4) */}
+          {paginatedSubmissions.length === 0 ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center">
+              <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-200 shadow-2xs space-y-3">
+                <ImageIcon className="w-10 h-10 mx-auto text-slate-300" />
+                <p className="text-xs sm:text-sm font-medium text-slate-500">
+                  Chưa có tác phẩm nào phù hợp trong danh sách bình chọn!
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setShowSubmitModal(true)}
+                  style={{ color: themeColor, borderColor: themeColor }}
+                  className="px-4 py-1.5 rounded-full border text-xs font-bold hover:opacity-80 transition-opacity cursor-pointer"
                 >
-                  {/* Media Thumbnail */}
+                  + Gửi tác phẩm dự thi đầu tiên
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div
+              className={
+                layoutMode === "vertical"
+                  ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"
+                  : "grid grid-cols-1 sm:grid-cols-2 gap-5"
+              }
+            >
+              {paginatedSubmissions.map((sub) => {
+                const hasVoted = votedMap[sub.id];
+                return (
                   <div
-                    className={`relative bg-slate-100 overflow-hidden ${
-                      viewMode === "grid" ? "h-52 w-full" : "sm:w-64 h-52 shrink-0"
+                    key={sub.id}
+                    style={{ borderColor: themeColor }}
+                    className={`bg-white rounded-xl border-2 p-2 shadow-xs hover:shadow-md transition-all flex ${
+                      layoutMode === "vertical" ? "flex-col" : "flex-col sm:flex-row gap-3"
                     }`}
                   >
-                    <img
-                      src={sub.mediaUrl}
-                      alt={sub.title}
-                      className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
-                    />
-                    <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-xs text-white text-[11px] font-semibold flex items-center">
-                      {sub.mediaType === "VIDEO" ? (
-                        <Video className="w-3 h-3 mr-1 text-red-400" />
-                      ) : (
-                        <ImageIcon className="w-3 h-3 mr-1 text-sky-400" />
-                      )}
-                      {sub.mediaType === "VIDEO" ? "Video clip" : "Hình ảnh"}
+                    {/* Khung Ảnh / Video tác phẩm */}
+                    <div
+                      onClick={() => setSelectedSubmission(sub)}
+                      className={`relative rounded-lg overflow-hidden bg-slate-100 cursor-pointer group ${
+                        layoutMode === "vertical"
+                          ? "w-full aspect-[3/4]"
+                          : "w-full sm:w-48 aspect-[4/3] shrink-0"
+                      }`}
+                    >
+                      <img
+                        src={sub.mediaUrl}
+                        alt={sub.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 bg-black/70 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center space-x-1 transition-opacity">
+                          <Eye className="w-3 h-3" />
+                          <span>Xem chi tiết</span>
+                        </span>
+                      </div>
                     </div>
 
-                    <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[10px] font-bold">
-                      {sub.unitName}
-                    </div>
-                  </div>
-
-                  {/* Body Content */}
-                  <div className="p-4 sm:p-5 flex-1 flex flex-col justify-between space-y-3">
-                    <div>
-                      <h3 className="font-bold text-base text-slate-900 line-clamp-1 hover:text-emerald-700 transition-colors">
-                        {sub.title}
-                      </h3>
-                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
-                        {sub.description || "Tác phẩm tham dự bình chọn trực tuyến xã Ea Súp."}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-600">
-                      <div className="flex items-center space-x-1.5">
-                        <User className="w-3.5 h-3.5 text-slate-400" />
-                        <span className="font-medium text-slate-800">{sub.authorName}</span>
+                    {/* Phần tên tác phẩm, nút Bình chọn và hàng thống kê ☆ bình chọn / 🔗 chia sẻ giống hệt Ảnh 4 */}
+                    <div className="pt-2.5 pb-1 px-1 flex-1 flex flex-col justify-between text-center">
+                      <div>
+                        <h3
+                          onClick={() => setSelectedSubmission(sub)}
+                          className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-1 cursor-pointer hover:underline"
+                        >
+                          {sub.title}
+                        </h3>
+                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                          {sub.authorName} • {sub.unitName}
+                        </p>
                       </div>
 
-                      {/* Vote Button */}
-                      <button
-                        type="button"
-                        onClick={() => handleVote(sub.id)}
-                        disabled={hasVoted}
-                        className={`inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full text-xs font-bold transition-all ${
-                          hasVoted
-                            ? "bg-rose-50 text-rose-600 border border-rose-200"
-                            : "bg-[#009E60] hover:bg-[#008552] text-white shadow-xs cursor-pointer active:scale-95"
-                        }`}
-                      >
-                        <Heart className={`w-3.5 h-3.5 ${hasVoted ? "fill-rose-500" : ""}`} />
-                        <span>{sub.votesCount} bình chọn</span>
-                      </button>
+                      <div className="mt-2.5 space-y-2">
+                        <button
+                          type="button"
+                          onClick={() => handleVote(sub.id)}
+                          disabled={hasVoted}
+                          style={{
+                            backgroundColor: hasVoted ? "#E2E8F0" : themeColor,
+                            color: hasVoted ? "#475569" : "#FFFFFF",
+                          }}
+                          className="w-full max-w-[140px] mx-auto py-1.5 px-4 rounded-full text-xs font-bold shadow-2xs hover:opacity-95 transition-all cursor-pointer active:scale-95"
+                        >
+                          {hasVoted ? "Đã bình chọn" : "Bình chọn"}
+                        </button>
+
+                        <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 px-1">
+                          {contest?.showVoteCount !== false ? (
+                            <span className="inline-flex items-center space-x-1">
+                              <Star className="w-3 h-3 text-slate-400" />
+                              <span>{sub.votesCount || 0} bình chọn</span>
+                            </span>
+                          ) : (
+                            <span />
+                          )}
+
+                          {contest?.enableSocialShare !== false && contest?.showShareCount !== false && (
+                            <button
+                              type="button"
+                              onClick={() => handleShareSubmission(sub)}
+                              className="inline-flex items-center space-x-1 hover:text-slate-800 cursor-pointer"
+                              title="Chia sẻ tác phẩm"
+                            >
+                              <Share2 className="w-3 h-3 text-slate-400" />
+                              <span>{sub.sharesCount || 0} chia sẻ</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
+          )}
+
+          {/* Phân trang dưới cùng giống Ảnh 4: [ <-- ] [ 1 ] [ --> ] */}
+          <div className="pt-6 flex items-center justify-center space-x-1.5">
+            <button
+              type="button"
+              disabled={currentPage <= 1}
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              className="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-500 text-xs hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            >
+              &lt;--
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+              <button
+                key={pageNum}
+                type="button"
+                onClick={() => setCurrentPage(pageNum)}
+                style={
+                  currentPage === pageNum
+                    ? { backgroundColor: themeColor, color: "#FFFFFF", borderColor: themeColor }
+                    : {}
+                }
+                className="w-7 h-7 rounded border border-slate-200 bg-white text-slate-700 text-xs font-bold flex items-center justify-center cursor-pointer"
+              >
+                {pageNum}
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={currentPage >= totalPages}
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              className="px-2.5 py-1 rounded border border-slate-200 bg-white text-slate-500 text-xs hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
+            >
+              --&gt;
+            </button>
           </div>
-        )}
+        </div>
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. MODAL: NỘP TÁC PHẨM DỰ THI (SUBMISSION MODAL) */}
+      {/* CỘT PHẢI: DRAWER CÀI ĐẶT CUỘC THI ẢNH 8 MỤC ACCORDION (ẢNH 2 & ẢNH 3) */}
+      {/* ========================================================================= */}
+      {showSettingsDrawer && contest && (
+        <aside className="fixed inset-y-0 right-0 z-50 w-full max-w-[370px] bg-white border-l border-slate-200 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200">
+          {/* Header Drawer */}
+          <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between bg-slate-50/70">
+            <div className="flex items-center space-x-2">
+              <SlidersHorizontal className="w-4 h-4 text-[#DC2626]" />
+              <span className="font-bold text-sm text-slate-900">Cài đặt cuộc thi ảnh</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowSettingsDrawer(false)}
+              className="p-1 rounded-full hover:bg-slate-200 text-slate-500 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Nội dung cuộn 8 mục Accordion (Ảnh 2 & Ảnh 3) */}
+          <div className="flex-1 overflow-y-auto divide-y divide-slate-100 text-xs">
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 1: CẤU HÌNH (ẢNH 2) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("cau-hinh")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Cấu hình</span>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["cau-hinh"] ? "rotate-180" : "-rotate-90"
+                  }`}
+                />
+              </button>
+
+              {openAccordions["cau-hinh"] && (
+                <div className="mt-3 space-y-3">
+                  {/* Khối Ảnh bìa + Radio Bình chọn ảnh / Bình chọn video */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2.5">
+                    <div className="font-bold text-slate-800">Ảnh bìa</div>
+                    <div
+                      onClick={() => bannerInputRef.current?.click()}
+                      className="relative w-full h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200 cursor-pointer group"
+                    >
+                      <img
+                        src={contest.bannerUrl || "/images/contest_stage_banner.jpg"}
+                        alt="Ảnh bìa"
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute inset-0 bg-black/35 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                        <span className="px-3 py-1.5 rounded-lg bg-white text-slate-900 font-bold text-xs shadow">
+                          {isUploadingBanner ? "Đang tải ảnh..." : "Bấm để đổi ảnh bìa"}
+                        </span>
+                      </div>
+                    </div>
+                    <input
+                      ref={bannerInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleBannerFileChange}
+                      className="hidden"
+                    />
+
+                    {/* Radio: Bình chọn ảnh | Bình chọn video */}
+                    <div className="flex items-center space-x-6 pt-1">
+                      <label className="inline-flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="mediaTypeRadio"
+                          checked={contest.type === "IMAGE"}
+                          onChange={() => updateContestField("type", "IMAGE")}
+                          className="w-4 h-4 accent-[#DC2626]"
+                        />
+                        <span className="font-medium text-slate-800">Bình chọn ảnh</span>
+                      </label>
+
+                      <label className="inline-flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="mediaTypeRadio"
+                          checked={contest.type === "VIDEO"}
+                          onChange={() => updateContestField("type", "VIDEO")}
+                          className="w-4 h-4 accent-[#DC2626]"
+                        />
+                        <span className="font-medium text-slate-800">Bình chọn video</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Tên cuộc thi */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-1.5">
+                    <label className="block font-bold text-slate-800">Tên cuộc thi</label>
+                    <input
+                      type="text"
+                      value={contest.title}
+                      onChange={(e) => updateContestField("title", e.target.value)}
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-red-500"
+                    />
+                  </div>
+
+                  {/* Thời gian nộp tác phẩm */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-1.5">
+                    <label className="block font-bold text-slate-800">Thời gian nộp tác phẩm</label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="datetime-local"
+                        value={(contest.submitStartDate || "2026-11-10T07:00").slice(0, 16)}
+                        onChange={(e) => updateContestField("submitStartDate", e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 focus:outline-none focus:border-red-500"
+                      />
+                      <span className="text-slate-400">→</span>
+                      <input
+                        type="datetime-local"
+                        value={(contest.submitEndDate || "2026-11-18T07:00").slice(0, 16)}
+                        onChange={(e) => updateContestField("submitEndDate", e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 focus:outline-none focus:border-red-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Thời gian bình chọn */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-1.5">
+                    <label className="block font-bold text-slate-800">Thời gian bình chọn</label>
+                    <div className="flex items-center gap-1.5">
+                      <input
+                        type="datetime-local"
+                        value={(contest.voteStartDate || "2026-11-18T08:00").slice(0, 16)}
+                        onChange={(e) => updateContestField("voteStartDate", e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 focus:outline-none focus:border-red-500"
+                      />
+                      <span className="text-slate-400">→</span>
+                      <input
+                        type="datetime-local"
+                        value={(contest.voteEndDate || "2026-11-24T07:00").slice(0, 16)}
+                        onChange={(e) => updateContestField("voteEndDate", e.target.value)}
+                        className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 focus:outline-none focus:border-red-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Màu chủ đề (Ảnh 2) */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
+                    <label className="block font-bold text-slate-800">Màu chủ đề</label>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {THEME_SWATCHES.map((color) => (
+                        <button
+                          key={color}
+                          type="button"
+                          onClick={() => updateContestField("themeColor", color)}
+                          style={{ backgroundColor: color }}
+                          className={`w-8 h-8 rounded-lg transition-transform cursor-pointer ${
+                            themeColor.toLowerCase() === color.toLowerCase()
+                              ? "ring-2 ring-offset-2 ring-slate-900 scale-105"
+                              : "hover:scale-105"
+                          }`}
+                        />
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => colorPickerRef.current?.click()}
+                        style={{ backgroundColor: themeColor }}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white shadow-xs cursor-pointer"
+                        title="Tùy chỉnh màu chủ đề"
+                      >
+                        <SlidersHorizontal className="w-4 h-4" />
+                      </button>
+                      <input
+                        ref={colorPickerRef}
+                        type="color"
+                        value={themeColor}
+                        onChange={(e) => updateContestField("themeColor", e.target.value)}
+                        className="sr-only"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 2: YÊU CẦU NGƯỜI THAM GIA NHẬP THÔNG TIN (ẢNH 3) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("yeu-cau-thong-tin")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Yêu cầu người tham gia nhập thông tin</span>
+                <ChevronRight
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["yeu-cau-thong-tin"] ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {openAccordions["yeu-cau-thong-tin"] && (
+                <div className="mt-3 p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
+                  {[
+                    { key: "authorName", label: "Họ và tên tác giả (Bắt buộc)", locked: true },
+                    { key: "unitName", label: "Đơn vị / Thôn buôn dự thi" },
+                    { key: "authorPhone", label: "Số điện thoại liên hệ" },
+                    { key: "authorCccd", label: "Số CCCD / Mã định danh" },
+                    { key: "authorEmail", label: "Địa chỉ Email" },
+                    { key: "description", label: "Lời bình / Thuyết minh tác phẩm" },
+                  ].map((item) => (
+                    <label
+                      key={item.key}
+                      className="flex items-center space-x-2.5 py-1 cursor-pointer"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={reqFields.includes(item.key)}
+                        disabled={item.locked}
+                        onChange={() => toggleRequiredField(item.key)}
+                        className="w-4 h-4 rounded accent-[#DC2626]"
+                      />
+                      <span className="text-slate-700 font-medium">{item.label}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 3: BẢO MẬT (ẢNH 3) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("bao-mat")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Bảo mật</span>
+                <ChevronRight
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["bao-mat"] ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {openAccordions["bao-mat"] && (
+                <div className="mt-3 p-3 rounded-xl border border-dashed border-slate-200 space-y-3">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="font-semibold text-slate-700">Duyệt tác phẩm trước khi hiển thị</span>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(contest.requireApproval)}
+                      onChange={(e) => updateContestField("requireApproval", e.target.checked)}
+                      className="w-4 h-4 accent-[#DC2626]"
+                    />
+                  </label>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Số lượt bình chọn tối đa / người
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={contest.maxVotesPerUser || 5}
+                      onChange={(e) => updateContestField("maxVotesPerUser", Number(e.target.value) || 1)}
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Mật khẩu cuộc thi (để trống nếu công khai)
+                    </label>
+                    <input
+                      type="text"
+                      value={contest.contestPassword || ""}
+                      onChange={(e) => updateContestField("contestPassword", e.target.value)}
+                      placeholder="Không đặt mật khẩu"
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 4: CÀI ĐẶT BÀI DỰ THI (ẢNH 3 - MỞ RỘNG) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("cai-dat-bai-du-thi")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Cài đặt bài dự thi</span>
+                <ChevronDown
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["cai-dat-bai-du-thi"] ? "rotate-180" : "-rotate-90"
+                  }`}
+                />
+              </button>
+
+              {openAccordions["cai-dat-bai-du-thi"] && (
+                <div className="mt-3 space-y-3">
+                  {/* Bố cục: Bố cục dọc | Bố cục ngang (Ảnh 3) */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
+                    <div className="font-bold text-slate-800">Bố cục</div>
+                    <div className="flex items-center space-x-6">
+                      <label className="inline-flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="layoutModeRadio"
+                          checked={layoutMode === "vertical"}
+                          onChange={() => updateContestField("layoutMode", "vertical")}
+                          className="w-4 h-4 accent-[#DC2626]"
+                        />
+                        <span className="font-medium text-slate-800">Bố cục dọc</span>
+                      </label>
+
+                      <label className="inline-flex items-center space-x-2 cursor-pointer">
+                        <input
+                          type="radio"
+                          name="layoutModeRadio"
+                          checked={layoutMode === "horizontal"}
+                          onChange={() => updateContestField("layoutMode", "horizontal")}
+                          className="w-4 h-4 accent-[#DC2626]"
+                        />
+                        <span className="font-medium text-slate-800">Bố cục ngang</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Sắp xếp bài dự thi theo: Ngày nộp | Số lượt bình chọn | Số điểm (Ảnh 3) */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
+                    <div className="font-bold text-slate-800">Sắp xếp bài dự thi theo</div>
+                    <div className="space-y-2">
+                      {[
+                        { val: "createdAt", label: "Ngày nộp" },
+                        { val: "votesCount", label: "Số lượt bình chọn" },
+                        { val: "score", label: "Số điểm" },
+                      ].map((opt) => (
+                        <label
+                          key={opt.val}
+                          className="flex items-center space-x-2.5 cursor-pointer"
+                        >
+                          <input
+                            type="radio"
+                            name="sortByRadio"
+                            checked={sortBy === opt.val}
+                            onChange={() =>
+                              updateContestField("sortBy", opt.val as "createdAt" | "votesCount" | "score")
+                            }
+                            className="w-4 h-4 accent-[#DC2626]"
+                          />
+                          <span className="font-medium text-slate-800">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Chia sẻ mạng xã hội: Toggle + Facebook / Zalo (Ảnh 3) */}
+                  <div className="p-3 rounded-xl border border-dashed border-slate-200 space-y-2.5">
+                    <div className="flex items-center space-x-3">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          updateContestField("enableSocialShare", contest.enableSocialShare === false)
+                        }
+                        className={`w-11 h-6 rounded-full p-0.5 transition-colors flex items-center cursor-pointer ${
+                          contest.enableSocialShare !== false
+                            ? "bg-white border-2 border-[#DC2626] justify-end"
+                            : "bg-slate-200 border-2 border-slate-300 justify-start"
+                        }`}
+                      >
+                        <span
+                          className={`w-4 h-4 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                            contest.enableSocialShare !== false
+                              ? "bg-[#DC2626] text-white"
+                              : "bg-white text-slate-400"
+                          }`}
+                        >
+                          {contest.enableSocialShare !== false ? "✓" : ""}
+                        </span>
+                      </button>
+                      <span className="font-bold text-slate-800">Chia sẻ mạng xã hội</span>
+                    </div>
+
+                    {contest.enableSocialShare !== false && (
+                      <div className="space-y-2 pl-1 pt-1">
+                        {[
+                          { id: "facebook" as const, label: "Facebook" },
+                          { id: "zalo" as const, label: "Zalo" },
+                        ].map((plat) => {
+                          const platforms = contest.sharePlatforms || ["facebook", "zalo"];
+                          const checked = platforms.includes(plat.id);
+                          return (
+                            <label
+                              key={plat.id}
+                              className="flex items-center space-x-2.5 cursor-pointer"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => {
+                                  const next = checked
+                                    ? platforms.filter((p) => p !== plat.id)
+                                    : [...platforms, plat.id];
+                                  updateContestField("sharePlatforms", next);
+                                }}
+                                className="w-4 h-4 rounded accent-[#DC2626]"
+                              />
+                              <span className="font-medium text-slate-700">{plat.label}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 5: CÀI ĐẶT BẢNG XẾP HẠNG (ẢNH 3) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("bang-xep-hang")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Cài đặt bảng xếp hạng</span>
+                <ChevronRight
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["bang-xep-hang"] ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {openAccordions["bang-xep-hang"] && (
+                <div className="mt-3 p-3 rounded-xl border border-dashed border-slate-200 space-y-2.5">
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="font-medium text-slate-700">Hiển thị bảng xếp hạng công khai</span>
+                    <input
+                      type="checkbox"
+                      checked={contest.showLeaderboard !== false}
+                      onChange={(e) => updateContestField("showLeaderboard", e.target.checked)}
+                      className="w-4 h-4 accent-[#DC2626]"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="font-medium text-slate-700">Hiển thị số lượt bình chọn</span>
+                    <input
+                      type="checkbox"
+                      checked={contest.showVoteCount !== false}
+                      onChange={(e) => updateContestField("showVoteCount", e.target.checked)}
+                      className="w-4 h-4 accent-[#DC2626]"
+                    />
+                  </label>
+                  <label className="flex items-center justify-between cursor-pointer">
+                    <span className="font-medium text-slate-700">Hiển thị số lượt chia sẻ</span>
+                    <input
+                      type="checkbox"
+                      checked={contest.showShareCount !== false}
+                      onChange={(e) => updateContestField("showShareCount", e.target.checked)}
+                      className="w-4 h-4 accent-[#DC2626]"
+                    />
+                  </label>
+                </div>
+              )}
+            </div>
+
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 6: THỂ LỆ CUỘC THI (ẢNH 3) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("the-le")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Thể lệ cuộc thi</span>
+                <ChevronRight
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["the-le"] ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {openAccordions["the-le"] && (
+                <div className="mt-3 p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
+                  <textarea
+                    rows={4}
+                    value={contest.rulesHtml || contest.description || ""}
+                    onChange={(e) => {
+                      updateContestField("rulesHtml", e.target.value);
+                      updateContestField("description", e.target.value);
+                    }}
+                    placeholder="Nhập nội dung thể lệ cuộc thi ảnh/video..."
+                    className="w-full p-2.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-red-500 resize-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 7: THÔNG BÁO (ẢNH 3) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("thong-bao")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Thông báo</span>
+                <ChevronRight
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["thong-bao"] ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {openAccordions["thong-bao"] && (
+                <div className="mt-3 p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
+                  <textarea
+                    rows={3}
+                    value={contest.announcement || ""}
+                    onChange={(e) => updateContestField("announcement", e.target.value)}
+                    placeholder="Nhập thông báo từ Ban Tổ Chức gửi đến thí sinh..."
+                    className="w-full p-2.5 rounded-lg border border-slate-200 text-xs focus:outline-none focus:border-red-500 resize-none"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* ----------------------------------------------------------------- */}
+            {/* MỤC 8: THÔNG TIN BAN TỔ CHỨC (ẢNH 3) */}
+            {/* ----------------------------------------------------------------- */}
+            <div className="p-4">
+              <button
+                type="button"
+                onClick={() => toggleAccordion("ban-to-chuc")}
+                className="w-full flex items-center justify-between font-bold text-sm text-slate-900 cursor-pointer"
+              >
+                <span>Thông tin ban tổ chức</span>
+                <ChevronRight
+                  className={`w-4 h-4 text-slate-500 transition-transform ${
+                    openAccordions["ban-to-chuc"] ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {openAccordions["ban-to-chuc"] && (
+                <div className="mt-3 p-3 rounded-xl border border-dashed border-slate-200 space-y-2.5">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Đơn vị tổ chức</label>
+                    <input
+                      type="text"
+                      value={contest.organizerName || ""}
+                      onChange={(e) => updateContestField("organizerName", e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Địa chỉ</label>
+                    <input
+                      type="text"
+                      value={contest.organizerAddress || ""}
+                      onChange={(e) => updateContestField("organizerAddress", e.target.value)}
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Điện thoại</label>
+                      <input
+                        type="text"
+                        value={contest.organizerPhone || ""}
+                        onChange={(e) => updateContestField("organizerPhone", e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-slate-700 mb-1">Email</label>
+                      <input
+                        type="text"
+                        value={contest.organizerEmail || ""}
+                        onChange={(e) => updateContestField("organizerEmail", e.target.value)}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* MÃ QR & LINK CHIA SẺ PHÍA DƯỚI DRAWER (ẢNH 3) */}
+            <div className="p-4 flex flex-col items-center space-y-2 bg-slate-50/50">
+              <div className="p-2.5 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center space-x-3 w-full">
+                <div className="w-12 h-12 rounded-lg bg-slate-900 text-white flex items-center justify-center shrink-0">
+                  <QrCode className="w-8 h-8" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="text-[11px] font-bold text-slate-800 truncate">
+                    /binh-chon/{contest.slug}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCopyLink}
+                    className="mt-1 inline-flex items-center space-x-1 text-[11px] font-bold text-[#DC2626] hover:underline cursor-pointer"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>{copiedLink ? "Đã sao chép liên kết!" : "Sao chép link bình chọn"}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Nút Lưu cài đặt cố định ở đáy Drawer */}
+          <div className="p-3.5 border-t border-slate-200 bg-white flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={() => setShowSettingsDrawer(false)}
+              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 text-xs font-bold cursor-pointer"
+            >
+              Đóng
+            </button>
+            <button
+              type="button"
+              disabled={isSavingSettings}
+              onClick={handleSaveContestSettings}
+              className="flex-1 py-2.5 px-4 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-md flex items-center justify-center space-x-1.5 cursor-pointer disabled:opacity-60"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{isSavingSettings ? "Đang lưu..." : "Lưu cài đặt cuộc thi"}</span>
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL NỘP TÁC PHẨM DỰ THI (TỰ ĐỘNG ĐỒNG BỘ THEO MỤC 2 CÀI ĐẶT) */}
       {/* ========================================================================= */}
       {showSubmitModal && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
@@ -572,53 +1832,53 @@ export default function MediaContestPublicPage({
             <button
               type="button"
               onClick={() => setShowSubmitModal(false)}
-              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 transition-colors"
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
 
             <div className="flex items-center space-x-3 mb-5">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#009E60] flex items-center justify-center shrink-0">
+              <div
+                style={{ backgroundColor: `${themeColor}18`, color: themeColor }}
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+              >
                 <Upload className="w-5 h-5" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Nộp Tác Phẩm Dự Thi</h3>
-                <p className="text-xs text-slate-500">
-                  {contest?.title || "Cuộc thi bình chọn ảnh/video trực tuyến"}
-                </p>
+                <p className="text-xs text-slate-500 line-clamp-1">{contest?.title}</p>
               </div>
             </div>
 
             {submitSuccess ? (
               <div className="p-8 text-center space-y-3">
-                <div className="w-14 h-14 bg-emerald-100 text-[#009E60] rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+                <div
+                  style={{ backgroundColor: `${themeColor}20`, color: themeColor }}
+                  className="w-14 h-14 rounded-full flex items-center justify-center mx-auto text-2xl font-bold"
+                >
                   ✓
                 </div>
-                <h4 className="text-base font-bold text-slate-900">
-                  Nộp tác phẩm thành công!
-                </h4>
+                <h4 className="text-base font-bold text-slate-900">Nộp tác phẩm thành công!</h4>
                 <p className="text-xs text-slate-500">
-                  Tác phẩm của bạn đã được ghi nhận vào hệ thống và hiển thị trong danh sách bình chọn.
+                  Tác phẩm của bạn đã được ghi nhận vào danh sách bình chọn.
                 </p>
               </div>
             ) : (
-              <form onSubmit={handleSubmitArtwork} className="space-y-4 text-xs">
-                {/* 1. Tên tác phẩm */}
+              <form onSubmit={handleSubmitArtwork} className="space-y-3.5 text-xs">
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
-                    Tên tác phẩm / Tiêu đề ảnh - video <span className="text-red-500">*</span>
+                    Tên tác phẩm dự thi <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     required
                     value={submitForm.title}
                     onChange={(e) => setSubmitForm({ ...submitForm, title: e.target.value })}
-                    placeholder="VD: Hoàng hôn trên Hồ Ea Súp Thượng"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600 bg-white"
+                    placeholder="VD: Nét đẹp Đồng Quê"
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
                   />
                 </div>
 
-                {/* 2. Họ và tên tác giả + Đơn vị thôn buôn */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block font-bold text-slate-700 mb-1">
@@ -628,138 +1888,318 @@ export default function MediaContestPublicPage({
                       type="text"
                       required
                       value={submitForm.authorName}
-                      onChange={(e) =>
-                        setSubmitForm({ ...submitForm, authorName: e.target.value })
-                      }
-                      placeholder="VD: Lê Thị Ánh Tuyết"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600 bg-white"
+                      onChange={(e) => setSubmitForm({ ...submitForm, authorName: e.target.value })}
+                      placeholder="VD: Nguyễn Thị Mai"
+                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
                     />
                   </div>
 
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Thôn / Buôn dự thi <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={submitForm.unitName}
-                      onChange={(e) =>
-                        setSubmitForm({ ...submitForm, unitName: e.target.value })
-                      }
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600 bg-white"
-                    >
-                      {EA_SUP_VILLAGES.map((v) => (
-                        <option key={v} value={v}>
-                          {v}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {/* 3. Số điện thoại & CCCD */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Số điện thoại</label>
-                    <input
-                      type="tel"
-                      value={submitForm.authorPhone}
-                      onChange={(e) =>
-                        setSubmitForm({ ...submitForm, authorPhone: e.target.value })
-                      }
-                      placeholder="0984 xxx xxx"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600 bg-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">Số CCCD (Bảo mật)</label>
-                    <input
-                      type="text"
-                      value={submitForm.authorCccd}
-                      onChange={(e) =>
-                        setSubmitForm({ ...submitForm, authorCccd: e.target.value })
-                      }
-                      placeholder="066092xxxxxx"
-                      className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600 bg-white"
-                    />
-                  </div>
-                </div>
-
-                {/* 4. Link Ảnh hoặc Video */}
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="font-bold text-slate-700">
-                      Đường dẫn hình ảnh hoặc video
-                    </label>
-                    <div className="flex items-center space-x-2 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => setSubmitForm({ ...submitForm, mediaType: "IMAGE" })}
-                        className={`px-2 py-0.5 rounded ${
-                          submitForm.mediaType === "IMAGE"
-                            ? "bg-emerald-100 text-emerald-800 font-bold"
-                            : "text-slate-500"
-                        }`}
+                  {reqFields.includes("unitName") && (
+                    <div>
+                      <label className="block font-bold text-slate-700 mb-1">
+                        Đơn vị / Thôn buôn <span className="text-red-500">*</span>
+                      </label>
+                      <select
+                        value={submitForm.unitName}
+                        onChange={(e) => setSubmitForm({ ...submitForm, unitName: e.target.value })}
+                        className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
                       >
-                        Ảnh
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setSubmitForm({ ...submitForm, mediaType: "VIDEO" })}
-                        className={`px-2 py-0.5 rounded ${
-                          submitForm.mediaType === "VIDEO"
-                            ? "bg-emerald-100 text-emerald-800 font-bold"
-                            : "text-slate-500"
-                        }`}
-                      >
-                        Video
-                      </button>
+                        {EA_SUP_VILLAGES.map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
                     </div>
+                  )}
+                </div>
+
+                {(reqFields.includes("authorPhone") || reqFields.includes("authorCccd")) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {reqFields.includes("authorPhone") && (
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Số điện thoại</label>
+                        <input
+                          type="tel"
+                          value={submitForm.authorPhone}
+                          onChange={(e) => setSubmitForm({ ...submitForm, authorPhone: e.target.value })}
+                          placeholder="0984 xxx xxx"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
+                        />
+                      </div>
+                    )}
+                    {reqFields.includes("authorCccd") && (
+                      <div>
+                        <label className="block font-bold text-slate-700 mb-1">Số CCCD</label>
+                        <input
+                          type="text"
+                          value={submitForm.authorCccd}
+                          onChange={(e) => setSubmitForm({ ...submitForm, authorCccd: e.target.value })}
+                          placeholder="066092xxxxxx"
+                          className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
+                        />
+                      </div>
+                    )}
                   </div>
+                )}
+
+                {/* Tải ảnh trực tiếp từ máy tính / điện thoại hoặc dán link */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-slate-700">
+                      Hình ảnh / Video tác phẩm <span className="text-red-500">*</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => submitFileInputRef.current?.click()}
+                      style={{ color: themeColor }}
+                      className="text-xs font-bold hover:underline flex items-center space-x-1 cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{isUploadingSubmitImage ? "Đang tải ảnh..." : "Tải ảnh từ máy"}</span>
+                    </button>
+                    <input
+                      ref={submitFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleSubmissionFileChange}
+                      className="hidden"
+                    />
+                  </div>
+
+                  {submitForm.mediaUrl && (
+                    <div className="w-full h-36 rounded-xl overflow-hidden bg-slate-100 border border-slate-200">
+                      <img
+                        src={submitForm.mediaUrl}
+                        alt="Xem trước tác phẩm"
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  )}
+
                   <input
-                    type="url"
+                    type="text"
                     value={submitForm.mediaUrl}
                     onChange={(e) => setSubmitForm({ ...submitForm, mediaUrl: e.target.value })}
-                    placeholder="https://... (hoặc để trống để dùng ảnh mẫu)"
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600 bg-white"
+                    placeholder="Hoặc dán đường dẫn ảnh/video (https://...)"
+                    className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
                   />
-                  <span className="text-[10px] text-slate-400">
-                    Hỗ trợ liên kết ảnh JPEG/PNG, video YouTube hoặc Google Drive công khai.
-                  </span>
                 </div>
 
-                {/* 5. Lời bình / Thuyết minh */}
-                <div>
-                  <label className="block font-bold text-slate-700 mb-1">
-                    Lời bình / Thuyết minh tác phẩm
-                  </label>
-                  <textarea
-                    rows={3}
-                    value={submitForm.description}
-                    onChange={(e) =>
-                      setSubmitForm({ ...submitForm, description: e.target.value })
-                    }
-                    placeholder="Giới thiệu ý nghĩa, hoàn cảnh sáng tác và thông điệp gửi tới bà con nhân dân..."
-                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-emerald-600 bg-white resize-none"
-                  ></textarea>
-                </div>
+                {reqFields.includes("description") && (
+                  <div>
+                    <label className="block font-bold text-slate-700 mb-1">
+                      Lời bình / Thuyết minh tác phẩm
+                    </label>
+                    <textarea
+                      rows={3}
+                      value={submitForm.description}
+                      onChange={(e) => setSubmitForm({ ...submitForm, description: e.target.value })}
+                      placeholder="Giới thiệu ý nghĩa, hoàn cảnh sáng tác tác phẩm..."
+                      className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white resize-none"
+                    />
+                  </div>
+                )}
 
                 <div className="pt-2 flex items-center justify-end space-x-3">
                   <button
                     type="button"
                     onClick={() => setShowSubmitModal(false)}
-                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs transition-colors"
+                    className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs cursor-pointer"
                   >
                     Hủy bỏ
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="px-6 py-2.5 rounded-xl bg-[#009E60] hover:bg-[#008552] text-white font-bold text-xs shadow-md transition-all flex items-center cursor-pointer"
+                    disabled={isSubmitting || isUploadingSubmitImage}
+                    style={{ backgroundColor: themeColor }}
+                    className="px-6 py-2.5 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-95 transition-opacity cursor-pointer"
                   >
                     {isSubmitting ? "Đang gửi..." : "Gửi tác phẩm dự thi"}
                   </button>
                 </div>
               </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL XEM CHI TIẾT TÁC PHẨM & BÌNH CHỌN / CHIA SẺ */}
+      {/* ========================================================================= */}
+      {selectedSubmission && (
+        <div className="fixed inset-0 z-50 bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-2xl w-full overflow-hidden shadow-2xl relative border border-slate-200 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              type="button"
+              onClick={() => setSelectedSubmission(null)}
+              className="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-2">
+              <div className="bg-slate-950 flex items-center justify-center max-h-[460px] overflow-hidden">
+                <img
+                  src={selectedSubmission.mediaUrl}
+                  alt={selectedSubmission.title}
+                  className="w-full h-full object-contain max-h-[440px]"
+                />
+              </div>
+
+              <div className="p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div className="space-y-2.5">
+                  <span
+                    style={{ backgroundColor: `${themeColor}18`, color: themeColor }}
+                    className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold"
+                  >
+                    {selectedSubmission.unitName}
+                  </span>
+                  <h3 className="text-lg font-extrabold text-slate-900">
+                    {selectedSubmission.title}
+                  </h3>
+                  <div className="text-xs text-slate-600">
+                    Tác giả: <strong className="text-slate-900">{selectedSubmission.authorName}</strong>
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed pt-2 border-t border-slate-100">
+                    {selectedSubmission.description || "Tác phẩm tham dự cuộc thi ảnh đẹp trực tuyến xã Ea Súp."}
+                  </p>
+                </div>
+
+                <div className="space-y-3 pt-3 border-t border-slate-100">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span className="font-bold text-slate-900">
+                      ⭐ {selectedSubmission.votesCount || 0} lượt bình chọn
+                    </span>
+                    <span>🔗 {selectedSubmission.sharesCount || 0} lượt chia sẻ</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => handleVote(selectedSubmission.id)}
+                    disabled={votedMap[selectedSubmission.id]}
+                    style={{
+                      backgroundColor: votedMap[selectedSubmission.id] ? "#E2E8F0" : themeColor,
+                      color: votedMap[selectedSubmission.id] ? "#475569" : "#FFFFFF",
+                    }}
+                    className="w-full py-2.5 rounded-full font-bold text-xs shadow-md cursor-pointer"
+                  >
+                    {votedMap[selectedSubmission.id] ? "✓ Bạn đã bình chọn tác phẩm này" : "Bình chọn cho tác phẩm"}
+                  </button>
+
+                  {contest?.enableSocialShare !== false && (
+                    <div className="flex items-center gap-2 pt-1">
+                      <button
+                        type="button"
+                        onClick={() => handleShareSubmission(selectedSubmission, "facebook")}
+                        className="flex-1 py-1.5 rounded-xl bg-[#1877F2] text-white text-[11px] font-bold cursor-pointer"
+                      >
+                        Chia sẻ Facebook
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleShareSubmission(selectedSubmission, "zalo")}
+                        className="flex-1 py-1.5 rounded-xl bg-[#0068FF] text-white text-[11px] font-bold cursor-pointer"
+                      >
+                        Chia sẻ Zalo
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* MODAL THỂ LỆ / BẢNG XẾP HẠNG TÁC PHẨM */}
+      {/* ========================================================================= */}
+      {infoModalTab && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 shadow-2xl relative border border-slate-100">
+            <button
+              type="button"
+              onClick={() => setInfoModalTab(null)}
+              className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 text-slate-500 cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            {infoModalTab === "rules" ? (
+              <div className="space-y-3">
+                <h3 className="text-base font-extrabold text-slate-900 uppercase">
+                  Thể lệ &amp; Thông tin Ban Tổ Chức
+                </h3>
+                <div className="text-xs text-slate-700 leading-relaxed whitespace-pre-line bg-slate-50 p-4 rounded-2xl border border-slate-200 max-h-80 overflow-y-auto">
+                  {contest?.rulesHtml ||
+                    contest?.description ||
+                    "Cuộc thi bình chọn tác phẩm ảnh/video trực tuyến xã Ea Súp."}
+                </div>
+                {contest?.announcement && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                    <strong>Thông báo BTC:</strong> {contest.announcement}
+                  </div>
+                )}
+                <div className="pt-2 text-[11px] text-slate-500 space-y-0.5">
+                  <div>
+                    <strong>Đơn vị tổ chức:</strong> {contest?.organizerName}
+                  </div>
+                  {contest?.organizerAddress && (
+                    <div>
+                      <strong>Địa chỉ:</strong> {contest.organizerAddress}
+                    </div>
+                  )}
+                  {contest?.organizerPhone && (
+                    <div>
+                      <strong>Điện thoại:</strong> {contest.organizerPhone}
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <h3 className="text-base font-extrabold text-slate-900 uppercase flex items-center space-x-2">
+                  <Trophy className="w-5 h-5 text-amber-500" />
+                  <span>Bảng xếp hạng Tác phẩm dẫn đầu</span>
+                </h3>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
+                  {[...submissions]
+                    .sort((a, b) => (b.votesCount || 0) - (a.votesCount || 0))
+                    .map((sub, idx) => (
+                      <div
+                        key={sub.id}
+                        className="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-3 text-xs"
+                      >
+                        <div className="flex items-center space-x-2.5 min-w-0">
+                          <span
+                            style={idx < 3 ? { backgroundColor: themeColor, color: "#fff" } : {}}
+                            className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0"
+                          >
+                            {idx + 1}
+                          </span>
+                          <img
+                            src={sub.mediaUrl}
+                            alt={sub.title}
+                            className="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-200"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-bold text-slate-900 truncate">{sub.title}</div>
+                            <div className="text-[11px] text-slate-500 truncate">
+                              {sub.authorName} • {sub.unitName}
+                            </div>
+                          </div>
+                        </div>
+                        <span
+                          style={{ color: themeColor }}
+                          className="font-extrabold whitespace-nowrap shrink-0"
+                        >
+                          {sub.votesCount || 0} bình chọn
+                        </span>
+                      </div>
+                    ))}
+                </div>
+              </div>
             )}
           </div>
         </div>

@@ -141,12 +141,34 @@ export interface MediaContestModel {
   type: "IMAGE" | "VIDEO";
   startDate: string;
   endDate: string;
+  submitStartDate?: string;
+  submitEndDate?: string;
+  voteStartDate?: string;
+  voteEndDate?: string;
   displayStartDate?: string;
   displayEndDate?: string;
   submissionsCount: number;
   status: "DRAFT" | "PUBLISHED" | "CLOSED";
   description?: string;
+  rulesHtml?: string;
+  rulesFileUrl?: string;
+  announcement?: string;
+  themeColor?: string;
+  layoutMode?: "vertical" | "horizontal";
+  sortBy?: "createdAt" | "votesCount" | "score";
+  enableSocialShare?: boolean;
+  sharePlatforms?: ("facebook" | "zalo")[];
+  requiredParticipantFields?: string[];
+  requireApproval?: boolean;
+  maxVotesPerUser?: number;
+  contestPassword?: string;
+  showLeaderboard?: boolean;
+  showVoteCount?: boolean;
+  showShareCount?: boolean;
   organizerName: string;
+  organizerAddress?: string;
+  organizerPhone?: string;
+  organizerEmail?: string;
   creatorEmail?: string;
   creatorId?: string;
   creatorName?: string;
@@ -161,11 +183,14 @@ export interface MediaSubmissionModel {
   authorName: string;
   authorPhone?: string;
   authorCccd?: string;
+  authorEmail?: string;
   unitName: string;
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
   description: string;
   votesCount: number;
+  sharesCount?: number;
+  score?: number;
   status: "APPROVED" | "PENDING" | "REJECTED";
   createdAt: string;
 }
@@ -1658,22 +1683,37 @@ class DataStore {
     this.mediaContests = [
       {
         id: "media-contest-1",
-        title: "CUỘC THI BÌNH CHỌN MỚI",
-        slug: "cuoc-thi-binh-chon-moi",
-        bannerUrl: "/images/contest_stage_banner.jpg",
+        title: "Nét đẹp văn hóa các dân tộc - Ea Súp năm 2026",
+        slug: "net-dep-van-hoa-cac-dan-toc-ea-sup-nam-2026",
+        bannerUrl: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=1200&q=80",
         type: "IMAGE",
-        startDate: "2026-11-02T00:00:00Z",
-        endDate: "2026-11-05T23:59:59Z",
-        displayStartDate: "2 thg 11, 2026",
-        displayEndDate: "5 thg 11, 2026",
-        submissionsCount: 0,
-        status: "DRAFT",
-        description: "Cuộc thi bình chọn tác phẩm hình ảnh chào mừng các ngày lễ lớn, nét đẹp văn hóa và đời sống xã Ea Súp.",
+        startDate: "2026-11-10T07:00",
+        endDate: "2026-11-24T07:00",
+        submitStartDate: "2026-11-10T07:00",
+        submitEndDate: "2026-11-18T07:00",
+        voteStartDate: "2026-11-18T08:00",
+        voteEndDate: "2026-11-24T07:00",
+        displayStartDate: "12 thg 11, 2026",
+        displayEndDate: "24 thg 11, 2026",
+        submissionsCount: 1,
+        status: "PUBLISHED",
+        description: "Đoàn kết - Bản sắc - Phát triển. Cuộc thi ảnh tôn vinh nét đẹp văn hóa các dân tộc xã Ea Súp năm 2026.",
         organizerName: "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
         creatorEmail: "Easupsohoa@gmail.com",
         creatorId: "user-admin-2",
         creatorName: "Thường trực UB MTTQ Việt Nam xã Ea Súp",
-        createdAt: "2026-10-28T00:00:00Z",
+        createdAt: "2026-11-10T07:00:00Z",
+        themeColor: "#1B7F5C",
+        layoutMode: "vertical",
+        sortBy: "votesCount",
+        enableSocialShare: true,
+        sharePlatforms: ["facebook", "zalo"],
+        requiredParticipantFields: ["authorName", "authorPhone", "unitName", "description"],
+        requireApproval: false,
+        maxVotesPerUser: 3,
+        showLeaderboard: true,
+        showVoteCount: true,
+        showShareCount: true,
       },
       {
         id: "media-contest-2",
@@ -1683,6 +1723,10 @@ class DataStore {
         type: "IMAGE",
         startDate: "2026-10-20T00:00:00Z",
         endDate: "2026-11-20T23:59:59Z",
+        submitStartDate: "2026-10-20T07:00",
+        submitEndDate: "2026-11-15T17:00",
+        voteStartDate: "2026-10-20T08:00",
+        voteEndDate: "2026-11-20T23:59",
         displayStartDate: "20 thg 10, 2026",
         displayEndDate: "20 thg 11, 2026",
         submissionsCount: 3,
@@ -1693,10 +1737,33 @@ class DataStore {
         creatorId: "user-phunu",
         creatorName: "Hội Phụ nữ & Đoàn Thanh niên xã Ea Súp",
         createdAt: "2026-10-20T08:00:00Z",
+        themeColor: "#1B7F5C",
+        layoutMode: "vertical",
+        sortBy: "votesCount",
+        enableSocialShare: true,
+        sharePlatforms: ["facebook", "zalo"],
       },
     ];
 
     this.mediaSubmissions = [
+      {
+        id: "sub-0",
+        contestId: "media-contest-1",
+        contestSlug: "net-dep-van-hoa-cac-dan-toc-ea-sup-nam-2026",
+        title: "Nét đẹp Đồng Quê",
+        authorName: "Nguyễn Văn An",
+        authorPhone: "0943123770",
+        authorCccd: "066092001122",
+        unitName: "Thôn Đoàn Kết",
+        mediaType: "IMAGE",
+        mediaUrl: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80",
+        description: "Khung cảnh thanh bình và trù phú của làng quê Ea Súp trong nắng sớm.",
+        votesCount: 15,
+        sharesCount: 4,
+        score: 95,
+        status: "APPROVED",
+        createdAt: "2026-11-10T08:00:00Z",
+      },
       {
         id: "sub-1",
         contestId: "media-contest-2",
@@ -1710,6 +1777,8 @@ class DataStore {
         mediaUrl: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
         description: "Mặt hồ trong veo đón ánh bình minh, thể hiện sức sống vươn lên của mảnh đất biên giới Ea Súp.",
         votesCount: 148,
+        sharesCount: 12,
+        score: 90,
         status: "APPROVED",
         createdAt: "2026-10-21T09:00:00Z",
       },
@@ -1726,6 +1795,8 @@ class DataStore {
         mediaUrl: "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=800&q=80",
         description: "Bảo tồn bản sắc văn hóa cồng chiêng và trang phục truyền thống của đồng bào các dân tộc xã Ea Súp.",
         votesCount: 215,
+        sharesCount: 28,
+        score: 98,
         status: "APPROVED",
         createdAt: "2026-10-22T14:30:00Z",
       },
@@ -1742,6 +1813,8 @@ class DataStore {
         mediaUrl: "https://images.unsplash.com/photo-1500382017468-9049fed747ef?auto=format&fit=crop&w=800&q=80",
         description: "Thành quả sau những ngày tháng cần cù lao động của bà con nhân dân các thôn buôn.",
         votesCount: 96,
+        sharesCount: 9,
+        score: 88,
         status: "APPROVED",
         createdAt: "2026-10-23T11:15:00Z",
       },
@@ -1760,7 +1833,10 @@ class DataStore {
 
   public getMediaContestBySlug(slug: string): MediaContestModel | undefined {
     this.loadFromDisk();
-    const contest = this.mediaContests.find((c) => (c.slug === slug || c.id === slug) && !this.isMediaContestDeleted(c));
+    let contest = this.mediaContests.find((c) => (c.slug === slug || c.id === slug) && !this.isMediaContestDeleted(c));
+    if (!contest && slug === "cuoc-thi-binh-chon-moi") {
+      contest = this.mediaContests.find((c) => !this.isMediaContestDeleted(c));
+    }
     if (!contest) return undefined;
     return {
       ...contest,
@@ -1786,18 +1862,40 @@ class DataStore {
 
     const newContest: MediaContestModel = {
       id,
-      title: data.title || "CUỘC THI BÌNH CHỌN MỚI",
+      title: data.title || "Nét đẹp văn hóa các dân tộc - Ea Súp năm 2026",
       slug,
       bannerUrl: data.bannerUrl || "/images/contest_stage_banner.jpg",
       type: data.type || "IMAGE",
-      startDate: data.startDate || "2026-11-02T00:00:00Z",
-      endDate: data.endDate || "2026-11-05T23:59:59Z",
-      displayStartDate: data.displayStartDate || "2 thg 11, 2026",
-      displayEndDate: data.displayEndDate || "5 thg 11, 2026",
+      startDate: data.startDate || "2026-11-10T07:00",
+      endDate: data.endDate || "2026-11-24T07:00",
+      submitStartDate: data.submitStartDate || data.startDate || "2026-11-10T07:00",
+      submitEndDate: data.submitEndDate || "2026-11-18T07:00",
+      voteStartDate: data.voteStartDate || "2026-11-18T08:00",
+      voteEndDate: data.voteEndDate || data.endDate || "2026-11-24T07:00",
+      displayStartDate: data.displayStartDate || "10/11/2026",
+      displayEndDate: data.displayEndDate || "24/11/2026",
       submissionsCount: 0,
-      status: data.status || "DRAFT",
+      status: data.status || "PUBLISHED",
       description: data.description || "Cuộc thi bình chọn tác phẩm hình ảnh/video trực tuyến",
+      rulesHtml: data.rulesHtml || data.description || "Tôn vinh vẻ đẹp thiên nhiên, văn hóa truyền thống và con người các dân tộc xã Ea Súp.",
+      rulesFileUrl: data.rulesFileUrl || "",
+      announcement: data.announcement || "Ban Tổ Chức đang tiếp nhận tác phẩm dự thi và mở cổng bình chọn trực tuyến công khai.",
+      themeColor: data.themeColor || "#1B7F5C",
+      layoutMode: data.layoutMode || "vertical",
+      sortBy: data.sortBy || "votesCount",
+      enableSocialShare: data.enableSocialShare !== undefined ? data.enableSocialShare : true,
+      sharePlatforms: data.sharePlatforms || ["facebook", "zalo"],
+      requiredParticipantFields: data.requiredParticipantFields || ["authorName", "unitName", "authorPhone", "description"],
+      requireApproval: data.requireApproval || false,
+      maxVotesPerUser: data.maxVotesPerUser || 5,
+      contestPassword: data.contestPassword || "",
+      showLeaderboard: data.showLeaderboard !== undefined ? data.showLeaderboard : true,
+      showVoteCount: data.showVoteCount !== undefined ? data.showVoteCount : true,
+      showShareCount: data.showShareCount !== undefined ? data.showShareCount : true,
       organizerName: data.organizerName || "Ủy ban MTTQ Việt Nam xã Ea Súp",
+      organizerAddress: data.organizerAddress || "72 Hùng Vương, xã Ea Súp, Huyện Ea Súp, Tỉnh Đắk Lắk",
+      organizerPhone: data.organizerPhone || "0888023023",
+      organizerEmail: data.organizerEmail || "Easupsohoa@gmail.com",
       creatorEmail: data.creatorEmail,
       creatorId: data.creatorId,
       creatorName: data.creatorName,
