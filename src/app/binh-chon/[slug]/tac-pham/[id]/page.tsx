@@ -15,6 +15,7 @@ import {
   ArrowLeft,
   X,
   Sparkles,
+  Trash2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -29,6 +30,10 @@ interface MediaContest {
   status: string;
   themeColor?: string;
   organizerName: string;
+  organizerEmail?: string;
+  creatorEmail?: string;
+  creatorId?: string;
+  sharedEmails?: string[];
   enableSocialShare?: boolean;
 }
 
@@ -84,8 +89,87 @@ export default function ArtworkDetailPage({
   const [hasVoted, setHasVoted] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const themeColor = contest?.themeColor || "#1B7F5C";
+
+  // Đồng bộ phiên đăng nhập người dùng / admin
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("cuocthi_admin_auth");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.status === "APPROVED") {
+          setAuthUser(parsed);
+        }
+      }
+    } catch {}
+  }, []);
+
+  // Phân quyền quản trị / xóa tác phẩm: Admin hoặc Người tạo cuộc thi / tác giả bài thi
+  const canManage = (() => {
+    if (!authUser) return false;
+    if (authUser.role === "ADMIN") return true;
+    const uEmail = (authUser.email || "").toLowerCase().trim();
+    const cEmail = (contest?.creatorEmail || contest?.organizerEmail || "").toLowerCase().trim();
+    const isCreator = Boolean(
+      (cEmail && uEmail && uEmail === cEmail) ||
+        (contest?.creatorId && authUser.id && contest.creatorId === authUser.id)
+    );
+    if (isCreator) return true;
+    const sharedList = Array.isArray(contest?.sharedEmails) ? contest!.sharedEmails! : [];
+    const isShared = Boolean(
+      uEmail && sharedList.some((em) => String(em || "").toLowerCase().trim() === uEmail)
+    );
+    if (isShared) return true;
+    const sEmail = (submission?.authorEmail || "").toLowerCase().trim();
+    return Boolean(uEmail && sEmail && uEmail === sEmail);
+  })();
+
+  // Xử lý xóa tác phẩm
+  const handleDeleteArtwork = async () => {
+    if (!authUser || !submission) {
+      alert("Vui lòng đăng nhập tài khoản có thẩm quyền để xóa tác phẩm!");
+      return;
+    }
+
+    const confirmMsg = `Bạn có chắc chắn muốn xóa tác phẩm dự thi:\n"${submission.title}"\nTác giả: ${submission.authorName} (${submission.unitName})\n\nLưu ý: Tác phẩm và toàn bộ lượt bình chọn liên quan sẽ bị xóa vĩnh viễn khỏi hệ thống!`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setIsDeleting(true);
+      const res = await fetch(
+        `/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(submission.id)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-role": authUser.role || "USER",
+            "x-user-email": authUser.email || "",
+            "x-user-id": authUser.id || "",
+          },
+          body: JSON.stringify({
+            userRole: authUser.role,
+            userEmail: authUser.email,
+            userId: authUser.id,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Đã xóa tác phẩm dự thi thành công!");
+        window.location.href = `/binh-chon/${slug}`;
+      } else {
+        alert(data.error || "Không thể xóa tác phẩm này!");
+      }
+    } catch (err: any) {
+      alert("Lỗi khi xóa tác phẩm: " + (err.message || "Vui lòng thử lại"));
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // Nạp dữ liệu tác phẩm & cuộc thi
   useEffect(() => {
@@ -256,6 +340,18 @@ export default function ArtworkDetailPage({
           </nav>
 
           <div className="flex items-center space-x-2 shrink-0">
+            {canManage && (
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleDeleteArtwork}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
+                title="Xóa bài thi này (quyền Quản trị / Người tạo)"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{isDeleting ? "Đang xóa..." : "Xóa tác phẩm"}</span>
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setShowShareModal(true)}
@@ -438,6 +534,22 @@ export default function ArtworkDetailPage({
                   </button>
                 </div>
               </div>
+
+              {/* Khu vực Quản trị: Nút Xóa tác phẩm */}
+              {canManage && (
+                <div className="pt-3 border-t border-red-100 flex items-center justify-between">
+                  <span className="text-xs text-slate-500 font-medium">Quyền quản trị / Người tạo</span>
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    onClick={handleDeleteArtwork}
+                    className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>{isDeleting ? "Đang xóa..." : "Xóa tác phẩm này"}</span>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -566,3 +678,4 @@ export default function ArtworkDetailPage({
     </div>
   );
 }
+

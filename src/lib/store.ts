@@ -2196,6 +2196,47 @@ class DataStore {
     return { success: true, votesCount: sub.votesCount };
   }
 
+  public deleteMediaSubmission(
+    submissionId: string,
+    user?: { email?: string; role?: string; id?: string }
+  ): { success: boolean; error?: string } {
+    this.loadFromDisk(true);
+    const subIdx = this.mediaSubmissions.findIndex((s) => s.id === submissionId);
+    if (subIdx === -1) {
+      return { success: false, error: "Không tìm thấy tác phẩm dự thi!" };
+    }
+    const sub = this.mediaSubmissions[subIdx];
+    const contest = this.mediaContests.find(
+      (c) => c.id === sub.contestId || c.slug === sub.contestSlug
+    );
+
+    // Kiểm tra quyền: Admin, hoặc Người tạo cuộc thi (hoặc tác giả gửi bài)
+    let hasPermission = false;
+    if (user) {
+      if (user.role === "ADMIN") hasPermission = true;
+      if (contest && this.canUserEditMediaContest(contest, user)) hasPermission = true;
+      const uEmail = (user.email || "").toLowerCase().trim();
+      const sEmail = (sub.authorEmail || "").toLowerCase().trim();
+      if (uEmail && sEmail && uEmail === sEmail) hasPermission = true;
+    }
+
+    if (!hasPermission) {
+      return { success: false, error: "Bạn không có quyền xóa tác phẩm này!" };
+    }
+
+    this.mediaSubmissions.splice(subIdx, 1);
+
+    if (contest) {
+      const remaining = this.mediaSubmissions.filter(
+        (s) => s.contestId === contest.id || s.contestSlug === contest.slug
+      ).length;
+      contest.submissionsCount = remaining;
+    }
+
+    this.saveToDisk();
+    return { success: true };
+  }
+
   // ZERO ANSWER LEAKAGE: When sanitizeForStudent = true, remove correctOptionIds and explanation
   public getContestQuestions(contestId: string, sanitizeForStudent = false): Partial<QuestionModel>[] {
     this.loadFromDisk();

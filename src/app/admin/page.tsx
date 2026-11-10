@@ -979,6 +979,48 @@ export default function AdminDashboardPage() {
     }
   };
 
+  const handleDeleteMediaSubmissionFromAdmin = async (sub: any) => {
+    if (!activeMediaContestForSubmissions) return;
+    const confirmMsg = `Bạn có chắc chắn muốn xóa tác phẩm dự thi:\n"${sub.title}" của tác giả ${sub.authorName} (${sub.unitName})?\n\nLưu ý: Tác phẩm và số lượt bình chọn liên quan sẽ bị xóa vĩnh viễn khỏi hệ thống!`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      const res = await fetch(
+        `/api/media-contests/${encodeURIComponent(activeMediaContestForSubmissions.slug)}/tac-pham/${encodeURIComponent(sub.id)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-role": authUser?.role || "ADMIN",
+            "x-user-email": authUser?.email || "",
+            "x-user-id": authUser?.id || "",
+          },
+          body: JSON.stringify({
+            userRole: authUser?.role,
+            userEmail: authUser?.email,
+            userId: authUser?.id,
+          }),
+        }
+      );
+      const data = await res.json();
+      if (data.success) {
+        setCurrentMediaSubmissions((prev: any[]) => prev.filter((s: any) => s.id !== sub.id));
+        setMediaContests((prev: any[]) =>
+          prev.map((c) =>
+            c.id === activeMediaContestForSubmissions.id
+              ? { ...c, submissionsCount: Math.max(0, (c.submissionsCount || 1) - 1) }
+              : c
+          )
+        );
+        alert("Đã xóa tác phẩm dự thi thành công!");
+      } else {
+        alert(data.error || "Không thể xóa tác phẩm này!");
+      }
+    } catch (err: any) {
+      alert("Lỗi khi xóa tác phẩm: " + (err.message || "Vui lòng thử lại"));
+    }
+  };
+
   const handleOpenEditMediaContest = (c: any) => {
     if (!canUserManageMediaContest(c)) {
       alert("Chỉ người tạo, Quản trị viên (Admin) hoặc người được chia sẻ quyền mới được chỉnh sửa cuộc thi này!");
@@ -4575,10 +4617,20 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-3 self-end sm:self-center">
+                    <div className="flex items-center space-x-2 self-end sm:self-center">
                       <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
                         ❤️ {sub.votesCount} bình chọn
                       </span>
+
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteMediaSubmissionFromAdmin(sub)}
+                        className="px-2.5 py-1 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 border border-red-200 text-xs font-semibold inline-flex items-center gap-1 transition-colors cursor-pointer"
+                        title="Xóa tác phẩm này khỏi cuộc thi"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Xóa</span>
+                      </button>
                     </div>
                   </div>
                 ))}

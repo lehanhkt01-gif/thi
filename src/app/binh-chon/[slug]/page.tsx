@@ -41,6 +41,7 @@ import {
   QrCode,
   Eye,
   LogOut,
+  Trash2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { EA_SUP_VILLAGES } from "@/lib/store";
@@ -952,6 +953,56 @@ export default function MediaContestPublicPage({
     }
   };
 
+  const [isDeletingSubId, setIsDeletingSubId] = useState<string | null>(null);
+
+  // Xóa tác phẩm dự thi (dành cho Admin hoặc Người tạo cuộc thi / tác giả)
+  const handleDeleteSubmission = async (sub: MediaSubmission) => {
+    if (!authUser) {
+      alert("Vui lòng đăng nhập tài khoản có thẩm quyền để xóa tác phẩm!");
+      return;
+    }
+
+    const confirmMsg = `Bạn có chắc chắn muốn xóa tác phẩm dự thi:\n"${sub.title}"\nTác giả: ${sub.authorName} (${sub.unitName})\n\nLưu ý: Tác phẩm và toàn bộ lượt bình chọn liên quan sẽ bị xóa hoàn toàn khỏi hệ thống!`;
+    if (!window.confirm(confirmMsg)) return;
+
+    try {
+      setIsDeletingSubId(sub.id);
+      const res = await fetch(
+        `/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(sub.id)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            "x-user-role": authUser.role || "USER",
+            "x-user-email": authUser.email || "",
+            "x-user-id": authUser.id || "",
+          },
+          body: JSON.stringify({
+            userRole: authUser.role,
+            userEmail: authUser.email,
+            userId: authUser.id,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      if (data.success) {
+        setSubmissions((prev) => prev.filter((s) => s.id !== sub.id));
+        if (selectedSubmission?.id === sub.id) {
+          setSelectedSubmission(null);
+        }
+        broadcastMediaContestSync();
+        alert("Đã xóa tác phẩm dự thi thành công!");
+      } else {
+        alert(data.error || "Không thể xóa tác phẩm này!");
+      }
+    } catch (err: any) {
+      alert("Lỗi khi xóa tác phẩm: " + (err.message || "Vui lòng thử lại"));
+    } finally {
+      setIsDeletingSubId(null);
+    }
+  };
+
   // Handle Artwork Submission
   const handleSubmitArtwork = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1578,6 +1629,10 @@ export default function MediaContestPublicPage({
             >
               {paginatedSubmissions.map((sub) => {
                 const hasVoted = votedMap[sub.id];
+                const isSubAuthor = Boolean(
+                  authUser?.email && sub.authorEmail && authUser.email.toLowerCase() === sub.authorEmail.toLowerCase()
+                );
+                const canDeleteThisSub = canManage || isSubAuthor;
                 const subImages =
                   Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
                     ? sub.mediaUrls
@@ -1590,55 +1645,73 @@ export default function MediaContestPublicPage({
                   <div
                     key={sub.id}
                     style={{ borderColor: themeColor }}
-                    className={`bg-white rounded-2xl border-2 p-3 shadow-xs hover:shadow-md transition-all flex justify-between ${
+                    className={`bg-white rounded-2xl border-2 p-3 shadow-xs hover:shadow-md transition-all flex justify-between relative ${
                       isHorizontalCardLayout
                         ? "flex-col sm:flex-row gap-4 items-stretch"
                         : "flex-col gap-3"
                     }`}
                   >
                     {/* Khung Ảnh / Video tác phẩm */}
-                    <Link
-                      href={`/binh-chon/${slug}/tac-pham/${sub.id}`}
-                      className={`relative rounded-xl overflow-hidden bg-slate-900/5 cursor-pointer group block ${
-                        isHorizontalCardLayout
-                          ? "w-full sm:w-52 md:w-60 aspect-[4/3] shrink-0"
-                          : autoImageOrientation === "horizontal"
-                            ? "w-full aspect-[4/3]"
-                            : "w-full aspect-[3/4]"
-                      }`}
-                    >
-                      <img
-                        src={subImages[0] || sub.mediaUrl}
-                        alt={sub.title}
-                        onLoad={(e) => {
-                          const imgEl = e.currentTarget;
-                          if (imgEl.naturalWidth && imgEl.naturalHeight) {
-                            const naturalOrient: "vertical" | "horizontal" =
-                              imgEl.naturalWidth > imgEl.naturalHeight
-                                ? "horizontal"
-                                : "vertical";
-                            if (imageOrientations[sub.id] !== naturalOrient) {
-                              setImageOrientations((prev) => ({
-                                ...prev,
-                                [sub.id]: naturalOrient,
-                              }));
-                            }
-                          }
-                        }}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      {subImages.length > 1 && (
-                        <span className="absolute top-2.5 right-2.5 bg-black/75 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
-                          📷 {subImages.length} hình
-                        </span>
+                    <div className="relative">
+                      {canDeleteThisSub && (
+                        <button
+                          type="button"
+                          title="Xóa tác phẩm này"
+                          disabled={isDeletingSubId === sub.id}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteSubmission(sub);
+                          }}
+                          className="absolute top-2.5 left-2.5 z-20 px-2.5 py-1 rounded-full bg-red-600/90 hover:bg-red-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-md transition-all hover:scale-105 cursor-pointer backdrop-blur-xs"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>{isDeletingSubId === sub.id ? "Đang xóa..." : "Xóa"}</span>
+                        </button>
                       )}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 bg-black/75 text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center space-x-1.5 transition-opacity shadow-sm">
-                          <Eye className="w-3.5 h-3.5" />
-                          <span>Xem chi tiết &amp; Bình chọn</span>
-                        </span>
-                      </div>
-                    </Link>
+                      <Link
+                        href={`/binh-chon/${slug}/tac-pham/${sub.id}`}
+                        className={`relative rounded-xl overflow-hidden bg-slate-900/5 cursor-pointer group block ${
+                          isHorizontalCardLayout
+                            ? "w-full sm:w-52 md:w-60 aspect-[4/3] shrink-0"
+                            : autoImageOrientation === "horizontal"
+                              ? "w-full aspect-[4/3]"
+                              : "w-full aspect-[3/4]"
+                        }`}
+                      >
+                        <img
+                          src={subImages[0] || sub.mediaUrl}
+                          alt={sub.title}
+                          onLoad={(e) => {
+                            const imgEl = e.currentTarget;
+                            if (imgEl.naturalWidth && imgEl.naturalHeight) {
+                              const naturalOrient: "vertical" | "horizontal" =
+                                imgEl.naturalWidth > imgEl.naturalHeight
+                                  ? "horizontal"
+                                  : "vertical";
+                              if (imageOrientations[sub.id] !== naturalOrient) {
+                                setImageOrientations((prev) => ({
+                                  ...prev,
+                                  [sub.id]: naturalOrient,
+                                }));
+                              }
+                            }
+                          }}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                        {subImages.length > 1 && (
+                          <span className="absolute top-2.5 right-2.5 bg-black/75 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
+                            📷 {subImages.length} hình
+                          </span>
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                          <span className="opacity-0 group-hover:opacity-100 bg-black/75 text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center space-x-1.5 transition-opacity shadow-sm">
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Xem chi tiết &amp; Bình chọn</span>
+                          </span>
+                        </div>
+                      </Link>
+                    </div>
 
                     {/* Phần tên tác phẩm, tác giả, nút Bình chọn và hàng thống kê ☆ bình chọn / 🔗 chia sẻ cân đối, rõ ràng */}
                     <div className="flex-1 min-w-0 flex flex-col justify-between text-center px-1 py-0.5">
@@ -1691,6 +1764,24 @@ export default function MediaContestPublicPage({
                             </button>
                           )}
                         </div>
+
+                        {canDeleteThisSub && (
+                          <div className="pt-1.5 border-t border-red-50 flex justify-center">
+                            <button
+                              type="button"
+                              disabled={isDeletingSubId === sub.id}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteSubmission(sub);
+                              }}
+                              className="text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span>{isDeletingSubId === sub.id ? "Đang xóa..." : "Xóa tác phẩm"}</span>
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -2915,6 +3006,26 @@ export default function MediaContestPublicPage({
                     >
                       <QrCode className="w-3.5 h-3.5 text-[#DC2626]" />
                       <span>Chia sẻ đa nền tảng &amp; Mã QR</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Nút xóa tác phẩm dành cho Admin hoặc Người tạo cuộc thi / tác giả */}
+                {(canManage ||
+                  Boolean(
+                    authUser?.email &&
+                      selectedSubmission.authorEmail &&
+                      authUser.email.toLowerCase() === selectedSubmission.authorEmail.toLowerCase()
+                  )) && (
+                  <div className="pt-2 border-t border-red-100 flex items-center justify-end">
+                    <button
+                      type="button"
+                      disabled={isDeletingSubId === selectedSubmission.id}
+                      onClick={() => handleDeleteSubmission(selectedSubmission)}
+                      className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{isDeletingSubId === selectedSubmission.id ? "Đang xóa..." : "Xóa tác phẩm này"}</span>
                     </button>
                   </div>
                 )}
