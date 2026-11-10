@@ -204,6 +204,8 @@ export default function MediaContestPublicPage({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [shareModalTarget, setShareModalTarget] = useState<MediaSubmission | "CONTEST" | null>(null);
+  const [copiedShareModalLink, setCopiedShareModalLink] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({});
   const [imageOrientations, setImageOrientations] = useState<Record<string, "vertical" | "horizontal">>({});
 
@@ -439,7 +441,18 @@ export default function MediaContestPublicPage({
         if (!initModes.includes(viewOrientation)) {
           setViewOrientation(initModes[0] || "vertical");
         }
-        setSubmissions(data.submissions || []);
+        const loadedSubs: MediaSubmission[] = data.submissions || [];
+        setSubmissions(loadedSubs);
+        if (typeof window !== "undefined") {
+          const urlParams = new URLSearchParams(window.location.search);
+          const artworkId = urlParams.get("artwork");
+          if (artworkId) {
+            const matchedSub = loadedSubs.find((s) => s.id === artworkId);
+            if (matchedSub) {
+              setSelectedSubmission(matchedSub);
+            }
+          }
+        }
       }
     } catch (err) {
       console.error("Lỗi nạp dữ liệu cuộc thi ảnh/video:", err);
@@ -811,22 +824,75 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Chia sẻ tác phẩm lên Facebook / Zalo
-  const handleShareSubmission = (sub: MediaSubmission, platform?: "facebook" | "zalo") => {
-    const shareUrl = typeof window !== "undefined" ? window.location.href : `https://thi.easupso.com/binh-chon/${slug}`;
+  // Tăng biến đếm chia sẻ cho tác phẩm
+  const incrementSubmissionShareCount = (subId: string) => {
     setSubmissions((prev) =>
-      prev.map((s) => (s.id === sub.id ? { ...s, sharesCount: (s.sharesCount || 0) + 1 } : s))
+      prev.map((s) => (s.id === subId ? { ...s, sharesCount: (s.sharesCount || 0) + 1 } : s))
     );
+    if (selectedSubmission?.id === subId) {
+      setSelectedSubmission((prev) =>
+        prev ? { ...prev, sharesCount: (prev.sharesCount || 0) + 1 } : prev
+      );
+    }
+    setShareModalTarget((prev) =>
+      prev && prev !== "CONTEST" && prev.id === subId
+        ? { ...prev, sharesCount: (prev.sharesCount || 0) + 1 }
+        : prev
+    );
+  };
+
+  // Mở hộp thoại chia sẻ đa nền tảng (tương tự cuộc thi trắc nghiệm trực tuyến)
+  const openShareModal = (target: MediaSubmission | "CONTEST") => {
+    setCopiedShareModalLink(false);
+    setShareModalTarget(target);
+  };
+
+  // Chia sẻ tác phẩm hoặc cuộc thi đa nền tảng (Zalo, Facebook, Telegram, Email, Sao chép link, Web Share)
+  const handleShareSubmission = (
+    sub: MediaSubmission,
+    platform?: "facebook" | "zalo" | "telegram" | "email" | "native" | "copy"
+  ) => {
+    if (!platform) {
+      openShareModal(sub);
+      return;
+    }
+    const baseUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/binh-chon/${slug}`
+        : `https://thi.easupso.com/binh-chon/${slug}`;
+    const shareUrl = `${baseUrl}?artwork=${encodeURIComponent(sub.id)}`;
+    const shareTitle = `${sub.title} - Tác giả: ${sub.authorName} (${sub.unitName}) | ${contest?.title || "Cuộc thi Ảnh đẹp Ea Súp"}`;
+
+    incrementSubmissionShareCount(sub.id);
+
     if (platform === "facebook") {
       window.open(
-        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareTitle)}`,
         "_blank",
-        "width=600,height=450"
+        "width=640,height=480"
       );
     } else if (platform === "zalo") {
       window.open(`https://zalo.me/share?url=${encodeURIComponent(shareUrl)}`, "_blank");
+    } else if (platform === "telegram") {
+      window.open(
+        `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`,
+        "_blank",
+        "width=640,height=480"
+      );
+    } else if (platform === "email") {
+      window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`Mời bạn xem và bình chọn cho tác phẩm "${sub.title}" của tác giả ${sub.authorName} (${sub.unitName}) tại đường dẫn:\n${shareUrl}`)}`;
+    } else if (platform === "native" && typeof navigator !== "undefined" && navigator.share) {
+      navigator
+        .share({
+          title: shareTitle,
+          text: `Bình chọn cho tác phẩm "${sub.title}" - ${sub.authorName} (${sub.unitName})`,
+          url: shareUrl,
+        })
+        .catch(() => {});
     } else {
       navigator.clipboard?.writeText(shareUrl);
+      setCopiedShareModalLink(true);
+      setTimeout(() => setCopiedShareModalLink(false), 2500);
       setSaveToast(`Đã sao chép liên kết chia sẻ tác phẩm "${sub.title}"!`);
       setTimeout(() => setSaveToast(""), 2500);
     }
@@ -1166,6 +1232,16 @@ export default function MediaContestPublicPage({
                 <span>Bảng xếp hạng</span>
               </button>
             )}
+
+            <button
+              type="button"
+              onClick={() => openShareModal("CONTEST")}
+              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-[#0284C7] hover:border-sky-300 font-semibold shadow-2xs transition-colors cursor-pointer"
+              title="Chia sẻ cuộc thi đa nền tảng & Mã QR"
+            >
+              <Share2 className="w-3.5 h-3.5 mr-1 text-[#0284C7]" />
+              <span>Chia sẻ</span>
+            </button>
           </div>
 
           {/* Cụm nút bên phải: [ Đăng nhập / Tài khoản ] + [ Hiển thị nhanh / Cài đặt ] + [ Tìm kiếm... ] */}
@@ -1275,7 +1351,7 @@ export default function MediaContestPublicPage({
             >
               &quot;{contest?.title || "NÉT ĐẸP VĂN HÓA CÁC DÂN TỘC - EA SÚP NĂM 2026"}&quot;
             </h1>
-            {canManage ? (
+            {canManage && (
               <button
                 type="button"
                 onClick={() => openSpecificSetting("cau-hinh")}
@@ -1284,16 +1360,15 @@ export default function MediaContestPublicPage({
               >
                 <Edit className="w-4 h-4" />
               </button>
-            ) : (
-              <button
-                type="button"
-                onClick={handleCopyLink}
-                className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-                title="Sao chép liên kết cuộc thi"
-              >
-                {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
-              </button>
             )}
+            <button
+              type="button"
+              onClick={() => openShareModal("CONTEST")}
+              className="p-1.5 rounded-full text-slate-400 hover:text-[#0284C7] hover:bg-sky-50 transition-colors cursor-pointer"
+              title="Chia sẻ cuộc thi đa nền tảng & Mã QR"
+            >
+              {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
+            </button>
           </div>
 
           {/* Dòng chữ: THỜI GIAN NỘP BÀI KẾT THÚC SAU */}
@@ -1377,15 +1452,15 @@ export default function MediaContestPublicPage({
         {/* 3. DANH SÁCH TÁC PHẨM & BỘ LỌC TÌM KIẾM (ẢNH 4) */}
         {/* ========================================================================= */}
         <div className="max-w-5xl lg:max-w-6xl xl:max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 pb-16 space-y-6 flex-1">
-          {/* Header: DANH SÁCH TÁC PHẨM (Trái) & Ô Tìm kiếm tác phẩm (Phải) */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-3 border-b border-slate-200">
+          {/* Header: DANH SÁCH TÁC PHẨM (Trái) & Ô Tìm kiếm tác phẩm (Phải) - Căn chỉnh khoa học, không chồng lấn */}
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-3.5 border-b border-slate-200">
             <div>
               <div
-                className="w-14 h-1 rounded-full mb-1.5"
+                className="w-14 h-1 rounded-full mb-2"
                 style={{ backgroundColor: themeColor }}
               />
-              <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                <h2 className="text-sm sm:text-base font-extrabold uppercase text-slate-800 tracking-wide">
+              <div className="flex items-center flex-wrap gap-2.5">
+                <h2 className="text-sm sm:text-base font-extrabold uppercase text-slate-800 tracking-wide whitespace-nowrap">
                   DANH SÁCH TÁC PHẨM
                 </h2>
                 <button
@@ -1395,13 +1470,13 @@ export default function MediaContestPublicPage({
                       prev === "vertical" ? "horizontal" : "vertical"
                     )
                   }
-                  className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                  className="p-1.5 rounded-lg bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-colors cursor-pointer shrink-0"
                   title={layoutMode === "vertical" ? "Đang xem: Bố cục dọc" : "Đang xem: Bố cục ngang"}
                 >
                   <LayoutGrid className="w-4 h-4" />
                 </button>
                 {layoutModes.length >= 2 && (
-                  <div className="inline-flex items-center rounded-full bg-slate-100 p-0.5 text-[11px] font-bold">
+                  <div className="inline-flex items-center rounded-full bg-slate-200/80 p-1 text-xs font-bold gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => setViewOrientation("vertical")}
@@ -1410,7 +1485,7 @@ export default function MediaContestPublicPage({
                           ? { backgroundColor: themeColor, color: "#fff" }
                           : {}
                       }
-                      className="px-2.5 py-0.5 rounded-full text-slate-600 transition-colors cursor-pointer"
+                      className="px-3.5 py-1 rounded-full text-slate-700 transition-all whitespace-nowrap cursor-pointer shadow-2xs"
                     >
                       Dọc
                     </button>
@@ -1422,7 +1497,7 @@ export default function MediaContestPublicPage({
                           ? { backgroundColor: themeColor, color: "#fff" }
                           : {}
                       }
-                      className="px-2.5 py-0.5 rounded-full text-slate-600 transition-colors cursor-pointer"
+                      className="px-3.5 py-1 rounded-full text-slate-700 transition-all whitespace-nowrap cursor-pointer"
                     >
                       Ngang
                     </button>
@@ -1432,7 +1507,7 @@ export default function MediaContestPublicPage({
                   <button
                     type="button"
                     onClick={() => openSpecificSetting("cai-dat-bai-du-thi")}
-                    className="p-1 rounded text-slate-400 hover:text-slate-700 cursor-pointer"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer shrink-0"
                     title="Cài đặt bố cục & sắp xếp bài dự thi"
                   >
                     <Settings className="w-4 h-4" />
@@ -1450,20 +1525,20 @@ export default function MediaContestPublicPage({
                   setSearchQuery(e.target.value);
                   setCurrentPage(1);
                 }}
-                placeholder="Tìm kiếm tác phẩm"
-                className="flex-1 px-4 py-1.5 text-xs rounded-full border border-slate-300 bg-white focus:outline-none focus:border-slate-500"
+                placeholder="Tìm kiếm tác phẩm, tác giả, đơn vị..."
+                className="flex-1 px-4 py-2 text-xs rounded-full border border-slate-300 bg-white focus:outline-none focus:border-slate-500"
               />
               <button
                 type="button"
                 style={{ backgroundColor: themeColor }}
-                className="px-4 py-1.5 text-white text-xs font-bold rounded-full shadow-2xs hover:opacity-95 transition-opacity shrink-0 cursor-pointer"
+                className="px-4 py-2 text-white text-xs font-bold rounded-full shadow-2xs hover:opacity-95 transition-opacity shrink-0 whitespace-nowrap cursor-pointer"
               >
                 Tìm kiếm
               </button>
             </div>
           </div>
 
-          {/* Danh sách bài dự thi (Chuẩn thẻ khung viền màu chủ đề như Ảnh 4) */}
+          {/* Danh sách bài dự thi (Thiết kế khoa học, cân đối, tuyệt đối không chồng lấn chữ & nút như Ảnh 1) */}
           {paginatedSubmissions.length === 0 ? (
             <div className="py-12 flex flex-col items-center justify-center text-center">
               <div className="w-full max-w-md bg-white rounded-3xl p-8 border border-slate-200 shadow-2xs space-y-3">
@@ -1485,8 +1560,8 @@ export default function MediaContestPublicPage({
             <div
               className={
                 layoutMode === "vertical"
-                  ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5"
-                  : "grid grid-cols-1 sm:grid-cols-2 gap-5"
+                  ? "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5 items-stretch"
+                  : "grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
               }
             >
               {paginatedSubmissions.map((sub) => {
@@ -1495,30 +1570,32 @@ export default function MediaContestPublicPage({
                   Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
                     ? sub.mediaUrls
                     : [sub.mediaUrl];
-                // Tự động nhận diện khung hiển thị theo tỷ lệ hình ảnh thực tế của tác phẩm
-                const autoImageOrientation = imageOrientations[sub.id] || sub.orientation;
-                const cardOrientation =
-                  layoutModes.length >= 2 && autoImageOrientation
-                    ? autoImageOrientation
-                    : autoImageOrientation || layoutMode;
+                // Tự động nhận diện tỷ lệ hình ảnh nhưng cấu trúc thẻ tuân theo chế độ lưới (Dọc / Ngang) để không bao giờ bị ép hẹp chữ
+                const autoImageOrientation = imageOrientations[sub.id] || sub.orientation || "vertical";
+                const isHorizontalCardLayout = layoutMode === "horizontal";
+
                 return (
                   <div
                     key={sub.id}
                     style={{ borderColor: themeColor }}
-                    className={`bg-white rounded-xl border-2 p-2 shadow-xs hover:shadow-md transition-all flex ${
-                      cardOrientation === "vertical" ? "flex-col" : "flex-col sm:flex-row gap-3"
+                    className={`bg-white rounded-2xl border-2 p-3 shadow-xs hover:shadow-md transition-all flex justify-between ${
+                      isHorizontalCardLayout
+                        ? "flex-col sm:flex-row gap-4 items-stretch"
+                        : "flex-col gap-3"
                     }`}
                   >
-                    {/* Khung Ảnh / Video tác phẩm (Tự động theo tỷ lệ hình) */}
+                    {/* Khung Ảnh / Video tác phẩm */}
                     <div
                       onClick={() => {
                         setSelectedSubmissionImageIdx(0);
                         setSelectedSubmission(sub);
                       }}
-                      className={`relative rounded-lg overflow-hidden bg-slate-100 cursor-pointer group ${
-                        cardOrientation === "vertical"
-                          ? "w-full aspect-[3/4]"
-                          : "w-full sm:w-48 aspect-[4/3] shrink-0"
+                      className={`relative rounded-xl overflow-hidden bg-slate-900/5 cursor-pointer group ${
+                        isHorizontalCardLayout
+                          ? "w-full sm:w-52 md:w-60 aspect-[4/3] shrink-0"
+                          : autoImageOrientation === "horizontal"
+                            ? "w-full aspect-[4/3]"
+                            : "w-full aspect-[3/4]"
                       }`}
                     >
                       <img
@@ -1542,50 +1619,54 @@ export default function MediaContestPublicPage({
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
                       {subImages.length > 1 && (
-                        <span className="absolute top-2 right-2 bg-black/70 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        <span className="absolute top-2.5 right-2.5 bg-black/75 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
                           📷 {subImages.length} hình
                         </span>
                       )}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 bg-black/70 text-white text-[11px] font-bold px-3 py-1 rounded-full flex items-center space-x-1 transition-opacity">
-                          <Eye className="w-3 h-3" />
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors flex items-center justify-center">
+                        <span className="opacity-0 group-hover:opacity-100 bg-black/75 text-white text-xs font-bold px-3.5 py-1.5 rounded-full flex items-center space-x-1.5 transition-opacity shadow-sm">
+                          <Eye className="w-3.5 h-3.5" />
                           <span>Xem chi tiết</span>
                         </span>
                       </div>
                     </div>
 
-                    {/* Phần tên tác phẩm, nút Bình chọn và hàng thống kê ☆ bình chọn / 🔗 chia sẻ giống hệt Ảnh 4 */}
-                    <div className="pt-2.5 pb-1 px-1 flex-1 flex flex-col justify-between text-center">
-                      <div>
+                    {/* Phần tên tác phẩm, tác giả, nút Bình chọn và hàng thống kê ☆ bình chọn / 🔗 chia sẻ cân đối, rõ ràng */}
+                    <div className="flex-1 min-w-0 flex flex-col justify-between text-center px-1 py-0.5">
+                      <div className="space-y-1">
                         <h3
-                          onClick={() => setSelectedSubmission(sub)}
-                          className="font-bold text-xs sm:text-sm text-slate-900 line-clamp-1 cursor-pointer hover:underline"
+                          onClick={() => {
+                            setSelectedSubmissionImageIdx(0);
+                            setSelectedSubmission(sub);
+                          }}
+                          title={sub.title}
+                          className="font-extrabold text-sm sm:text-[15px] text-slate-900 line-clamp-2 leading-snug cursor-pointer hover:underline"
                         >
                           {sub.title}
                         </h3>
-                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+                        <p className="text-xs text-slate-500 font-medium truncate">
                           {sub.authorName} • {sub.unitName}
                         </p>
                       </div>
 
-                      <div className="mt-2.5 space-y-2">
+                      <div className="mt-3 pt-1 space-y-2.5">
                         <button
                           type="button"
                           onClick={() => handleVote(sub.id)}
                           disabled={hasVoted}
                           style={{
                             backgroundColor: hasVoted ? "#E2E8F0" : themeColor,
-                            color: hasVoted ? "#475569" : "#FFFFFF",
+                            color: hasVoted ? "#334155" : "#FFFFFF",
                           }}
-                          className="w-full max-w-[140px] mx-auto py-1.5 px-4 rounded-full text-xs font-bold shadow-2xs hover:opacity-95 transition-all cursor-pointer active:scale-95"
+                          className="w-full max-w-[165px] mx-auto py-2 px-5 rounded-full text-xs font-bold whitespace-nowrap shadow-xs hover:opacity-95 transition-all cursor-pointer active:scale-95 flex items-center justify-center"
                         >
-                          {hasVoted ? "Đã bình chọn" : "Bình chọn"}
+                          {hasVoted ? "✓ Đã bình chọn" : "Bình chọn"}
                         </button>
 
-                        <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500 px-1">
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-600 px-1">
                           {contest?.showVoteCount !== false ? (
-                            <span className="inline-flex items-center space-x-1">
-                              <Star className="w-3 h-3 text-slate-400" />
+                            <span className="inline-flex items-center space-x-1 whitespace-nowrap font-medium text-slate-600">
+                              <Star className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                               <span>{sub.votesCount || 0} bình chọn</span>
                             </span>
                           ) : (
@@ -1595,11 +1676,11 @@ export default function MediaContestPublicPage({
                           {contest?.enableSocialShare !== false && contest?.showShareCount !== false && (
                             <button
                               type="button"
-                              onClick={() => handleShareSubmission(sub)}
-                              className="inline-flex items-center space-x-1 hover:text-slate-800 cursor-pointer"
-                              title="Chia sẻ tác phẩm"
+                              onClick={() => openShareModal(sub)}
+                              className="inline-flex items-center space-x-1 whitespace-nowrap font-semibold text-slate-600 hover:text-[#0284C7] hover:bg-sky-50 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                              title="Chia sẻ tác phẩm đa nền tảng (Zalo, Facebook, Mã QR, Sao chép link)"
                             >
-                              <Share2 className="w-3 h-3 text-slate-400" />
+                              <Share2 className="w-3.5 h-3.5 text-[#0284C7] shrink-0" />
                               <span>{sub.sharesCount || 0} chia sẻ</span>
                             </button>
                           )}
@@ -2742,20 +2823,32 @@ export default function MediaContestPublicPage({
                   </button>
 
                   {contest?.enableSocialShare !== false && (
-                    <div className="flex items-center gap-2 pt-1">
+                    <div className="space-y-2 pt-1">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleShareSubmission(selectedSubmission, "zalo")}
+                          className="py-2 rounded-xl bg-[#0068FF] hover:bg-[#0056D6] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Chia sẻ Zalo</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleShareSubmission(selectedSubmission, "facebook")}
+                          className="py-2 rounded-xl bg-[#1877F2] hover:bg-[#1464CC] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                        >
+                          <Share2 className="w-3.5 h-3.5" />
+                          <span>Facebook</span>
+                        </button>
+                      </div>
                       <button
                         type="button"
-                        onClick={() => handleShareSubmission(selectedSubmission, "facebook")}
-                        className="flex-1 py-1.5 rounded-xl bg-[#1877F2] text-white text-[11px] font-bold cursor-pointer"
+                        onClick={() => openShareModal(selectedSubmission)}
+                        className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        Chia sẻ Facebook
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleShareSubmission(selectedSubmission, "zalo")}
-                        className="flex-1 py-1.5 rounded-xl bg-[#0068FF] text-white text-[11px] font-bold cursor-pointer"
-                      >
-                        Chia sẻ Zalo
+                        <QrCode className="w-3.5 h-3.5 text-[#DC2626]" />
+                        <span>Chia sẻ đa nền tảng &amp; Mã QR</span>
                       </button>
                     </div>
                   )}
@@ -2858,6 +2951,218 @@ export default function MediaContestPublicPage({
           </div>
         </div>
       )}
+      {/* ========================================================================= */}
+      {/* MODAL CHIA SẺ ĐA NỀN TẢNG & MÃ QR (ẢNH 2 - TƯƠNG TỰ CUỘC THI TRẮC NGHIỆM) */}
+      {/* ========================================================================= */}
+      {shareModalTarget && (() => {
+        const isArtworkShare = shareModalTarget !== "CONTEST";
+        const baseUrl =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/binh-chon/${slug}`
+            : `https://thi.easupso.com/binh-chon/${slug}`;
+        const targetShareUrl = isArtworkShare
+          ? `${baseUrl}?artwork=${encodeURIComponent(shareModalTarget.id)}`
+          : baseUrl;
+        const targetShareTitle = isArtworkShare
+          ? `Tác phẩm: "${shareModalTarget.title}" - Tác giả: ${shareModalTarget.authorName} (${shareModalTarget.unitName})`
+          : contest?.title || "Cuộc thi Ảnh đẹp trực tuyến xã Ea Súp";
+        const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(targetShareUrl)}`;
+
+        const triggerPlatformShare = (
+          platform: "zalo" | "facebook" | "telegram" | "email" | "native" | "copy"
+        ) => {
+          if (isArtworkShare) {
+            handleShareSubmission(shareModalTarget, platform);
+            return;
+          }
+          if (platform === "facebook") {
+            window.open(
+              `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(targetShareUrl)}&quote=${encodeURIComponent(targetShareTitle)}`,
+              "_blank",
+              "width=640,height=480"
+            );
+          } else if (platform === "zalo") {
+            window.open(`https://zalo.me/share?url=${encodeURIComponent(targetShareUrl)}`, "_blank");
+          } else if (platform === "telegram") {
+            window.open(
+              `https://t.me/share/url?url=${encodeURIComponent(targetShareUrl)}&text=${encodeURIComponent(targetShareTitle)}`,
+              "_blank",
+              "width=640,height=480"
+            );
+          } else if (platform === "email") {
+            window.location.href = `mailto:?subject=${encodeURIComponent(targetShareTitle)}&body=${encodeURIComponent(`Mời bạn tham gia và bình chọn tại:\n${targetShareUrl}`)}`;
+          } else if (platform === "native" && typeof navigator !== "undefined" && navigator.share) {
+            navigator
+              .share({
+                title: targetShareTitle,
+                text: targetShareTitle,
+                url: targetShareUrl,
+              })
+              .catch(() => {});
+          } else {
+            navigator.clipboard?.writeText(targetShareUrl);
+            setCopiedShareModalLink(true);
+            setTimeout(() => setCopiedShareModalLink(false), 2500);
+            setSaveToast("Đã sao chép liên kết chia sẻ vào bộ nhớ tạm!");
+            setTimeout(() => setSaveToast(""), 2500);
+          }
+        };
+
+        return (
+          <div className="fixed inset-0 z-50 bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-150">
+            <div className="bg-white rounded-3xl max-w-md w-full p-5 sm:p-6 shadow-2xl border border-slate-200 relative text-center space-y-4">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div className="flex items-center space-x-2 text-slate-900 font-extrabold text-sm sm:text-base">
+                  <Share2 className="w-4 h-4 text-[#0284C7]" />
+                  <span>
+                    {isArtworkShare ? "Chia Sẻ Tác Phẩm Dự Thi" : "Chia Sẻ Cuộc Thi Trực Tuyến"}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShareModalTarget(null)}
+                  className="p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Thông tin tóm tắt Tác phẩm / Cuộc thi */}
+              {isArtworkShare ? (
+                <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-left">
+                  <img
+                    src={
+                      (Array.isArray(shareModalTarget.mediaUrls) && shareModalTarget.mediaUrls[0]) ||
+                      shareModalTarget.mediaUrl
+                    }
+                    alt={shareModalTarget.title}
+                    className="w-14 h-14 rounded-xl object-cover shrink-0 border border-slate-200"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs sm:text-sm font-extrabold text-slate-900 truncate">
+                      {shareModalTarget.title}
+                    </div>
+                    <div className="text-[11px] text-slate-500 truncate mt-0.5">
+                      Tác giả: <strong className="text-slate-700">{shareModalTarget.authorName}</strong> • {shareModalTarget.unitName}
+                    </div>
+                    <div className="text-[11px] font-bold mt-1 flex items-center gap-3" style={{ color: themeColor }}>
+                      <span>⭐ {shareModalTarget.votesCount || 0} bình chọn</span>
+                      <span>🔗 {shareModalTarget.sharesCount || 0} chia sẻ</span>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-xs font-bold text-slate-700 px-2 line-clamp-2">
+                  {contest?.title}
+                </div>
+              )}
+
+              {/* Các nút Chia sẻ nhanh Đa nền tảng (Zalo, Facebook, Telegram, Email, Hệ thống) */}
+              <div className="space-y-2 text-left">
+                <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                  Chia sẻ nhanh qua mạng xã hội &amp; ứng dụng
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => triggerPlatformShare("zalo")}
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-2xl bg-[#0068FF] hover:bg-[#0056D6] text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-black text-[11px]">
+                      Zalo
+                    </span>
+                    <span>Zalo</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => triggerPlatformShare("facebook")}
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-2xl bg-[#1877F2] hover:bg-[#1464CC] text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
+                  >
+                    <span className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center font-black text-xs">
+                      f
+                    </span>
+                    <span>Facebook</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => triggerPlatformShare("telegram")}
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-2xl bg-[#229ED9] hover:bg-[#1C88BD] text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
+                  >
+                    <Share2 className="w-5 h-5" />
+                    <span>Telegram</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => triggerPlatformShare("email")}
+                    className="flex flex-col items-center justify-center gap-1 py-2.5 px-2 rounded-2xl bg-slate-700 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer active:scale-95"
+                  >
+                    <ExternalLink className="w-5 h-5" />
+                    <span>Email</span>
+                  </button>
+                </div>
+
+                {typeof navigator !== "undefined" && "share" in navigator && (
+                  <button
+                    type="button"
+                    onClick={() => triggerPlatformShare("native")}
+                    className="w-full py-2 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-[#0284C7] border border-sky-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                  >
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Mở menu chia sẻ nhanh trên điện thoại (Zalo, Messenger, SMS...)</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Mã QR quét trực tiếp (Tương tự chia sẻ cuộc thi trắc nghiệm trực tuyến) */}
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl inline-block mx-auto">
+                <img
+                  src={qrImageUrl}
+                  alt="Mã QR chia sẻ"
+                  className="w-36 h-36 mx-auto rounded-xl bg-white p-1.5 border border-slate-200 shadow-2xs"
+                />
+                <span className="text-[11px] text-slate-500 font-medium mt-2 block">
+                  Quét mã QR bằng Camera điện thoại hoặc Zalo để mở nhanh
+                </span>
+              </div>
+
+              {/* Ô Sao chép liên kết trực tiếp */}
+              <div className="flex items-center bg-slate-100 p-1.5 rounded-xl border border-slate-200 gap-2">
+                <input
+                  type="text"
+                  readOnly
+                  value={targetShareUrl}
+                  className="flex-1 bg-transparent text-xs text-slate-700 font-mono px-2 outline-none truncate"
+                />
+                <button
+                  type="button"
+                  onClick={() => triggerPlatformShare("copy")}
+                  style={{
+                    backgroundColor: copiedShareModalLink ? "#059669" : "#DC2626",
+                  }}
+                  className="px-3.5 py-2 text-white text-xs font-bold rounded-lg flex items-center space-x-1 shrink-0 transition-colors cursor-pointer"
+                >
+                  {copiedShareModalLink ? (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Đã chép</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5" />
+                      <span>Sao chép</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ========================================================================= */}
       {/* MODAL ĐĂNG NHẬP BẮT BUỘC TRƯỚC KHI NỘP TÁC PHẨM DỰ THI */}
       {/* ========================================================================= */}

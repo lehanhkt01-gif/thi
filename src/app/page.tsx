@@ -163,12 +163,25 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* Right Column: Tin tức mới & My Predict AI (Ảnh 1: 4 cols) */}
+          {/* Right Column: CUỘC THI ẢNH ĐẸP & My Predict AI (Ảnh 3: 4 cols) */}
           <div className="lg:col-span-4 space-y-4">
             <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs">
-              <h3 className="text-base font-bold text-slate-900 pb-3 border-b border-slate-100 mb-4">
-                Tin tức mới
-              </h3>
+              <div className="pb-3.5 border-b border-slate-100 mb-4 flex items-center justify-between gap-2">
+                <div className="flex items-center space-x-2.5">
+                  <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#DC2626] via-[#F59E0B] to-[#009E60] text-white flex items-center justify-center shadow-sm shrink-0">
+                    <Sparkles className="w-4 h-4" />
+                  </span>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black uppercase tracking-wide bg-gradient-to-r from-[#DC2626] via-[#D97706] to-[#009E60] bg-clip-text text-transparent drop-shadow-2xs leading-tight">
+                      CUỘC THI ẢNH ĐẸP
+                    </h3>
+                    <div className="h-1 w-20 rounded-full bg-gradient-to-r from-[#DC2626] via-[#F59E0B] to-[#009E60] mt-1" />
+                  </div>
+                </div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80 shadow-2xs shrink-0">
+                  ★ Nổi bật
+                </span>
+              </div>
 
               {/* Danh sách công khai toàn bộ các Cuộc thi Ảnh/Video do bất kỳ ai tạo ra (Ảnh 2) */}
               <div className="space-y-3.5 mb-4">
