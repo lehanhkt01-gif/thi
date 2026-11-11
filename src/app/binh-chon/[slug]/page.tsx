@@ -900,6 +900,32 @@ export default function MediaContestPublicPage({
     setShareModalTarget(target);
   };
 
+  // Chia sẻ toàn bộ cuộc thi (Ưu tiên Native Share hệ thống điện thoại như Ảnh 2)
+  const handleShareContest = () => {
+    const baseUrl =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/binh-chon/${slug}`
+        : `https://thi.easupso.com/binh-chon/${slug}`;
+    const shareTitle = contest?.title || "Cuộc thi Ảnh đẹp trực tuyến xã Ea Súp";
+    const shareText = `Tham gia và bình chọn tại Cuộc thi: ${shareTitle}`;
+
+    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+      navigator
+        .share({
+          title: shareTitle,
+          text: shareText,
+          url: baseUrl,
+        })
+        .catch((err) => {
+          if (err?.name !== "AbortError") {
+            openShareModal("CONTEST");
+          }
+        });
+    } else {
+      openShareModal("CONTEST");
+    }
+  };
+
   // Chia sẻ tác phẩm hoặc cuộc thi đa nền tảng (Zalo, Facebook, Telegram, Email, Sao chép link, Web Share)
   const handleShareSubmission = (
     sub: MediaSubmission,
@@ -1351,9 +1377,9 @@ export default function MediaContestPublicPage({
 
             <button
               type="button"
-              onClick={() => openShareModal("CONTEST")}
+              onClick={handleShareContest}
               className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-[#0284C7] hover:border-sky-300 font-semibold shadow-2xs transition-colors cursor-pointer shrink-0"
-              title="Chia sẻ cuộc thi đa nền tảng & Mã QR"
+              title="Chia sẻ cuộc thi (Mở menu chia sẻ điện thoại: Zalo, Facebook, Tin nhắn...)"
             >
               <Share2 className="w-4 h-4 text-[#0284C7] sm:mr-1" />
               <span className="hidden md:inline">Chia sẻ</span>
@@ -1480,9 +1506,9 @@ export default function MediaContestPublicPage({
             )}
             <button
               type="button"
-              onClick={() => openShareModal("CONTEST")}
+              onClick={handleShareContest}
               className="p-1.5 rounded-full text-slate-400 hover:text-[#0284C7] hover:bg-sky-50 transition-colors cursor-pointer"
-              title="Chia sẻ cuộc thi đa nền tảng & Mã QR"
+              title="Chia sẻ cuộc thi (Mở menu chia sẻ điện thoại: Zalo, Facebook, Tin nhắn...)"
             >
               {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Share2 className="w-4 h-4" />}
             </button>
@@ -1797,9 +1823,9 @@ export default function MediaContestPublicPage({
                           {contest?.enableSocialShare !== false && contest?.showShareCount !== false && (
                             <button
                               type="button"
-                              onClick={() => openShareModal(sub)}
+                              onClick={() => handleShareSubmission(sub, "native")}
                               className="inline-flex items-center space-x-1 whitespace-nowrap font-semibold text-slate-600 hover:text-[#0284C7] hover:bg-sky-50 px-1 sm:px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
-                              title="Chia sẻ tác phẩm đa nền tảng (Zalo, Facebook, Mã QR, Sao chép link)"
+                              title="Chia sẻ tác phẩm (Mở menu chia sẻ điện thoại: Zalo, Facebook, Tin nhắn...)"
                             >
                               <Share2 className="w-3.5 h-3.5 text-[#0284C7] shrink-0" />
                               <span>{sub.sharesCount || 0} chia sẻ</span>
@@ -2960,14 +2986,19 @@ export default function MediaContestPublicPage({
                       lượt bình chọn
                     </div>
                   </div>
-                  <div className="px-1">
-                    <div className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">
+                  <button
+                    type="button"
+                    onClick={() => handleShareSubmission(selectedSubmission, "native")}
+                    className="px-1 hover:bg-slate-50 transition-colors cursor-pointer group"
+                    title="Chia sẻ tác phẩm này"
+                  >
+                    <div className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
                       {selectedSubmission.sharesCount || 0}
                     </div>
-                    <div className="text-xs text-slate-500 font-medium mt-0.5">
+                    <div className="text-xs text-slate-500 font-medium mt-0.5 group-hover:text-blue-600 transition-colors">
                       lượt chia sẻ
                     </div>
-                  </div>
+                  </button>
                 </div>
 
                 {/* Thông tin Tác giả & Đơn vị (Ảnh 2) */}

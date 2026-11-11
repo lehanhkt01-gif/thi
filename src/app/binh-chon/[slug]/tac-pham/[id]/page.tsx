@@ -490,14 +490,19 @@ export default function ArtworkDetailPage({
                     lượt bình chọn
                   </div>
                 </div>
-                <div className="px-1 sm:px-2">
-                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">
+                <button
+                  type="button"
+                  onClick={() => handleShare("native")}
+                  className="px-1 sm:px-2 hover:bg-slate-50 transition-colors cursor-pointer group"
+                  title="Chia sẻ tác phẩm này"
+                >
+                  <div className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight group-hover:text-blue-600 transition-colors">
                     {submission.sharesCount || 0}
                   </div>
-                  <div className="text-xs text-slate-500 font-medium mt-0.5">
+                  <div className="text-xs text-slate-500 font-medium mt-0.5 group-hover:text-blue-600 transition-colors">
                     lượt chia sẻ
                   </div>
-                </div>
+                </button>
               </div>
 
               {/* Thông tin Tác giả & Đơn vị (Ảnh 2) */}
