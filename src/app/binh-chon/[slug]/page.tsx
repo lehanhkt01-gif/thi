@@ -213,7 +213,7 @@ export default function MediaContestPublicPage({
     authorPhone: "",
     authorCccd: "",
     authorEmail: "",
-    unitName: EA_SUP_VILLAGES[0],
+    unitName: "",
     mediaType: "IMAGE" as "IMAGE" | "VIDEO",
     mediaUrl: "",
     mediaUrls: [] as string[],
@@ -1084,7 +1084,11 @@ export default function MediaContestPublicPage({
       setShowLoginModal(true);
       return;
     }
-    if (!submitForm.title || !submitForm.authorName || !submitForm.unitName) {
+    if (
+      !submitForm.title.trim() ||
+      !submitForm.authorName.trim() ||
+      (reqFields.includes("unitName") && !submitForm.unitName.trim())
+    ) {
       alert("Vui lòng điền đầy đủ tên tác phẩm, tác giả và đơn vị!");
       return;
     }
@@ -1157,7 +1161,7 @@ export default function MediaContestPublicPage({
             authorPhone: "",
             authorCccd: "",
             authorEmail: "",
-            unitName: EA_SUP_VILLAGES[0],
+            unitName: "",
             mediaType: contest?.type || "IMAGE",
             mediaUrl: "",
             mediaUrls: [],
@@ -2700,17 +2704,20 @@ export default function MediaContestPublicPage({
                       <label className="block font-bold text-slate-700 mb-1">
                         Đơn vị / Thôn buôn <span className="text-red-500">*</span>
                       </label>
-                      <select
+                      <input
+                        type="text"
+                        required
                         value={submitForm.unitName}
                         onChange={(e) => setSubmitForm({ ...submitForm, unitName: e.target.value })}
+                        placeholder="Nhập đơn vị / thôn buôn / trường học..."
+                        list="unitNameSuggestions"
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
-                      >
+                      />
+                      <datalist id="unitNameSuggestions">
                         {EA_SUP_VILLAGES.map((v) => (
-                          <option key={v} value={v}>
-                            {v}
-                          </option>
+                          <option key={v} value={v} />
                         ))}
-                      </select>
+                      </datalist>
                     </div>
                   )}
                 </div>
