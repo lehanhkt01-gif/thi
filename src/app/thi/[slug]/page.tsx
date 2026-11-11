@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Award,
   Save,
+  Home,
   User,
   Users,
   Phone,
@@ -1108,50 +1109,58 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
     return (
       <div className="w-full bg-[#F8FAFC] min-h-screen text-slate-800 pb-16">
-        {/* 1. SUB-NAVBAR CHUẨN ẢNH 3 (< TRANG CHỦ, THỂ LỆ, KẾ HOẠCH) */}
+        {/* 1. SUB-NAVBAR TINH GỌN CHỐNG CHE KHUẤT (Ảnh 2: Nút Trang chủ, Thể lệ, Kế hoạch chỉ dùng biểu tượng) */}
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 h-12 sm:h-14 flex items-center justify-between">
-            <Link
-              href="/"
-              className="flex items-center space-x-1.5 text-xs sm:text-sm font-bold text-slate-700 hover:text-[#DC2626] transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              <span>TRANG CHỦ</span>
-            </Link>
+          <div className="max-w-6xl mx-auto px-2.5 sm:px-6 h-12 sm:h-14 flex items-center justify-between gap-1.5">
+            {/* Nhóm biểu tượng điều hướng tinh gọn (Trang chủ, Thể lệ, Kế hoạch) */}
+            <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
+              {/* Nút Trang chủ - Biểu tượng tinh gọn */}
+              <Link
+                href="/"
+                className="flex items-center justify-center p-2 rounded-xl text-slate-700 hover:text-[#DC2626] hover:bg-slate-100 transition-colors cursor-pointer"
+                title="Trang chủ Cổng Cuộc thi"
+              >
+                <ChevronLeft className="w-4 h-4" />
+                <Home className="w-4 h-4" />
+                <span className="hidden md:inline text-xs font-bold ml-1">TRANG CHỦ</span>
+              </Link>
 
-            <nav className="flex items-center space-x-6 sm:space-x-10 text-xs sm:text-sm font-bold uppercase tracking-wider">
+              {/* Nút Thể lệ - Biểu tượng tinh gọn */}
               <button
                 type="button"
                 onClick={() => setInfoModal("rules")}
-                className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer group"
-                title="Xem Thể lệ cuộc thi (Khớp nối 2 chiều với ô Thể lệ bên dưới)"
+                className="relative flex items-center justify-center p-2 rounded-xl text-slate-700 hover:text-[#DC2626] hover:bg-slate-100 transition-colors cursor-pointer group"
+                title="Thể lệ cuộc thi"
               >
-                <FileText className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#DC2626]" />
-                <span>THỂ LỆ</span>
+                <FileText className="w-4 h-4 text-slate-600 group-hover:text-[#DC2626]" />
+                <span className="hidden md:inline text-xs font-bold ml-1 uppercase">THỂ LỆ</span>
                 {contest?.rulesFileUrl && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Đã có văn bản đính kèm"></span>
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Đã có văn bản đính kèm"></span>
                 )}
               </button>
+
+              {/* Nút Kế hoạch - Biểu tượng tinh gọn */}
               <button
                 type="button"
                 onClick={() => setInfoModal("plan")}
-                className="inline-flex items-center space-x-1.5 text-slate-700 hover:text-[#DC2626] transition-colors cursor-pointer group"
-                title="Xem Kế hoạch cuộc thi (Khớp nối 2 chiều với ô Kế hoạch bên dưới)"
+                className="relative flex items-center justify-center p-2 rounded-xl text-slate-700 hover:text-[#DC2626] hover:bg-slate-100 transition-colors cursor-pointer group"
+                title="Kế hoạch cuộc thi"
               >
-                <Calendar className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#DC2626]" />
-                <span>KẾ HOẠCH</span>
+                <Calendar className="w-4 h-4 text-slate-600 group-hover:text-[#DC2626]" />
+                <span className="hidden md:inline text-xs font-bold ml-1 uppercase">KẾ HOẠCH</span>
                 {contest?.planFileUrl && (
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Đã có văn bản đính kèm"></span>
+                  <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="Đã có văn bản đính kèm"></span>
                 )}
               </button>
-            </nav>
+            </div>
 
-            <div className="flex items-center space-x-2">
+            {/* Nhóm tài khoản & Nút Vào thi */}
+            <div className="flex items-center space-x-1.5 sm:space-x-2 shrink-0">
               {/* Nút Đăng nhập / Trạng thái tài khoản (Ảnh 2 chuẩn) */}
               {authUser ? (
-                <div className="flex items-center space-x-1.5">
+                <div className="flex items-center space-x-1">
                   <div
-                    className="inline-flex items-center space-x-1.5 bg-blue-50 border border-blue-200 pl-2.5 pr-3 py-1 rounded-full text-xs text-blue-900 font-bold shadow-2xs max-w-[150px] sm:max-w-[200px]"
+                    className="inline-flex items-center space-x-1.5 bg-blue-50 border border-blue-200 pl-2 pr-2.5 py-1 rounded-full text-xs text-blue-900 font-bold shadow-2xs max-w-[110px] sm:max-w-[180px]"
                     title={`Đang đăng nhập: ${authUser.name} (${authUser.role === "ADMIN" ? "Quản trị viên" : "Người dùng"})`}
                   >
                     <span className={`w-2 h-2 rounded-full shrink-0 ${authUser.role === "ADMIN" ? "bg-red-600" : "bg-blue-600"}`}></span>
@@ -1173,11 +1182,11 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                 <button
                   type="button"
                   onClick={() => setShowLoginModal(true)}
-                  className="inline-flex items-center px-3.5 py-1.5 rounded-full text-xs font-bold text-slate-700 hover:text-[#DC2626] bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer shadow-2xs"
+                  className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-bold text-slate-700 hover:text-[#DC2626] bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all cursor-pointer shadow-2xs"
                   title="Đăng nhập tài khoản"
                 >
-                  <User className="w-3.5 h-3.5 mr-1.5 text-slate-600" />
-                  <span>Đăng nhập</span>
+                  <User className="w-3.5 h-3.5 sm:mr-1 text-slate-600" />
+                  <span className="hidden sm:inline">Đăng nhập</span>
                 </button>
               )}
 
@@ -1191,7 +1200,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
                   }
                 }}
                 style={{ backgroundColor: contest?.themeColor || "#DC2626" }}
-                className="text-xs font-bold text-white hover:opacity-90 px-3.5 py-1.5 rounded-full transition-all shadow-xs cursor-pointer"
+                className="text-xs font-bold text-white hover:opacity-90 px-3.5 py-1.5 rounded-full transition-all shadow-xs cursor-pointer shrink-0"
               >
                 Vào thi
               </button>

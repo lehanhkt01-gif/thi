@@ -107,7 +107,7 @@ export default function ArtworkDetailPage({
     } catch {}
   }, []);
 
-  // Phân quyền quản trị / xóa tác phẩm: Admin hoặc Người tạo cuộc thi / tác giả bài thi
+  // Phân quyền quản trị / xóa tác phẩm: CHỈ Admin hoặc Người tạo cuộc thi (Tuyệt đối không cho người dùng xóa)
   const canManage = (() => {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
@@ -122,9 +122,7 @@ export default function ArtworkDetailPage({
     const isShared = Boolean(
       uEmail && sharedList.some((em) => String(em || "").toLowerCase().trim() === uEmail)
     );
-    if (isShared) return true;
-    const sEmail = (submission?.authorEmail || "").toLowerCase().trim();
-    return Boolean(uEmail && sEmail && uEmail === sEmail);
+    return isShared;
   })();
 
   // Xử lý xóa tác phẩm

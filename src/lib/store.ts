@@ -2210,18 +2210,15 @@ class DataStore {
       (c) => c.id === sub.contestId || c.slug === sub.contestSlug
     );
 
-    // Kiểm tra quyền: Admin, hoặc Người tạo cuộc thi (hoặc tác giả gửi bài)
+    // Kiểm tra quyền: CHỈ Admin hoặc Người tạo cuộc thi mới có quyền xóa tác phẩm (Tuyệt đối không cho người dùng xóa)
     let hasPermission = false;
     if (user) {
       if (user.role === "ADMIN") hasPermission = true;
       if (contest && this.canUserEditMediaContest(contest, user)) hasPermission = true;
-      const uEmail = (user.email || "").toLowerCase().trim();
-      const sEmail = (sub.authorEmail || "").toLowerCase().trim();
-      if (uEmail && sEmail && uEmail === sEmail) hasPermission = true;
     }
 
     if (!hasPermission) {
-      return { success: false, error: "Bạn không có quyền xóa tác phẩm này!" };
+      return { success: false, error: "Chỉ người tạo cuộc thi hoặc Quản trị viên (Admin) mới có quyền xóa tác phẩm!" };
     }
 
     this.mediaSubmissions.splice(subIdx, 1);

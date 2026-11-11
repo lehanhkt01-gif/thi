@@ -1629,10 +1629,8 @@ export default function MediaContestPublicPage({
             >
               {paginatedSubmissions.map((sub) => {
                 const hasVoted = votedMap[sub.id];
-                const isSubAuthor = Boolean(
-                  authUser?.email && sub.authorEmail && authUser.email.toLowerCase() === sub.authorEmail.toLowerCase()
-                );
-                const canDeleteThisSub = canManage || isSubAuthor;
+                // Phân quyền tuyệt đối: CHỈ Admin hoặc Người tạo cuộc thi mới được xóa tác phẩm
+                const canDeleteThisSub = canManage;
                 const subImages =
                   Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
                     ? sub.mediaUrls
@@ -1653,22 +1651,6 @@ export default function MediaContestPublicPage({
                   >
                     {/* Khung Ảnh / Video tác phẩm */}
                     <div className="relative">
-                      {canDeleteThisSub && (
-                        <button
-                          type="button"
-                          title="Xóa tác phẩm này"
-                          disabled={isDeletingSubId === sub.id}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            handleDeleteSubmission(sub);
-                          }}
-                          className="absolute top-2.5 left-2.5 z-20 px-2.5 py-1 rounded-full bg-red-600/90 hover:bg-red-700 text-white text-[11px] font-bold flex items-center gap-1 shadow-md transition-all hover:scale-105 cursor-pointer backdrop-blur-xs"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>{isDeletingSubId === sub.id ? "Đang xóa..." : "Xóa"}</span>
-                        </button>
-                      )}
                       <Link
                         href={`/binh-chon/${slug}/tac-pham/${sub.id}`}
                         className={`relative rounded-xl overflow-hidden bg-slate-900/5 cursor-pointer group block ${
@@ -1766,7 +1748,8 @@ export default function MediaContestPublicPage({
                         </div>
 
                         {canDeleteThisSub && (
-                          <div className="pt-1.5 border-t border-red-50 flex justify-center">
+                          <div className="pt-2 border-t border-red-100 flex items-center justify-between text-xs">
+                            <span className="text-[10px] text-slate-400 font-medium">Quyền Quản trị / Người tạo</span>
                             <button
                               type="button"
                               disabled={isDeletingSubId === sub.id}
@@ -1775,9 +1758,10 @@ export default function MediaContestPublicPage({
                                 e.stopPropagation();
                                 handleDeleteSubmission(sub);
                               }}
-                              className="text-[11px] font-semibold text-red-600 hover:text-red-700 hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                              className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
+                              title="Xóa tác phẩm này (Chỉ dành cho Quản trị viên và Người tạo)"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
                               <span>{isDeletingSubId === sub.id ? "Đang xóa..." : "Xóa tác phẩm"}</span>
                             </button>
                           </div>
@@ -3010,14 +2994,10 @@ export default function MediaContestPublicPage({
                   </div>
                 )}
 
-                {/* Nút xóa tác phẩm dành cho Admin hoặc Người tạo cuộc thi / tác giả */}
-                {(canManage ||
-                  Boolean(
-                    authUser?.email &&
-                      selectedSubmission.authorEmail &&
-                      authUser.email.toLowerCase() === selectedSubmission.authorEmail.toLowerCase()
-                  )) && (
-                  <div className="pt-2 border-t border-red-100 flex items-center justify-end">
+                {/* Nút xóa tác phẩm dành riêng cho Quản trị viên hoặc Người tạo cuộc thi */}
+                {canManage && (
+                  <div className="pt-2 border-t border-red-100 flex items-center justify-between">
+                    <span className="text-xs text-slate-400 font-medium">Quyền Quản trị / Người tạo</span>
                     <button
                       type="button"
                       disabled={isDeletingSubId === selectedSubmission.id}
