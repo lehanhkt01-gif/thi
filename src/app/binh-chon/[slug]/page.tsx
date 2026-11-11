@@ -934,14 +934,22 @@ export default function MediaContestPublicPage({
       );
     } else if (platform === "email") {
       window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`Mời bạn xem và bình chọn cho tác phẩm "${sub.title}" của tác giả ${sub.authorName} (${sub.unitName}) tại đường dẫn:\n${shareUrl}`)}`;
-    } else if (platform === "native" && typeof navigator !== "undefined" && navigator.share) {
-      navigator
-        .share({
-          title: shareTitle,
-          text: `Bình chọn cho tác phẩm "${sub.title}" - ${sub.authorName} (${sub.unitName})`,
-          url: shareUrl,
-        })
-        .catch(() => {});
+    } else if (platform === "native") {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        navigator
+          .share({
+            title: shareTitle,
+            text: `Bình chọn cho tác phẩm "${sub.title}" - ${sub.authorName} (${sub.unitName})`,
+            url: shareUrl,
+          })
+          .catch((err) => {
+            if (err?.name !== "AbortError") {
+              openShareModal(sub);
+            }
+          });
+      } else {
+        openShareModal(sub);
+      }
     } else {
       navigator.clipboard?.writeText(shareUrl);
       setCopiedShareModalLink(true);
@@ -3024,35 +3032,28 @@ export default function MediaContestPublicPage({
                   </Link>
                 </div>
 
-                {/* Nút chia sẻ đa nền tảng (Zalo, Facebook, QR) */}
+                {/* Nút chia sẻ tác phẩm: gom thành 1 nút chia sẻ hệ thống chuẩn Ảnh 2 */}
                 {contest?.enableSocialShare !== false && (
                   <div className="pt-3 border-t border-slate-100 space-y-2">
-                    <div className="grid grid-cols-2 gap-2">
-                      <button
-                        type="button"
-                        onClick={() => handleShareSubmission(selectedSubmission, "zalo")}
-                        className="py-2 rounded-xl bg-[#0068FF] hover:bg-[#0056D6] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>Chia sẻ Zalo</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleShareSubmission(selectedSubmission, "facebook")}
-                        className="py-2 rounded-xl bg-[#1877F2] hover:bg-[#1464CC] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                      >
-                        <Share2 className="w-3.5 h-3.5" />
-                        <span>Facebook</span>
-                      </button>
-                    </div>
                     <button
                       type="button"
-                      onClick={() => openShareModal(selectedSubmission)}
-                      className="w-full py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                      onClick={() => handleShareSubmission(selectedSubmission, "native")}
+                      className="w-full py-2.5 rounded-xl bg-[#0068FF] hover:bg-[#0056D6] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer active:scale-95"
+                      title="Chia sẻ tác phẩm (Zalo, Facebook, Tin nhắn, Cốc Cốc...)"
                     >
-                      <QrCode className="w-3.5 h-3.5 text-[#DC2626]" />
-                      <span>Chia sẻ đa nền tảng &amp; Mã QR</span>
+                      <Share2 className="w-4 h-4" />
+                      <span>Chia sẻ tác phẩm</span>
                     </button>
+                    <div className="text-center pt-0.5">
+                      <button
+                        type="button"
+                        onClick={() => openShareModal(selectedSubmission)}
+                        className="text-[11px] text-slate-500 hover:text-slate-700 hover:underline inline-flex items-center gap-1 cursor-pointer"
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-red-600" />
+                        <span>Xem mã QR &amp; sao chép liên kết</span>
+                      </button>
+                    </div>
                   </div>
                 )}
 

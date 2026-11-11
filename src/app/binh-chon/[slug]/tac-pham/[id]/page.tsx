@@ -262,11 +262,12 @@ export default function ArtworkDetailPage({
     }
   };
 
-  // Chia sẻ tác phẩm
-  const handleShare = (platform: "facebook" | "zalo" | "copy") => {
+  // Chia sẻ tác phẩm đa nền tảng (Ưu tiên Web Share API hệ thống điện thoại như Ảnh 2)
+  const handleShare = async (platform: "native" | "facebook" | "zalo" | "copy" = "native") => {
     if (!submission) return;
     const url = typeof window !== "undefined" ? window.location.href : "";
-    const shareTitle = `${submission.title} - Tác giả: ${submission.authorName} (${submission.unitName}) | ${contest?.title || "Cuộc thi Ảnh đẹp"}`;
+    const shareTitle = `${submission.title} - Tác giả: ${submission.authorName} (${submission.unitName})`;
+    const shareText = `Mời bạn xem và bình chọn cho tác phẩm "${submission.title}" của tác giả ${submission.authorName} (${submission.unitName}) tại Cuộc thi: ${contest?.title || "Bình chọn trực tuyến Ea Súp"}`;
 
     // Tăng lượt chia sẻ trên server
     fetch(`/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(submission.id)}`, {
@@ -281,6 +282,27 @@ export default function ArtworkDetailPage({
         }
       })
       .catch(() => {});
+
+    // Chế độ Native Share hệ thống (Mở bảng chọn chia sẻ điện thoại: Zalo, Facebook, Tin nhắn... như Ảnh 2)
+    if (platform === "native") {
+      if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+        try {
+          await navigator.share({
+            title: shareTitle,
+            text: shareText,
+            url: url,
+          });
+          return;
+        } catch (err: any) {
+          if (err?.name === "AbortError") {
+            return; // Người dùng ấn nút Hủy trên giao diện hệ thống
+          }
+        }
+      }
+      // Nếu thiết bị / trình duyệt không hỗ trợ Web Share (máy tính để bàn), mở modal chia sẻ kèm mã QR
+      setShowShareModal(true);
+      return;
+    }
 
     if (platform === "copy") {
       navigator.clipboard.writeText(url);
@@ -540,35 +562,28 @@ export default function ArtworkDetailPage({
                 </Link>
               </div>
 
-              {/* Nút chia sẻ đa nền tảng (Zalo, Facebook, QR) */}
-              <div className="pt-4 border-t border-slate-100 space-y-2.5">
+              {/* Nút chia sẻ tác phẩm: gom thành 1 nút chia sẻ hệ thống chuẩn Ảnh 2 */}
+              <div className="pt-4 border-t border-slate-100 space-y-2">
                 <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">
                   Lan tỏa tác phẩm
                 </div>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => handleShare("zalo")}
-                    className="py-2 px-3 rounded-xl bg-[#0068FF] hover:bg-[#0056D6] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Zalo</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleShare("facebook")}
-                    className="py-2 px-3 rounded-xl bg-[#1877F2] hover:bg-[#1464CC] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
-                  >
-                    <Share2 className="w-3.5 h-3.5" />
-                    <span>Facebook</span>
-                  </button>
+                <button
+                  type="button"
+                  onClick={() => handleShare("native")}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#0068FF] hover:bg-[#0056D6] text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-2xs transition-all cursor-pointer active:scale-95"
+                  title="Chia sẻ tác phẩm (Zalo, Facebook, Tin nhắn, Cốc Cốc...)"
+                >
+                  <Share2 className="w-4 h-4" />
+                  <span>Chia sẻ tác phẩm</span>
+                </button>
+                <div className="text-center pt-0.5">
                   <button
                     type="button"
                     onClick={() => setShowShareModal(true)}
-                    className="py-2 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                    className="text-[11px] text-slate-500 hover:text-slate-700 hover:underline inline-flex items-center gap-1 cursor-pointer"
                   >
                     <QrCode className="w-3.5 h-3.5 text-red-600" />
-                    <span>Mã QR</span>
+                    <span>Xem mã QR &amp; sao chép liên kết</span>
                   </button>
                 </div>
               </div>
