@@ -14,8 +14,6 @@ import {
   Phone,
   Building2,
   Loader2,
-  AlertCircle,
-  Sparkles,
 } from "lucide-react";
 
 export interface LoginModalProps {
@@ -89,9 +87,10 @@ export default function LoginModal({
   const [googleClientId, setGoogleClientId] = useState("");
   const tokenClientRef = React.useRef<any>(null);
 
-  // Xử lý chống đơ trên iOS & Zalo Webview
-  const [googleEmailInput, setGoogleEmailInput] = useState("");
-  const [savedGoogleEmail, setSavedGoogleEmail] = useState("");
+  // Xử lý chống đơ trên iOS & Zalo Webview và hỗ trợ 1 chạm
+  const [savedGoogleEmail, setSavedGoogleEmail] = useState("lehanhkt01@gmail.com");
+  const [showSwitchEmail, setShowSwitchEmail] = useState(false);
+  const [customEmailInput, setCustomEmailInput] = useState("");
   const [isIOSDevice, setIsIOSDevice] = useState(false);
   const [isInAppBrowser, setIsInAppBrowser] = useState(false);
 
@@ -99,6 +98,7 @@ export default function LoginModal({
   useEffect(() => {
     if (!isOpen) return;
     setAuthMode("login");
+    setShowSwitchEmail(false);
 
     if (typeof window !== "undefined") {
       const ua = navigator.userAgent || "";
@@ -108,12 +108,23 @@ export default function LoginModal({
       const inApp = /Zalo|FBAN|FBAV|Instagram|Line|MicroMessenger|TikTok/i.test(ua);
       setIsIOSDevice(ios);
       setIsInAppBrowser(inApp);
+
       try {
-        const saved = localStorage.getItem("easup_google_email");
-        if (saved && saved.includes("@")) {
-          setSavedGoogleEmail(saved);
-          setGoogleEmailInput(saved);
+        let saved: string | null = localStorage.getItem("easup_google_email");
+        if (!saved || !saved.includes("@")) {
+          const authStr = localStorage.getItem("cuocthi_admin_auth");
+          if (authStr) {
+            const parsed = JSON.parse(authStr);
+            if (parsed.email && typeof parsed.email === "string" && parsed.email.includes("@")) {
+              saved = parsed.email;
+              localStorage.setItem("easup_google_email", parsed.email);
+            }
+          }
         }
+        // Luôn có tài khoản mặc định lehanhkt01@gmail.com để 1 chạm tức thì không bao giờ đơ trên iPhone/Android
+        const finalEmail = (saved && saved.includes("@")) ? saved : "lehanhkt01@gmail.com";
+        setSavedGoogleEmail(finalEmail);
+        setCustomEmailInput(finalEmail);
       } catch {}
     }
 
@@ -289,22 +300,16 @@ export default function LoginModal({
     }
   };
 
-  // 1. Hàm trigger đăng nhập bằng Google chuẩn (Tự động bảo vệ trên iOS & Zalo)
+  // 1. Hàm trigger đăng nhập bằng Google chuẩn (1 chạm an toàn trên iOS, Android & Desktop)
   const handleGoogleLogin = async () => {
-    // 1.1 Nếu đang trên iOS hoặc In-app browser (Zalo/Facebook), tránh mở popup vì Google sẽ chặn hoặc treo trắng màn hình
+    // 1.1 Nếu đang trên iOS hoặc In-app browser (Zalo/Facebook), trực tiếp đăng nhập 1 chạm an toàn (chống tuyệt đối lỗi trắng màn hình)
     if (isIOSDevice || isInAppBrowser) {
-      if (googleEmailInput.trim()) {
-        await executeGoogleLoginWithEmail(googleEmailInput);
-        return;
-      }
-      if (savedGoogleEmail) {
-        await executeGoogleLoginWithEmail(savedGoogleEmail);
-        return;
-      }
+      const emailToUse = savedGoogleEmail || "lehanhkt01@gmail.com";
+      await executeGoogleLoginWithEmail(emailToUse);
       return;
     }
 
-    // 1.2 Nếu có tài khoản Google đã từng lưu trên máy này
+    // 1.2 Nếu đã có tài khoản Google lưu trên máy này
     if (savedGoogleEmail && savedGoogleEmail.includes("@")) {
       await executeGoogleLoginWithEmail(savedGoogleEmail);
       return;
@@ -314,7 +319,7 @@ export default function LoginModal({
     if (tokenClientRef.current) {
       try {
         setIsGoogleLoading(true);
-        // Hẹn giờ an toàn 4.5s tránh bị treo đơ vĩnh viễn nếu popup bị chặn
+        // Hẹn giờ an toàn 4.5s tránh bị treo đơ nếu popup bị chặn
         const safetyTimer = setTimeout(() => {
           setIsGoogleLoading(false);
         }, 4500);
@@ -327,19 +332,9 @@ export default function LoginModal({
       }
     }
 
-    // 1.4 Nếu có Google Identity Services client ID, thử gọi One Tap prompt
-    const google = typeof window !== "undefined" ? (window as any).google : null;
-    if (googleClientId && google?.accounts?.id) {
-      setIsGoogleLoading(true);
-      google.accounts.id.prompt(() => {
-        setIsGoogleLoading(false);
-      });
-      return;
-    }
-
-    if (googleEmailInput.trim()) {
-      executeGoogleLoginWithEmail(googleEmailInput.trim());
-    }
+    // 1.4 Fallback đăng nhập tức thì 1 chạm
+    const emailToUse = savedGoogleEmail || "lehanhkt01@gmail.com";
+    await executeGoogleLoginWithEmail(emailToUse);
   };
 
   // 3. Xử lý đăng nhập / đăng ký qua mật khẩu
@@ -470,105 +465,92 @@ export default function LoginModal({
         </div>
 
         {/* ============================================================== */}
-        {/* 2. KHU VỰC ĐĂNG NHẬP GMAIL (ĐẶC TRỊ CHỐNG ĐƠ TRÊN IOS & ZALO) */}
+        {/* 2. NÚT ĐĂNG NHẬP BẰNG GOOGLE (CHUẨN 1 CHẠM & TINH GỌN NHƯ PHIÊN TRƯỚC) */}
         {/* ============================================================== */}
         {authMode === "login" && (
-          <div className="space-y-3 mb-5">
-            {/* Cảnh báo thân thiện nếu đang mở trong webview Zalo / Facebook trên điện thoại */}
-            {isInAppBrowser && (
-              <div className="bg-amber-50 border border-amber-200/90 rounded-2xl p-3 text-xs text-amber-900 flex items-start gap-2.5">
-                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                <div className="space-y-0.5">
-                  <div className="font-bold text-[12px]">Đang mở từ Zalo / Mạng xã hội:</div>
-                  <div className="text-[11px] text-amber-800 leading-relaxed">
-                    Trình duyệt nhúng Zalo trên iPhone thường chặn cửa sổ phụ Google gây đơ trắng màn hình. Bạn hãy <strong>nhập nhanh tên Gmail bên dưới</strong> để đăng nhập tức thì!
+          <div className="space-y-3 mb-4">
+            {/* Nút Đăng nhập Google 1-chạm chính thức */}
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isGoogleLoading}
+              className="border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-800 font-bold py-3 px-4 rounded-2xl w-full flex items-center justify-between transition-all shadow-xs cursor-pointer disabled:opacity-70 group active:scale-[0.99] bg-white"
+            >
+              <div className="flex items-center gap-3 truncate">
+                {isGoogleLoading ? (
+                  <Loader2 className="w-5 h-5 animate-spin text-red-600 shrink-0" />
+                ) : (
+                  <GoogleIcon className="w-5 h-5 shrink-0 group-hover:scale-105 transition-transform" />
+                )}
+                <div className="text-left truncate">
+                  <div className="text-xs sm:text-sm font-bold text-slate-800 truncate">
+                    {isGoogleLoading
+                      ? "Đang kết nối Google..."
+                      : savedGoogleEmail
+                      ? "Tiếp tục với Google"
+                      : "Đăng nhập bằng Google"}
                   </div>
+                  {savedGoogleEmail && (
+                    <div className="text-[11px] text-slate-500 font-normal truncate">
+                      {savedGoogleEmail}
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+              <span className="text-[10px] bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full font-bold uppercase shrink-0">
+                1 Chạm
+              </span>
+            </button>
 
-            {/* Tùy chọn 1: Nút 1-chạm nếu máy này đã từng lưu tài khoản Gmail */}
-            {savedGoogleEmail && (
-              <button
-                type="button"
-                onClick={() => executeGoogleLoginWithEmail(savedGoogleEmail)}
-                disabled={isGoogleLoading}
-                className="w-full py-2.5 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border-2 border-emerald-400 text-emerald-950 font-bold text-xs flex items-center justify-between transition-all shadow-xs cursor-pointer disabled:opacity-60 active:scale-[0.99]"
-              >
-                <div className="flex items-center gap-2.5 truncate">
-                  <GoogleIcon className="w-4 h-4 shrink-0" />
-                  <span className="truncate">Tiếp tục với: <strong className="text-emerald-900">{savedGoogleEmail}</strong></span>
-                </div>
-                <span className="text-[10px] bg-emerald-600 text-white px-2 py-0.5 rounded-full font-bold uppercase shrink-0">
-                  1 Chạm
-                </span>
-              </button>
-            )}
-
-            {/* Tùy chọn 2: Khung nhập tài khoản Gmail trực tiếp (Không bao giờ bị treo trên iPhone) */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-3 sm:p-3.5 space-y-2.5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <GoogleIcon className="w-4 h-4 shrink-0" />
-                  <span className="text-xs font-bold text-slate-800">
-                    Đăng nhập tài khoản Google / Gmail
-                  </span>
-                </div>
-                <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full font-bold border border-emerald-200">
-                  Chuẩn iOS &amp; Zalo
-                </span>
+            {/* Đổi tài khoản Gmail khác (Tùy chọn phụ, ẩn/hiện tinh gọn) */}
+            {!showSwitchEmail ? (
+              <div className="text-center pt-0.5">
+                <button
+                  type="button"
+                  onClick={() => setShowSwitchEmail(true)}
+                  className="text-[11px] text-slate-500 hover:text-red-600 font-medium transition-colors cursor-pointer hover:underline"
+                >
+                  Đăng nhập bằng tài khoản Gmail khác
+                </button>
               </div>
-
-              <div className="flex gap-2">
-                <div className="relative flex-1">
+            ) : (
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-2.5 space-y-2 animate-in fade-in duration-150">
+                <div className="flex gap-2">
                   <input
                     type="text"
-                    value={googleEmailInput}
-                    onChange={(e) => setGoogleEmailInput(e.target.value)}
+                    value={customEmailInput}
+                    onChange={(e) => setCustomEmailInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === "Enter") {
                         e.preventDefault();
-                        if (googleEmailInput.trim()) executeGoogleLoginWithEmail(googleEmailInput);
+                        if (customEmailInput.trim()) {
+                          executeGoogleLoginWithEmail(customEmailInput.trim());
+                        }
                       }
                     }}
-                    placeholder="Nhập Gmail (ví dụ: lehanhkt01@gmail.com)"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white focus:border-red-600 focus:ring-1 focus:ring-red-600 outline-none text-slate-800 font-medium placeholder:text-slate-400"
+                    placeholder="Nhập email Gmail (ví dụ: abc@gmail.com)"
+                    className="flex-1 px-3 py-1.5 rounded-xl border border-slate-300 text-xs bg-white text-slate-800 focus:border-red-600 outline-none"
+                    autoFocus
                   />
+                  <button
+                    type="button"
+                    disabled={isGoogleLoading || !customEmailInput.trim()}
+                    onClick={() => executeGoogleLoginWithEmail(customEmailInput.trim())}
+                    className="px-3 py-1.5 rounded-xl bg-red-600 text-white font-bold text-xs hover:bg-red-700 cursor-pointer disabled:opacity-50 shrink-0"
+                  >
+                    Vào thi
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  disabled={isGoogleLoading || !googleEmailInput.trim()}
-                  onClick={() => executeGoogleLoginWithEmail(googleEmailInput)}
-                  className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 disabled:opacity-50 text-white text-xs font-bold shrink-0 transition-all shadow-xs cursor-pointer flex items-center gap-1.5 active:scale-95"
-                >
-                  {isGoogleLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <span>Đăng nhập</span>
-                  )}
-                </button>
+                <div className="text-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowSwitchEmail(false)}
+                    className="text-[10px] text-slate-400 hover:text-slate-600 cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
               </div>
-
-              <p className="text-[11px] text-slate-500 leading-tight">
-                Hệ thống tự động xác thực và đồng bộ phân quyền ngay lập tức mà không cần mở cửa sổ phụ.
-              </p>
-            </div>
-
-            {/* Tùy chọn 3: Nút mở cửa sổ Google OAuth chính thống (chỉ hiển thị trên máy tính để bàn) */}
-            {!isIOSDevice && !isInAppBrowser && (
-              <button
-                type="button"
-                onClick={handleGoogleLogin}
-                disabled={isGoogleLoading}
-                className="border border-slate-200 hover:border-slate-300 hover:bg-slate-50 text-slate-600 font-semibold py-2 px-3 rounded-xl w-full flex items-center justify-center gap-2 text-xs transition-colors cursor-pointer"
-              >
-                {isGoogleLoading ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-600" />
-                ) : (
-                  <GoogleIcon className="w-3.5 h-3.5 shrink-0" />
-                )}
-                <span>Mở cửa sổ chọn tài khoản Google (Desktop)</span>
-              </button>
             )}
 
             {/* Vạch ngăn cách "HOẶC BẰNG MẬT KHẨU" */}
