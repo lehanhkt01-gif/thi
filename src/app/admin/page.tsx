@@ -4627,6 +4627,34 @@ export default function AdminDashboardPage() {
                       <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
                         👁️ {sub.viewsCount || 0} xem
                       </span>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          const current = sub.sharesCount || 0;
+                          const input = window.prompt(`Điều chỉnh số lượt chia sẻ cho "${sub.title}":`, String(current));
+                          if (input === null) return;
+                          const count = parseInt(input, 10);
+                          if (isNaN(count) || count < 0) return alert("Số lượt không hợp lệ!");
+                          try {
+                            const res = await fetch(`/api/media-contests/${activeMediaContestForSubmissions?.slug}/tac-pham/${sub.id}`, {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ action: "reset-shares", sharesCount: count }),
+                            });
+                            const d = await res.json();
+                            if (d.success) {
+                              setCurrentMediaSubmissions((prev: any) =>
+                                prev.map((s: any) => (s.id === sub.id ? { ...s, sharesCount: count } : s))
+                              );
+                              alert("Đã cập nhật số lượt chia sẻ thành công!");
+                            }
+                          } catch {}
+                        }}
+                        className="px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 font-bold text-[11px] border border-sky-100 hover:bg-sky-100 cursor-pointer"
+                        title="Bấm để sửa hoặc đặt lại số lượt chia sẻ"
+                      >
+                        🔗 {sub.sharesCount || 0} chia sẻ ✏️
+                      </button>
                       <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
                         ❤️ {sub.votesCount} bình chọn
                       </span>

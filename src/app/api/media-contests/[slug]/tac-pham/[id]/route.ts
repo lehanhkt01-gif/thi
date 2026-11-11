@@ -70,8 +70,25 @@ export async function POST(
 
     const action = body.action || "view";
     if (action === "share") {
-      const res = store.incrementMediaSubmissionShares(id);
-      return NextResponse.json({ success: true, sharesCount: res.sharesCount });
+      const clientIp =
+        req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+        req.headers.get("x-real-ip") ||
+        "anonymous";
+      const userKey =
+        body.userEmail ||
+        body.userId ||
+        req.headers.get("x-user-email") ||
+        req.headers.get("x-user-id") ||
+        body.deviceId ||
+        body.userKey ||
+        clientIp;
+
+      const res = store.incrementMediaSubmissionShares(id, userKey);
+      return NextResponse.json(res);
+    } else if (action === "reset-shares" || action === "update-shares") {
+      const newCount = typeof body.sharesCount === "number" ? body.sharesCount : 0;
+      const res = store.updateMediaSubmissionShares(id, newCount);
+      return NextResponse.json(res);
     } else {
       const res = store.incrementMediaSubmissionViews(id);
       return NextResponse.json({ success: true, viewsCount: res.viewsCount });

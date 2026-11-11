@@ -76,6 +76,21 @@ function formatSubmissionDate(isoString?: string): string {
   }
 }
 
+// Lấy mã thiết bị định danh duy nhất cho người dùng
+function getClientDeviceId(): string {
+  if (typeof window === "undefined") return "anon";
+  try {
+    let devId = localStorage.getItem("easup_device_id");
+    if (!devId) {
+      devId = `dev-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem("easup_device_id", devId);
+    }
+    return devId;
+  } catch {
+    return "anon";
+  }
+}
+
 export default function ArtworkDetailPage({
   params,
 }: {
@@ -268,24 +283,38 @@ export default function ArtworkDetailPage({
     }
   };
 
-  // Ghi nhận lượt chia sẻ thành công lên server
+  // Ghi nhận lượt chia sẻ thành công lên server (Giới hạn tối đa 3 lần / tài khoản)
   const recordShareSuccess = async () => {
     if (!submission) return;
     try {
+      const userKey = authUser?.email || authUser?.id || getClientDeviceId();
       const res = await fetch(
         `/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(submission.id)}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ action: "share" }),
+          body: JSON.stringify({
+            action: "share",
+            userKey,
+            userEmail: authUser?.email,
+            userId: authUser?.id,
+          }),
         }
       );
       const data = await res.json();
+      if (data.maxReached) {
+        setShareSuccessToast("⚠️ Bạn đã đạt giới hạn tối đa 3 lượt chia sẻ cho tác phẩm này!");
+        setTimeout(() => setShareSuccessToast(""), 4500);
+        return;
+      }
       if (data.sharesCount !== undefined) {
         setSubmission((prev) => (prev ? { ...prev, sharesCount: data.sharesCount } : prev));
       }
-      setShareSuccessToast("✓ Đã ghi nhận 1 lượt chia sẻ Facebook thành công!");
-      setTimeout(() => setShareSuccessToast(""), 3500);
+      setShareSuccessToast(
+        data.message ||
+          `✓ Đã ghi nhận 1 lượt chia sẻ thành công (${data.userSharesCount || 1}/3 lần tối đa của bạn)!`
+      );
+      setTimeout(() => setShareSuccessToast(""), 4000);
     } catch {}
   };
 

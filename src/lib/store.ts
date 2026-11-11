@@ -200,6 +200,7 @@ export interface MediaSubmissionModel {
   votesCount: number;
   viewsCount?: number;
   sharesCount?: number;
+  userShares?: Record<string, number>;
   score?: number;
   status: "APPROVED" | "PENDING" | "REJECTED";
   createdAt: string;
@@ -2207,11 +2208,56 @@ class DataStore {
     return { success: true, viewsCount: sub.viewsCount };
   }
 
-  public incrementMediaSubmissionShares(submissionId: string): { success: boolean; sharesCount: number } {
+  public incrementMediaSubmissionShares(
+    submissionId: string,
+    userKey?: string
+  ): {
+    success: boolean;
+    sharesCount: number;
+    maxReached?: boolean;
+    userSharesCount?: number;
+    message?: string;
+  } {
     this.loadFromDisk(true);
     const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
     if (!sub) return { success: false, sharesCount: 0 };
+
+    if (!sub.userShares) sub.userShares = {};
+
+    const key = (userKey || "anonymous").trim().toLowerCase();
+    const currentShares = sub.userShares[key] || 0;
+
+    // Giới hạn tối đa 3 lần chia sẻ cho mỗi tài khoản / người dùng
+    if (key !== "admin" && currentShares >= 3) {
+      return {
+        success: false,
+        maxReached: true,
+        userSharesCount: currentShares,
+        sharesCount: sub.sharesCount || 0,
+        message: "Tài khoản của bạn đã đạt giới hạn tối đa 3 lượt chia sẻ cho tác phẩm này!",
+      };
+    }
+
+    sub.userShares[key] = currentShares + 1;
     sub.sharesCount = (sub.sharesCount || 0) + 1;
+    this.saveToDisk();
+
+    return {
+      success: true,
+      userSharesCount: sub.userShares[key],
+      sharesCount: sub.sharesCount,
+      message: `Đã ghi nhận lượt chia sẻ (${sub.userShares[key]}/3 lần tối đa của bạn)!`,
+    };
+  }
+
+  public updateMediaSubmissionShares(
+    submissionId: string,
+    count: number
+  ): { success: boolean; sharesCount: number } {
+    this.loadFromDisk(true);
+    const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
+    if (!sub) return { success: false, sharesCount: 0 };
+    sub.sharesCount = Math.max(0, count);
     this.saveToDisk();
     return { success: true, sharesCount: sub.sharesCount };
   }

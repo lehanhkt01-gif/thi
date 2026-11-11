@@ -115,6 +115,21 @@ interface MediaSubmission {
   createdAt: string;
 }
 
+// Lấy mã thiết bị định danh duy nhất cho người dùng
+function getClientDeviceId(): string {
+  if (typeof window === "undefined") return "anon";
+  try {
+    let devId = localStorage.getItem("easup_device_id");
+    if (!devId) {
+      devId = `dev-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      localStorage.setItem("easup_device_id", devId);
+    }
+    return devId;
+  } catch {
+    return "anon";
+  }
+}
+
 const THEME_SWATCHES = [
   "#DC2626", // Đỏ hành chính (Ảnh 2)
   "#264653", // Xanh than đậm (Ảnh 2)
@@ -895,28 +910,52 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Tăng biến đếm chia sẻ cho tác phẩm
-  const incrementSubmissionShareCount = (subId: string) => {
-    // Gọi API lưu số lượt chia sẻ
-    fetch(`/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(subId)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "share" }),
-    }).catch(() => {});
-
-    setSubmissions((prev) =>
-      prev.map((s) => (s.id === subId ? { ...s, sharesCount: (s.sharesCount || 0) + 1 } : s))
-    );
-    if (selectedSubmission?.id === subId) {
-      setSelectedSubmission((prev) =>
-        prev ? { ...prev, sharesCount: (prev.sharesCount || 0) + 1 } : prev
+  // Ghi nhận lượt chia sẻ cho tác phẩm (Giới hạn tối đa 3 lần / tài khoản)
+  const incrementSubmissionShareCount = async (subId: string) => {
+    try {
+      const userKey = authUser?.email || authUser?.id || getClientDeviceId();
+      const res = await fetch(
+        `/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(subId)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: "share",
+            userKey,
+            userEmail: authUser?.email,
+            userId: authUser?.id,
+          }),
+        }
       );
-    }
-    setShareModalTarget((prev) =>
-      prev && prev !== "CONTEST" && prev.id === subId
-        ? { ...prev, sharesCount: (prev.sharesCount || 0) + 1 }
-        : prev
-    );
+      const data = await res.json();
+
+      if (data.maxReached) {
+        setSaveToast("⚠️ Bạn đã đạt giới hạn tối đa 3 lượt chia sẻ cho tác phẩm này!");
+        setTimeout(() => setSaveToast(""), 4500);
+        return;
+      }
+
+      if (data.success && data.sharesCount !== undefined) {
+        setSubmissions((prev) =>
+          prev.map((s) => (s.id === subId ? { ...s, sharesCount: data.sharesCount } : s))
+        );
+        if (selectedSubmission?.id === subId) {
+          setSelectedSubmission((prev) =>
+            prev ? { ...prev, sharesCount: data.sharesCount } : prev
+          );
+        }
+        setShareModalTarget((prev) =>
+          prev && prev !== "CONTEST" && prev.id === subId
+            ? { ...prev, sharesCount: data.sharesCount }
+            : prev
+        );
+        setSaveToast(
+          data.message ||
+            `✓ Đã ghi nhận lượt chia sẻ (${data.userSharesCount || 1}/3 lần tối đa của bạn)!`
+        );
+        setTimeout(() => setSaveToast(""), 4000);
+      }
+    } catch {}
   };
 
   // Mở hộp thoại chia sẻ đa nền tảng (tương tự cuộc thi trắc nghiệm trực tuyến)
