@@ -1099,6 +1099,7 @@ export default function AdminDashboardPage() {
               "CCCD": s.authorCccd || "",
               "Số lượng ảnh": Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls.length : 1,
               "Bố cục": s.orientation === "horizontal" ? "Bố cục ngang" : "Bố cục dọc",
+              "Lượt xem": s.viewsCount || 0,
               "Lượt bình chọn": s.votesCount || 0,
               "Lượt chia sẻ": s.sharesCount || 0,
               "Điểm BTC": s.score || 0,
@@ -1117,6 +1118,7 @@ export default function AdminDashboardPage() {
                 "CCCD": "",
                 "Số lượng ảnh": 0,
                 "Bố cục": "",
+                "Lượt xem": 0,
                 "Lượt bình chọn": 0,
                 "Lượt chia sẻ": 0,
                 "Điểm BTC": 0,
@@ -4621,7 +4623,10 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 self-end sm:self-center">
+                    <div className="flex items-center space-x-2 self-end sm:self-center flex-wrap gap-1">
+                      <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
+                        👁️ {sub.viewsCount || 0} xem
+                      </span>
                       <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
                         ❤️ {sub.votesCount} bình chọn
                       </span>

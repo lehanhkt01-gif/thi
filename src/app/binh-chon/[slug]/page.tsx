@@ -107,6 +107,7 @@ interface MediaSubmission {
   mediaUrls?: string[];
   orientation?: "vertical" | "horizontal";
   description: string;
+  viewsCount?: number;
   votesCount: number;
   sharesCount?: number;
   score?: number;
@@ -871,6 +872,13 @@ export default function MediaContestPublicPage({
 
   // Tăng biến đếm chia sẻ cho tác phẩm
   const incrementSubmissionShareCount = (subId: string) => {
+    // Gọi API lưu số lượt chia sẻ
+    fetch(`/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(subId)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "share" }),
+    }).catch(() => {});
+
     setSubmissions((prev) =>
       prev.map((s) => (s.id === subId ? { ...s, sharesCount: (s.sharesCount || 0) + 1 } : s))
     );
@@ -1763,7 +1771,12 @@ export default function MediaContestPublicPage({
                           {hasVoted ? "✓ Đã bình chọn" : "Bình chọn"}
                         </button>
 
-                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-2 text-xs text-slate-600 px-1">
+                        <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1 text-[11px] sm:text-xs text-slate-600 px-0.5">
+                          <span className="inline-flex items-center space-x-1 whitespace-nowrap font-medium text-blue-600" title="Lượt xem tác phẩm">
+                            <Eye className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+                            <span>{sub.viewsCount || 0} xem</span>
+                          </span>
+
                           {contest?.showVoteCount !== false ? (
                             <span className="inline-flex items-center space-x-1 whitespace-nowrap font-medium text-slate-600">
                               <Star className="w-3.5 h-3.5 text-amber-500 shrink-0" />
@@ -1777,7 +1790,7 @@ export default function MediaContestPublicPage({
                             <button
                               type="button"
                               onClick={() => openShareModal(sub)}
-                              className="inline-flex items-center space-x-1 whitespace-nowrap font-semibold text-slate-600 hover:text-[#0284C7] hover:bg-sky-50 px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
+                              className="inline-flex items-center space-x-1 whitespace-nowrap font-semibold text-slate-600 hover:text-[#0284C7] hover:bg-sky-50 px-1 sm:px-2 py-0.5 rounded-lg transition-colors cursor-pointer"
                               title="Chia sẻ tác phẩm đa nền tảng (Zalo, Facebook, Mã QR, Sao chép link)"
                             >
                               <Share2 className="w-3.5 h-3.5 text-[#0284C7] shrink-0" />
@@ -2921,10 +2934,18 @@ export default function MediaContestPublicPage({
                   </div>
                 </div>
 
-                {/* Khung số liệu: Lượt bình chọn & Lượt chia sẻ (Ảnh 2) */}
-                <div className="bg-white border border-slate-200/90 rounded-2xl py-3 px-5 shadow-2xs grid grid-cols-2 text-center divide-x divide-slate-100">
+                {/* Khung số liệu: Lượt xem, Lượt bình chọn & Lượt chia sẻ (Ảnh 2 & 3) */}
+                <div className="bg-white border border-slate-200/90 rounded-2xl py-3 px-3 sm:px-5 shadow-2xs grid grid-cols-3 text-center divide-x divide-slate-100">
                   <div className="px-1">
-                    <div className="text-2xl font-extrabold text-slate-800 tracking-tight">
+                    <div className="text-xl sm:text-2xl font-extrabold text-blue-600 tracking-tight">
+                      {selectedSubmission.viewsCount || 0}
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium mt-0.5">
+                      lượt xem
+                    </div>
+                  </div>
+                  <div className="px-1">
+                    <div className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">
                       {selectedSubmission.votesCount || 0}
                     </div>
                     <div className="text-xs text-slate-500 font-medium mt-0.5">
@@ -2932,7 +2953,7 @@ export default function MediaContestPublicPage({
                     </div>
                   </div>
                   <div className="px-1">
-                    <div className="text-2xl font-extrabold text-slate-800 tracking-tight">
+                    <div className="text-xl sm:text-2xl font-extrabold text-slate-800 tracking-tight">
                       {selectedSubmission.sharesCount || 0}
                     </div>
                     <div className="text-xs text-slate-500 font-medium mt-0.5">
@@ -3246,7 +3267,8 @@ export default function MediaContestPublicPage({
                     <div className="text-[11px] text-slate-500 truncate mt-0.5">
                       Tác giả: <strong className="text-slate-700">{shareModalTarget.authorName}</strong> • {shareModalTarget.unitName}
                     </div>
-                    <div className="text-[11px] font-bold mt-1 flex items-center gap-3" style={{ color: themeColor }}>
+                    <div className="text-[11px] font-bold mt-1 flex items-center gap-2.5 sm:gap-3 flex-wrap" style={{ color: themeColor }}>
+                      <span className="text-blue-600">👁️ {shareModalTarget.viewsCount || 0} xem</span>
                       <span>⭐ {shareModalTarget.votesCount || 0} bình chọn</span>
                       <span>🔗 {shareModalTarget.sharesCount || 0} chia sẻ</span>
                     </div>

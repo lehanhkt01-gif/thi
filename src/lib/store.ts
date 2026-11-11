@@ -198,6 +198,7 @@ export interface MediaSubmissionModel {
   orientation?: "vertical" | "horizontal";
   description: string;
   votesCount: number;
+  viewsCount?: number;
   sharesCount?: number;
   score?: number;
   status: "APPROVED" | "PENDING" | "REJECTED";
@@ -2187,12 +2188,32 @@ class DataStore {
       ...data,
       id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       votesCount: 0,
+      viewsCount: 0,
+      sharesCount: 0,
       status: "APPROVED",
       createdAt: new Date().toISOString(),
     };
     this.mediaSubmissions.unshift(newSub);
     this.saveToDisk();
     return newSub;
+  }
+
+  public incrementMediaSubmissionViews(submissionId: string): { success: boolean; viewsCount: number } {
+    this.loadFromDisk(true);
+    const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
+    if (!sub) return { success: false, viewsCount: 0 };
+    sub.viewsCount = (sub.viewsCount || 0) + 1;
+    this.saveToDisk();
+    return { success: true, viewsCount: sub.viewsCount };
+  }
+
+  public incrementMediaSubmissionShares(submissionId: string): { success: boolean; sharesCount: number } {
+    this.loadFromDisk(true);
+    const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
+    if (!sub) return { success: false, sharesCount: 0 };
+    sub.sharesCount = (sub.sharesCount || 0) + 1;
+    this.saveToDisk();
+    return { success: true, sharesCount: sub.sharesCount };
   }
 
   public voteMediaSubmission(submissionId: string): { success: boolean; votesCount: number } {

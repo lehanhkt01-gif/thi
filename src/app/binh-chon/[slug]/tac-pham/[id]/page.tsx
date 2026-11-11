@@ -52,6 +52,7 @@ interface MediaSubmission {
   mediaUrls?: string[];
   orientation?: "vertical" | "horizontal";
   description: string;
+  viewsCount?: number;
   votesCount: number;
   sharesCount?: number;
   score?: number;
@@ -191,7 +192,7 @@ export default function ArtworkDetailPage({
     const loadData = async () => {
       try {
         const res = await fetch(
-          `/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(id)}?t=${Date.now()}`,
+          `/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(id)}?view=1&t=${Date.now()}`,
           { cache: "no-store" }
         );
         const data = await res.json();
@@ -266,6 +267,20 @@ export default function ArtworkDetailPage({
     if (!submission) return;
     const url = typeof window !== "undefined" ? window.location.href : "";
     const shareTitle = `${submission.title} - Tác giả: ${submission.authorName} (${submission.unitName}) | ${contest?.title || "Cuộc thi Ảnh đẹp"}`;
+
+    // Tăng lượt chia sẻ trên server
+    fetch(`/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(submission.id)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "share" }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.sharesCount !== undefined) {
+          setSubmission((prev) => (prev ? { ...prev, sharesCount: data.sharesCount } : prev));
+        }
+      })
+      .catch(() => {});
 
     if (platform === "copy") {
       navigator.clipboard.writeText(url);
@@ -435,9 +450,17 @@ export default function ArtworkDetailPage({
                 </div>
               </div>
 
-              {/* Khung số liệu: Lượt bình chọn & Lượt chia sẻ (Ảnh 2) */}
-              <div className="bg-white border border-slate-200/90 rounded-2xl py-3.5 px-6 shadow-2xs grid grid-cols-2 text-center divide-x divide-slate-100">
-                <div className="px-2">
+              {/* Khung số liệu: Lượt xem, Lượt bình chọn & Lượt chia sẻ (Ảnh 2 & 3) */}
+              <div className="bg-white border border-slate-200/90 rounded-2xl py-3.5 px-3 sm:px-6 shadow-2xs grid grid-cols-3 text-center divide-x divide-slate-100">
+                <div className="px-1 sm:px-2">
+                  <div className="text-2xl sm:text-3xl font-extrabold text-blue-600 tracking-tight">
+                    {submission.viewsCount || 0}
+                  </div>
+                  <div className="text-xs text-slate-500 font-medium mt-0.5">
+                    lượt xem
+                  </div>
+                </div>
+                <div className="px-1 sm:px-2">
                   <div className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">
                     {submission.votesCount || 0}
                   </div>
@@ -445,7 +468,7 @@ export default function ArtworkDetailPage({
                     lượt bình chọn
                   </div>
                 </div>
-                <div className="px-2">
+                <div className="px-1 sm:px-2">
                   <div className="text-2xl sm:text-3xl font-extrabold text-slate-800 tracking-tight">
                     {submission.sharesCount || 0}
                   </div>
@@ -612,9 +635,9 @@ export default function ArtworkDetailPage({
                       alt={other.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                      <span>★</span>
-                      <span>{other.votesCount || 0}</span>
+                    <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5">
+                      <span>👁️ {other.viewsCount || 0}</span>
+                      <span>★ {other.votesCount || 0}</span>
                     </div>
                   </div>
                   <div className="p-3 flex-1 flex flex-col justify-between space-y-1">

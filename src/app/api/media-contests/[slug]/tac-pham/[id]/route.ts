@@ -30,6 +30,15 @@ export async function GET(
       );
     }
 
+    // Tự động tăng số lượt xem tác phẩm khi thí sinh / người xem truy cập chi tiết
+    const isView = req.nextUrl.searchParams.get("view") === "1" || req.headers.get("x-action") === "view";
+    if (isView) {
+      const viewRes = store.incrementMediaSubmissionViews(id);
+      if (viewRes.success) {
+        submission.viewsCount = viewRes.viewsCount;
+      }
+    }
+
     const otherSubmissions = allSubmissions
       .filter((s) => s.id !== id)
       .slice(0, 8);
@@ -45,6 +54,30 @@ export async function GET(
       { error: "Lỗi tải thông tin tác phẩm: " + error.message },
       { status: 500 }
     );
+  }
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ slug: string; id: string }> }
+) {
+  try {
+    const { id } = await params;
+    let body: any = {};
+    try {
+      body = await req.json();
+    } catch {}
+
+    const action = body.action || "view";
+    if (action === "share") {
+      const res = store.incrementMediaSubmissionShares(id);
+      return NextResponse.json({ success: true, sharesCount: res.sharesCount });
+    } else {
+      const res = store.incrementMediaSubmissionViews(id);
+      return NextResponse.json({ success: true, viewsCount: res.viewsCount });
+    }
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
 
