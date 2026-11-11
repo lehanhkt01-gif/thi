@@ -956,10 +956,10 @@ export default function MediaContestPublicPage({
 
   const [isDeletingSubId, setIsDeletingSubId] = useState<string | null>(null);
 
-  // Xóa tác phẩm dự thi (dành cho Admin hoặc Người tạo cuộc thi / tác giả)
+  // Xóa tác phẩm dự thi (CHỈ dành riêng cho Người tạo cuộc thi hoặc Quản trị viên)
   const handleDeleteSubmission = async (sub: MediaSubmission) => {
-    if (!authUser) {
-      alert("Vui lòng đăng nhập tài khoản có thẩm quyền để xóa tác phẩm!");
+    if (!authUser || !canManage) {
+      alert("Chỉ người tạo cuộc thi hoặc Quản trị viên (Admin) mới có quyền xóa tác phẩm!");
       return;
     }
 
@@ -1272,54 +1272,60 @@ export default function MediaContestPublicPage({
       {/* VÙNG CHÍNH GIỮA: GIAO DIỆN CUỘC THI ẢNH (ẢNH 4) */}
       {/* ========================================================================= */}
       <div className="flex-1 min-w-0 flex flex-col">
-        {/* Thanh công cụ phía trên (Nút quay lại + Nút Hiển thị nhanh / Cài đặt + Ô tìm kiếm giống Ảnh 4) */}
-        <div className="w-full px-4 sm:px-6 pt-3 pb-2 flex items-center justify-between gap-2">
-          <div className="flex items-center space-x-2 text-xs">
+        {/* Thanh công cụ phía trên: Thiết kế tinh gọn, trên Mobile chỉ hiển thị biểu tượng (icon-only) để không bao giờ bị tràn/che khuất */}
+        <div className="w-full px-3 sm:px-6 pt-3 pb-2 flex items-center justify-between gap-1.5 sm:gap-2">
+          <div className="flex items-center space-x-1 sm:space-x-2 text-xs shrink-0">
             <Link
               href={authUser ? "/admin?tab=anh-video" : "/"}
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:text-[#DC2626] font-semibold shadow-2xs transition-colors"
+              className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-full bg-white border border-slate-200 text-slate-700 hover:text-[#DC2626] font-semibold shadow-2xs transition-colors shrink-0"
+              title={authUser ? "Quản lý Thi Ảnh" : "Cổng Cuộc Thi Ea Súp"}
             >
-              <ArrowLeft className="w-3.5 h-3.5 mr-1" />
-              <span>{authUser ? "Quản lý Thi Ảnh" : "Cổng Cuộc Thi Ea Súp"}</span>
+              <ArrowLeft className="w-4 h-4 sm:mr-1" />
+              <span className="hidden md:inline">{authUser ? "Quản lý Thi Ảnh" : "Cổng Cuộc Thi Ea Súp"}</span>
             </Link>
 
             <button
               type="button"
               onClick={() => setInfoModalTab("rules")}
-              className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-semibold shadow-2xs transition-colors cursor-pointer shrink-0"
+              title="Thể lệ cuộc thi"
             >
-              <FileText className="w-3.5 h-3.5 mr-1 text-slate-400" />
-              <span>Thể lệ</span>
+              <FileText className="w-4 h-4 text-slate-500 sm:mr-1" />
+              <span className="hidden md:inline">Thể lệ</span>
             </button>
 
             {contest?.showLeaderboard !== false && (
               <button
                 type="button"
                 onClick={() => setInfoModalTab("leaderboard")}
-                className="hidden sm:inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-semibold shadow-2xs transition-colors cursor-pointer"
+                className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-slate-900 font-semibold shadow-2xs transition-colors cursor-pointer shrink-0"
+                title="Bảng xếp hạng"
               >
-                <Trophy className="w-3.5 h-3.5 mr-1 text-amber-500" />
-                <span>Bảng xếp hạng</span>
+                <Trophy className="w-4 h-4 text-amber-500 sm:mr-1" />
+                <span className="hidden md:inline">Bảng xếp hạng</span>
               </button>
             )}
 
             <button
               type="button"
               onClick={() => openShareModal("CONTEST")}
-              className="inline-flex items-center px-3 py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-[#0284C7] hover:border-sky-300 font-semibold shadow-2xs transition-colors cursor-pointer"
+              className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-full bg-white border border-slate-200 text-slate-600 hover:text-[#0284C7] hover:border-sky-300 font-semibold shadow-2xs transition-colors cursor-pointer shrink-0"
               title="Chia sẻ cuộc thi đa nền tảng & Mã QR"
             >
-              <Share2 className="w-3.5 h-3.5 mr-1 text-[#0284C7]" />
-              <span>Chia sẻ</span>
+              <Share2 className="w-4 h-4 text-[#0284C7] sm:mr-1" />
+              <span className="hidden md:inline">Chia sẻ</span>
             </button>
           </div>
 
-          {/* Cụm nút bên phải: [ Đăng nhập / Tài khoản ] + [ Hiển thị nhanh / Cài đặt ] + [ Tìm kiếm... ] */}
-          <div className="flex items-center space-x-2">
+          {/* Cụm nút bên phải: [ Đăng nhập / Tài khoản ] + [ Cài đặt cuộc thi ] + [ Ô tìm kiếm ] */}
+          <div className="flex items-center space-x-1 sm:space-x-2 shrink-0">
             {authUser ? (
-              <div className="inline-flex items-center space-x-1.5 bg-white border border-slate-200 px-2.5 py-1 rounded-full text-xs">
-                <User className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
-                <span className="font-bold text-slate-700 max-w-[110px] truncate">
+              <div
+                className="inline-flex items-center space-x-1.5 bg-white border border-slate-200 px-2 py-1.5 sm:px-2.5 sm:py-1 rounded-full text-xs shadow-2xs shrink-0"
+                title={`Đã đăng nhập: ${authUser.name || authUser.email}`}
+              >
+                <User className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-bold text-slate-700 max-w-[100px] truncate hidden md:inline">
                   {authUser.name || authUser.email}
                 </span>
                 <button
@@ -1342,10 +1348,11 @@ export default function MediaContestPublicPage({
                   setPendingSubmitAfterLogin(false);
                   setShowLoginModal(true);
                 }}
-                className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:border-slate-400 text-slate-700 text-xs font-bold shadow-2xs transition-all cursor-pointer"
+                className="inline-flex items-center justify-center p-2 sm:px-3 sm:py-1.5 rounded-full bg-white border border-slate-200 hover:border-slate-400 text-slate-700 text-xs font-bold shadow-2xs transition-all cursor-pointer shrink-0"
+                title="Đăng nhập"
               >
-                <User className="w-3.5 h-3.5 text-[#DC2626]" />
-                <span>Đăng nhập</span>
+                <User className="w-4 h-4 text-[#DC2626] sm:mr-1" />
+                <span className="hidden md:inline">Đăng nhập</span>
               </button>
             )}
 
@@ -1353,14 +1360,15 @@ export default function MediaContestPublicPage({
               <button
                 type="button"
                 onClick={() => setShowSettingsDrawer(!showSettingsDrawer)}
-                className="inline-flex items-center space-x-1.5 px-3.5 py-1.5 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-sm transition-all cursor-pointer"
+                className="inline-flex items-center justify-center p-2 sm:px-3.5 sm:py-1.5 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-sm transition-all cursor-pointer shrink-0"
+                title={showSettingsDrawer ? "Đóng cài đặt" : "Cài đặt cuộc thi"}
               >
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                <span>{showSettingsDrawer ? "Đóng cài đặt" : "Cài đặt cuộc thi"}</span>
+                <SlidersHorizontal className="w-4 h-4 sm:mr-1.5" />
+                <span className="hidden md:inline">{showSettingsDrawer ? "Đóng cài đặt" : "Cài đặt cuộc thi"}</span>
               </button>
             )}
 
-            <div className="relative hidden sm:block">
+            <div className="relative hidden lg:block shrink-0">
               <Search className="w-3.5 h-3.5 absolute left-3 top-2 text-slate-400" />
               <input
                 type="text"
@@ -1370,7 +1378,7 @@ export default function MediaContestPublicPage({
                   setCurrentPage(1);
                 }}
                 placeholder="Tìm kiếm..."
-                className="pl-8 pr-3 py-1 text-xs rounded-full border border-slate-200 bg-white focus:outline-none focus:border-slate-400 w-36 lg:w-44"
+                className="pl-8 pr-3 py-1 text-xs rounded-full border border-slate-200 bg-white focus:outline-none focus:border-slate-400 w-32 xl:w-44"
               />
             </div>
           </div>
@@ -1632,14 +1640,9 @@ export default function MediaContestPublicPage({
             >
               {paginatedSubmissions.map((sub) => {
                 const hasVoted = votedMap[sub.id];
-                // Phân quyền: CHỈ Người tạo tác phẩm hoặc Quản trị viên (Admin) mới được xóa tác phẩm
-                // Người dùng đăng nhập khác KHÔNG ĐƯỢC PHÉP xóa tác phẩm này
-                const isArtworkAuthor = Boolean(
-                  (authUser?.email && sub.authorEmail && authUser.email.toLowerCase().trim() === sub.authorEmail.toLowerCase().trim()) ||
-                  (authUser?.phone && sub.authorPhone && authUser.phone.trim() === sub.authorPhone.trim()) ||
-                  (authUser?.id && sub.userId && authUser.id === sub.userId)
-                );
-                const canDeleteThisSub = Boolean(canManage || isArtworkAuthor);
+                // Phân quyền: CHỈ Người tạo ra cuộc thi / Admin mới được hiện nút xóa tác phẩm
+                // Tất cả người dùng khác đều không được xóa sản phẩm
+                const canDeleteThisSub = Boolean(canManage);
                 const subImages =
                   Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
                     ? sub.mediaUrls
@@ -1759,7 +1762,7 @@ export default function MediaContestPublicPage({
                         {canDeleteThisSub && (
                           <div className="pt-2 border-t border-red-100 flex items-center justify-between text-xs">
                             <span className="text-[10px] text-slate-500 font-medium">
-                              {canManage ? "Quyền Quản trị" : "Tác phẩm của bạn"}
+                              Quyền Người tạo cuộc thi
                             </span>
                             <button
                               type="button"
@@ -1770,7 +1773,7 @@ export default function MediaContestPublicPage({
                                 handleDeleteSubmission(sub);
                               }}
                               className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                              title={canManage ? "Xóa tác phẩm này (Quyền quản trị)" : "Xóa tác phẩm do bạn tạo"}
+                              title="Xóa tác phẩm này (Chỉ dành cho Người tạo cuộc thi)"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>{isDeletingSubId === sub.id ? "Đang xóa..." : "Xóa tác phẩm"}</span>
@@ -3005,34 +3008,24 @@ export default function MediaContestPublicPage({
                   </div>
                 )}
 
-                {/* Nút xóa tác phẩm: Chỉ Admin hoặc Chính người tạo tác phẩm mới được xóa */}
-                {(() => {
-                  const isAuthor = Boolean(
-                    (authUser?.email && selectedSubmission.authorEmail && authUser.email.toLowerCase().trim() === selectedSubmission.authorEmail.toLowerCase().trim()) ||
-                    (authUser?.phone && selectedSubmission.authorPhone && authUser.phone.trim() === selectedSubmission.authorPhone.trim()) ||
-                    (authUser?.id && selectedSubmission.userId && authUser.id === selectedSubmission.userId)
-                  );
-                  const canDeleteModal = Boolean(canManage || isAuthor);
-                  if (!canDeleteModal) return null;
-
-                  return (
-                    <div className="pt-2 border-t border-red-100 flex items-center justify-between">
-                      <span className="text-xs text-slate-500 font-medium">
-                        {canManage ? "Quyền Quản trị" : "Tác phẩm do bạn tạo"}
-                      </span>
-                      <button
-                        type="button"
-                        disabled={isDeletingSubId === selectedSubmission.id}
-                        onClick={() => handleDeleteSubmission(selectedSubmission)}
-                        className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                        title={canManage ? "Xóa tác phẩm này (Quyền quản trị)" : "Xóa tác phẩm của bạn"}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>{isDeletingSubId === selectedSubmission.id ? "Đang xóa..." : "Xóa tác phẩm"}</span>
-                      </button>
-                    </div>
-                  );
-                })()}
+                {/* Nút xóa tác phẩm: Chỉ Người tạo cuộc thi hoặc Quản trị viên mới được xóa */}
+                {canManage && (
+                  <div className="pt-2 border-t border-red-100 flex items-center justify-between">
+                    <span className="text-xs text-slate-500 font-medium">
+                      Quyền Người tạo cuộc thi
+                    </span>
+                    <button
+                      type="button"
+                      disabled={isDeletingSubId === selectedSubmission.id}
+                      onClick={() => handleDeleteSubmission(selectedSubmission)}
+                      className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                      title="Xóa tác phẩm này (Chỉ dành cho Người tạo cuộc thi)"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>{isDeletingSubId === selectedSubmission.id ? "Đang xóa..." : "Xóa tác phẩm"}</span>
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>

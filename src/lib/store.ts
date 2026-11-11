@@ -2211,34 +2211,18 @@ class DataStore {
       (c) => c.id === sub.contestId || c.slug === sub.contestSlug
     );
 
-    // Phân quyền theo quy tắc:
-    // 1. Quản trị viên (Admin) hoặc Người tạo cuộc thi
-    // 2. CHÍNH NGƯỜI TẠO TÁC PHẨM NÀY (authorEmail, authorPhone hoặc userId trùng khớp)
-    // -> Người dùng đăng nhập thông thường KHÔNG ĐƯỢC PHÉP xóa tác phẩm của người khác!
+    // Kiểm tra quyền tuyệt đối: CHỈ Admin hoặc Người tạo cuộc thi mới có quyền xóa tác phẩm
+    // (Tất cả người dùng khác đều không được xóa sản phẩm)
     let hasPermission = false;
     if (user) {
       if (user.role === "ADMIN") hasPermission = true;
       if (contest && this.canUserEditMediaContest(contest, user)) hasPermission = true;
-
-      const uEmail = (user.email || "").toLowerCase().trim();
-      const sEmail = (sub.authorEmail || "").toLowerCase().trim();
-      if (uEmail && sEmail && uEmail === sEmail) {
-        hasPermission = true;
-      }
-      const uPhone = (user.phone || "").trim();
-      const sPhone = (sub.authorPhone || "").trim();
-      if (uPhone && sPhone && uPhone === sPhone) {
-        hasPermission = true;
-      }
-      if (user.id && sub.userId && user.id === sub.userId) {
-        hasPermission = true;
-      }
     }
 
     if (!hasPermission) {
       return {
         success: false,
-        error: "Bạn không có quyền xóa tác phẩm này! Chỉ người tạo tác phẩm và Quản trị viên (Admin) mới có quyền xóa.",
+        error: "Chỉ người tạo cuộc thi hoặc Quản trị viên (Admin) mới có quyền xóa tác phẩm!",
       };
     }
 
