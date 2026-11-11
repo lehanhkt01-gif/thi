@@ -2107,7 +2107,7 @@ export default function MediaContestPublicPage({
                 <div className="mt-3 p-3 rounded-xl border border-dashed border-slate-200 space-y-2">
                   {[
                     { key: "authorName", label: "Họ và tên tác giả (Bắt buộc)", locked: true },
-                    { key: "unitName", label: "Đơn vị / Thôn buôn dự thi" },
+                    { key: "unitName", label: "Đơn Vị dự thi" },
                     { key: "authorPhone", label: "Số điện thoại liên hệ" },
                     { key: "authorCccd", label: "Số CCCD / Mã định danh" },
                     { key: "authorEmail", label: "Địa chỉ Email" },
@@ -2702,22 +2702,16 @@ export default function MediaContestPublicPage({
                   {reqFields.includes("unitName") && (
                     <div>
                       <label className="block font-bold text-slate-700 mb-1">
-                        Đơn vị / Thôn buôn <span className="text-red-500">*</span>
+                        Đơn Vị <span className="text-red-500">*</span>
                       </label>
                       <input
                         type="text"
                         required
                         value={submitForm.unitName}
                         onChange={(e) => setSubmitForm({ ...submitForm, unitName: e.target.value })}
-                        placeholder="Nhập đơn vị / thôn buôn / trường học..."
-                        list="unitNameSuggestions"
+                        placeholder="Nhập đơn vị..."
                         className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
                       />
-                      <datalist id="unitNameSuggestions">
-                        {EA_SUP_VILLAGES.map((v) => (
-                          <option key={v} value={v} />
-                        ))}
-                      </datalist>
                     </div>
                   )}
                 </div>
