@@ -24,7 +24,6 @@ export async function POST(request: NextRequest) {
     const SYSTEM_ADMIN_EMAILS = [
       "lehanhkt01@gmail.com",
       "admin@easupso.com",
-      "easupsohoa@gmail.com",
     ];
 
     const isSystemAdmin = SYSTEM_ADMIN_EMAILS.includes(cleanEmail);

@@ -9,7 +9,6 @@ export const revalidate = 0;
 const SYSTEM_ADMIN_EMAILS = [
   "lehanhkt01@gmail.com",
   "admin@easupso.com",
-  "easupsohoa@gmail.com",
 ];
 
 export async function POST(request: NextRequest) {

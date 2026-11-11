@@ -584,12 +584,12 @@ class DataStore {
       `,
       organizerName: "Thường trực UB MTTQ Việt Nam xã Ea Súp",
       organizerAddress: "72 Hùng Vương, xã Ea Súp, Huyện Ea Súp, Tỉnh Đắk Lắk",
-      organizerEmail: "Easupsohoa@gmail.com",
+      organizerEmail: "ubnd.easup@daklak.gov.vn",
       organizerPhone: "0888023023",
       announcement: "Đề nghị các đồng chí Trưởng thôn, Buôn trưởng và Chi bộ tích cực đôn đốc nhân dân tham gia dự thi đạt chỉ tiêu!",
-      creatorEmail: "Easupsohoa@gmail.com",
-      creatorId: "user-admin-2",
-      creatorName: "Thường trực UB MTTQ Việt Nam xã Ea Súp",
+      creatorEmail: "lehanhkt01@gmail.com",
+      creatorId: "user-admin-lehanh",
+      creatorName: "Lê Hạnh - Quản trị viên Ea Súp",
       startTime: "2026-03-01T00:00:00Z",
       endTime: "2026-12-31T23:59:59Z",
       durationMinutes: 15,
@@ -645,7 +645,7 @@ class DataStore {
         email: "Easupsohoa@gmail.com",
         phone: "0888023023",
         password: "12345678@",
-        role: "ADMIN",
+        role: "USER",
         status: "APPROVED",
         organizationName: "Ủy ban MTTQ Việt Nam xã Ea Súp",
         createdAt: "2026-01-10T08:00:00Z",
@@ -1112,13 +1112,6 @@ class DataStore {
         role: "ADMIN" as const,
         status: "APPROVED" as const,
       },
-      {
-        email: "easupsohoa@gmail.com",
-        name: "Thường trực UB MTTQ Việt Nam xã Ea Súp",
-        phone: "0888023023",
-        role: "ADMIN" as const,
-        status: "APPROVED" as const,
-      },
     ];
 
     let hasChange = false;
@@ -1145,6 +1138,13 @@ class DataStore {
           hasChange = true;
         }
       }
+    }
+
+    // Đảm bảo các tài khoản người dùng thử nghiệm / thí sinh như easupsohoa@gmail.com luôn ở quyền USER (không phải Admin)
+    const testUser = this.users.find((u) => u.email.toLowerCase() === "easupsohoa@gmail.com");
+    if (testUser && testUser.role !== "USER") {
+      testUser.role = "USER";
+      hasChange = true;
     }
     if (hasChange) {
       this.saveToDisk();
@@ -1272,7 +1272,6 @@ class DataStore {
     const SYSTEM_ADMIN_EMAILS = [
       "lehanhkt01@gmail.com",
       "admin@easupso.com",
-      "easupsohoa@gmail.com",
     ];
     if (typeof window === "undefined" && (user.role === "ADMIN" || SYSTEM_ADMIN_EMAILS.includes(user.email.toLowerCase()))) {
       try {
@@ -1514,7 +1513,7 @@ class DataStore {
     }
     if (user && user.role !== "ADMIN") {
       const userEmail = (user.email || "").toLowerCase().trim();
-      const creatorEmail = (contest.creatorEmail || contest.organizerEmail || "").toLowerCase().trim();
+      const creatorEmail = (contest.creatorEmail || "").toLowerCase().trim();
       const creatorId = contest.creatorId;
       const isOwner = (creatorEmail && creatorEmail === userEmail) || (creatorId && creatorId === user.id);
       if (!isOwner) {
@@ -1522,7 +1521,7 @@ class DataStore {
       }
     }
 
-    const cleanCreator = (contest.creatorEmail || contest.organizerEmail || "").toLowerCase().trim();
+    const cleanCreator = (contest.creatorEmail || "").toLowerCase().trim();
     // Làm sạch và khử trùng danh sách email được chia sẻ
     const cleanList = Array.from(
       new Set(
@@ -1677,7 +1676,7 @@ class DataStore {
     const contest = this.contests[index];
     if (user && user.role !== "ADMIN") {
       const userEmail = (user.email || "").toLowerCase().trim();
-      const creatorEmail = (contest.creatorEmail || contest.organizerEmail || "").toLowerCase().trim();
+      const creatorEmail = (contest.creatorEmail || "").toLowerCase().trim();
       const creatorId = contest.creatorId;
       const isOwner = (creatorEmail && creatorEmail === userEmail) || (creatorId && creatorId === user.id);
       if (!isOwner) {
@@ -1999,7 +1998,7 @@ class DataStore {
       organizerName: data.organizerName || "Ủy ban MTTQ Việt Nam xã Ea Súp",
       organizerAddress: data.organizerAddress || "72 Hùng Vương, xã Ea Súp, Huyện Ea Súp, Tỉnh Đắk Lắk",
       organizerPhone: data.organizerPhone || "0888023023",
-      organizerEmail: data.organizerEmail || "Easupsohoa@gmail.com",
+      organizerEmail: data.organizerEmail || "ubnd.easup@daklak.gov.vn",
       creatorEmail: data.creatorEmail,
       creatorId: data.creatorId,
       creatorName: data.creatorName,
@@ -2046,11 +2045,19 @@ class DataStore {
     user?: { email?: string; role?: string; id?: string }
   ): boolean {
     if (!user) return false;
+    // 1. Quản trị viên toàn quyền hệ thống (Admin)
     if (user.role === "ADMIN") return true;
+
     const uEmail = (user.email || "").toLowerCase().trim();
-    const cEmail = (contest.creatorEmail || contest.organizerEmail || "").toLowerCase().trim();
+    if (!uEmail && !user.id) return false;
+
+    // 2. Chỉ người trực tiếp tạo cuộc thi (creatorEmail hoặc creatorId)
+    // TUYỆT ĐỐI không dùng organizerEmail (địa chỉ liên hệ hành chính) để cấp quyền quản trị
+    const cEmail = (contest.creatorEmail || "").toLowerCase().trim();
     if (cEmail && uEmail && uEmail === cEmail) return true;
     if (contest.creatorId && user.id && contest.creatorId === user.id) return true;
+
+    // 3. Người được chia sẻ quyền quản trị cụ thể trong sharedEmails
     if (
       Array.isArray(contest.sharedEmails) &&
       uEmail &&
@@ -3287,7 +3294,7 @@ class DataStore {
           title: contest?.title || "Cuộc thi trực tuyến xã Ea Súp",
           bannerUrl: contest?.bannerUrl || "",
           themeColor: contest?.themeColor || "#00A9E0",
-          creatorEmail: contest?.creatorEmail || contest?.organizerEmail || "",
+          creatorEmail: contest?.creatorEmail || "",
           creatorId: contest?.creatorId || "",
           organizerEmail: contest?.organizerEmail || "",
           sharedEmails: contest?.sharedEmails || [],
@@ -3408,7 +3415,7 @@ class DataStore {
         title: contest?.title || "Cuộc thi trực tuyến xã Ea Súp",
         bannerUrl: contest?.bannerUrl || "",
         themeColor: contest?.themeColor || "#00A9E0",
-        creatorEmail: contest?.creatorEmail || contest?.organizerEmail || "",
+        creatorEmail: contest?.creatorEmail || "",
         creatorId: contest?.creatorId || "",
         organizerEmail: contest?.organizerEmail || "",
         sharedEmails: contest?.sharedEmails || [],

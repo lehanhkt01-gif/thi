@@ -108,17 +108,25 @@ export default function ArtworkDetailPage({
     } catch {}
   }, []);
 
-  // Phân quyền: CHỈ Admin hoặc Người tạo cuộc thi hoặc CHÍNH NGƯỜI TẠO TÁC PHẨM NÀY mới được xóa
+  // Phân quyền: CHỈ Admin hoặc Người tạo cuộc thi mới được quản lý / xóa tác phẩm
+  // Người dùng đăng nhập thông thường (USER) tuyệt đối không có quyền
   const canManage = (() => {
     if (!authUser) return false;
+    // 1. Quản trị viên toàn quyền hệ thống (Admin)
     if (authUser.role === "ADMIN") return true;
+
     const uEmail = (authUser.email || "").toLowerCase().trim();
-    const cEmail = (contest?.creatorEmail || contest?.organizerEmail || "").toLowerCase().trim();
+    if (!uEmail && !authUser.id) return false;
+
+    // 2. Chỉ người tạo cuộc thi (creatorEmail hoặc creatorId). Tuyệt đối không dùng organizerEmail
+    const cEmail = (contest?.creatorEmail || "").toLowerCase().trim();
     const isCreator = Boolean(
       (cEmail && uEmail && uEmail === cEmail) ||
         (contest?.creatorId && authUser.id && contest.creatorId === authUser.id)
     );
     if (isCreator) return true;
+
+    // 3. Người được chia sẻ quyền quản trị
     const sharedList = Array.isArray(contest?.sharedEmails) ? contest!.sharedEmails! : [];
     const isShared = Boolean(
       uEmail && sharedList.some((em) => String(em || "").toLowerCase().trim() === uEmail)

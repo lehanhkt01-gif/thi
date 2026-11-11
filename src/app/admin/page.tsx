@@ -202,7 +202,7 @@ export default function AdminDashboardPage() {
     organizerName: "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
     organizerAddress: "72 Hùng Vương, xã Ea Súp, Tỉnh Đắk Lắk",
     organizerPhone: "0888023023",
-    organizerEmail: "Easupsohoa@gmail.com",
+    organizerEmail: "ubnd.easup@daklak.gov.vn",
   };
 
   const [newMediaForm, setNewMediaForm] = useState(defaultMediaFormState);
@@ -300,12 +300,13 @@ export default function AdminDashboardPage() {
   }, []);
 
   // Helper kiểm tra quyền sở hữu và quản lý cuộc thi:
-  // Admin toàn quyền; Người dùng (USER) có quyền Quản lý/Chỉnh sửa các cuộc thi do chính mình tạo HOẶC được chia sẻ quyền
+  // Admin toàn quyền; Người dùng (USER) chỉ có quyền Quản lý/Chỉnh sửa các cuộc thi do chính mình tạo HOẶC được chia sẻ quyền
   const canUserManageContest = (c: any) => {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     const userEmail = (authUser.email || "").toLowerCase().trim();
-    const creatorEmail = (c?.creatorEmail || c?.organizerEmail || "").toLowerCase().trim();
+    if (!userEmail && !authUser.id) return false;
+    const creatorEmail = (c?.creatorEmail || "").toLowerCase().trim();
     const creatorId = c?.creatorId || c?.userId;
     if (creatorEmail && creatorEmail === userEmail) return true;
     if (creatorId && creatorId === authUser.id) return true;
@@ -322,7 +323,8 @@ export default function AdminDashboardPage() {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     const userEmail = (authUser.email || "").toLowerCase().trim();
-    const creatorEmail = (c?.creatorEmail || c?.organizerEmail || "").toLowerCase().trim();
+    if (!userEmail && !authUser.id) return false;
+    const creatorEmail = (c?.creatorEmail || "").toLowerCase().trim();
     const creatorId = c?.creatorId || c?.userId;
     if (creatorEmail && creatorEmail === userEmail) return true;
     if (creatorId && creatorId === authUser.id) return true;
@@ -333,7 +335,8 @@ export default function AdminDashboardPage() {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     const userEmail = (authUser.email || "").toLowerCase().trim();
-    const creatorEmail = (c?.creatorEmail || c?.organizerEmail || "").toLowerCase().trim();
+    if (!userEmail && !authUser.id) return false;
+    const creatorEmail = (c?.creatorEmail || "").toLowerCase().trim();
     const creatorId = c?.creatorId;
     if (creatorEmail && creatorEmail === userEmail) return true;
     if (creatorId && creatorId === authUser.id) return true;
@@ -350,7 +353,8 @@ export default function AdminDashboardPage() {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
     const userEmail = (authUser.email || "").toLowerCase().trim();
-    const creatorEmail = (c?.creatorEmail || c?.organizerEmail || "").toLowerCase().trim();
+    if (!userEmail && !authUser.id) return false;
+    const creatorEmail = (c?.creatorEmail || "").toLowerCase().trim();
     const creatorId = c?.creatorId;
     if (creatorEmail && creatorEmail === userEmail) return true;
     if (creatorId && creatorId === authUser.id) return true;
@@ -1070,7 +1074,7 @@ export default function AdminDashboardPage() {
       organizerName: c.organizerName || "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp",
       organizerAddress: c.organizerAddress || "72 Hùng Vương, xã Ea Súp, Tỉnh Đắk Lắk",
       organizerPhone: c.organizerPhone || "0888023023",
-      organizerEmail: c.organizerEmail || "Easupsohoa@gmail.com",
+      organizerEmail: c.organizerEmail || "ubnd.easup@daklak.gov.vn",
     });
     setMediaSettingsSection("config");
     setShowCreateMediaModal(true);

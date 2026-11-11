@@ -339,6 +339,25 @@ export default function MediaContestPublicPage({
         if (saved) {
           const parsed = JSON.parse(saved);
           if (parsed && parsed.status === "APPROVED") {
+            // Tự động đối soát và bảo vệ phân quyền: Chỉ lehanhkt01@gmail.com hoặc admin@easupso.com mới là Admin hệ thống
+            const cleanEm = (parsed.email || "").toLowerCase().trim();
+            const isSysAdmin = cleanEm === "lehanhkt01@gmail.com" || cleanEm === "admin@easupso.com";
+            if (!isSysAdmin && parsed.role === "ADMIN") {
+              fetch(`/api/admin/users?search=${encodeURIComponent(cleanEm)}`)
+                .then((r) => r.json())
+                .then((data) => {
+                  const found = data.users?.find((u: any) => u.email.toLowerCase() === cleanEm);
+                  if (found && found.role !== "ADMIN") {
+                    parsed.role = "USER";
+                    try {
+                      localStorage.setItem("cuocthi_admin_auth", JSON.stringify(parsed));
+                    } catch {}
+                    setAuthUser({ ...parsed });
+                  }
+                })
+                .catch(() => {});
+            }
+
             setAuthUser(parsed);
             setSubmitForm((prev) => ({
               ...prev,
@@ -381,17 +400,25 @@ export default function MediaContestPublicPage({
     };
   }, [slug]);
 
-  // Chỉ người tạo, Admin hoặc người được chia sẻ quyền (sharedEmails) mới được chỉnh sửa cuộc thi
+  // Chỉ người trực tiếp tạo cuộc thi hoặc Quản trị viên (Admin) mới có quyền cài đặt, sửa, xóa cuộc thi & tác phẩm
+  // Người dùng đăng nhập thông thường (USER) tuyệt đối không có quyền quản lý
   const canManage = (() => {
     if (!authUser) return false;
+    // 1. Quản trị viên toàn quyền hệ thống (Admin)
     if (authUser.role === "ADMIN") return true;
+
     const uEmail = (authUser.email || "").toLowerCase().trim();
-    const cEmail = (contest?.creatorEmail || contest?.organizerEmail || "").toLowerCase().trim();
+    if (!uEmail && !authUser.id) return false;
+
+    // 2. Chỉ người tạo cuộc thi (creatorEmail hoặc creatorId). Tuyệt đối không dùng organizerEmail
+    const cEmail = (contest?.creatorEmail || "").toLowerCase().trim();
     const isCreator = Boolean(
       (cEmail && uEmail && uEmail === cEmail) ||
         (contest?.creatorId && authUser.id && contest.creatorId === authUser.id)
     );
     if (isCreator) return true;
+
+    // 3. Người được chia sẻ quyền quản trị
     const sharedList = Array.isArray(contest?.sharedEmails) ? contest!.sharedEmails! : [];
     const isShared = Boolean(
       uEmail && sharedList.some((em) => String(em || "").toLowerCase().trim() === uEmail)
