@@ -227,6 +227,31 @@ export default function MediaContestPublicPage({
   const [copiedShareModalLink, setCopiedShareModalLink] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({});
   const [imageOrientations, setImageOrientations] = useState<Record<string, "vertical" | "horizontal">>({});
+  const [pendingFbShare, setPendingFbShare] = useState<{
+    targetId: string;
+    subTitle?: string;
+    startTime: number;
+    popup?: Window | null;
+  } | null>(null);
+
+  // Giám sát popup Facebook: Nếu người dùng bấm xong rồi tắt luôn (< 3.5s) -> KHÔNG tính lượt
+  useEffect(() => {
+    if (!pendingFbShare?.popup) return;
+    const interval = setInterval(() => {
+      try {
+        if (pendingFbShare.popup?.closed) {
+          const duration = Date.now() - pendingFbShare.startTime;
+          if (duration < 3500) {
+            setPendingFbShare(null);
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [pendingFbShare]);
 
   // Safe JSON helper chống lỗi Unexpected token '<', "<html>..." is not valid JSON
   const safeParseResponseJson = async (res: Response) => {
@@ -926,7 +951,7 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Chia sẻ tác phẩm hoặc cuộc thi đa nền tảng (Zalo, Facebook, Telegram, Email, Sao chép link, Web Share)
+  // Chia sẻ tác phẩm hoặc cuộc thi đa nền tảng (Chỉ tính khi chia sẻ thành công)
   const handleShareSubmission = (
     sub: MediaSubmission,
     platform?: "facebook" | "zalo" | "telegram" | "email" | "native" | "copy"
@@ -942,25 +967,7 @@ export default function MediaContestPublicPage({
     const shareUrl = `${baseUrl}/tac-pham/${encodeURIComponent(sub.id)}`;
     const shareTitle = `${sub.title} - Tác giả: ${sub.authorName} (${sub.unitName}) | ${contest?.title || "Cuộc thi Ảnh đẹp Ea Súp"}`;
 
-    incrementSubmissionShareCount(sub.id);
-
-    if (platform === "facebook") {
-      window.open(
-        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareTitle)}`,
-        "_blank",
-        "width=640,height=480"
-      );
-    } else if (platform === "zalo") {
-      window.open(`https://zalo.me/share?url=${encodeURIComponent(shareUrl)}`, "_blank");
-    } else if (platform === "telegram") {
-      window.open(
-        `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`,
-        "_blank",
-        "width=640,height=480"
-      );
-    } else if (platform === "email") {
-      window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`Mời bạn xem và bình chọn cho tác phẩm "${sub.title}" của tác giả ${sub.authorName} (${sub.unitName}) tại đường dẫn:\n${shareUrl}`)}`;
-    } else if (platform === "native") {
+    if (platform === "native") {
       if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
         navigator
           .share({
@@ -968,20 +975,65 @@ export default function MediaContestPublicPage({
             text: `Bình chọn cho tác phẩm "${sub.title}" - ${sub.authorName} (${sub.unitName})`,
             url: shareUrl,
           })
+          .then(() => {
+            // Chỉ ghi nhận khi người dùng hoàn tất chia sẻ trên hệ thống điện thoại
+            incrementSubmissionShareCount(sub.id);
+            setSaveToast("✓ Đã ghi nhận 1 lượt chia sẻ thành công!");
+            setTimeout(() => setSaveToast(""), 3500);
+          })
           .catch((err) => {
-            if (err?.name !== "AbortError") {
-              openShareModal(sub);
-            }
+            // Người dùng bấm Hủy / tắt chia sẻ -> TUYỆT ĐỐI KHÔNG TÍNH
           });
+        return;
       } else {
         openShareModal(sub);
+        return;
       }
-    } else {
+    }
+
+    if (platform === "facebook") {
+      const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}&quote=${encodeURIComponent(shareTitle)}`;
+      const startTime = Date.now();
+      const popup = window.open(
+        fbUrl,
+        "fb_share_popup",
+        "width=640,height=580,toolbar=0,menubar=0,location=0,status=1,scrollbars=1,resizable=1"
+      );
+      setPendingFbShare({
+        targetId: sub.id,
+        subTitle: sub.title,
+        startTime,
+        popup,
+      });
+      return;
+    }
+
+    if (platform === "zalo") {
+      window.open(`https://zalo.me/share?url=${encodeURIComponent(shareUrl)}`, "_blank");
+      return;
+    }
+
+    if (platform === "telegram") {
+      window.open(
+        `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`,
+        "_blank",
+        "width=640,height=480"
+      );
+      return;
+    }
+
+    if (platform === "email") {
+      window.location.href = `mailto:?subject=${encodeURIComponent(shareTitle)}&body=${encodeURIComponent(`Mời bạn xem và bình chọn cho tác phẩm "${sub.title}" của tác giả ${sub.authorName} (${sub.unitName}) tại đường dẫn:\n${shareUrl}`)}`;
+      return;
+    }
+
+    if (platform === "copy") {
       navigator.clipboard?.writeText(shareUrl);
       setCopiedShareModalLink(true);
       setTimeout(() => setCopiedShareModalLink(false), 2500);
       setSaveToast(`Đã sao chép liên kết chia sẻ tác phẩm "${sub.title}"!`);
       setTimeout(() => setSaveToast(""), 2500);
+      return;
     }
   };
 
@@ -3417,6 +3469,49 @@ export default function MediaContestPublicPage({
           </div>
         );
       })()}
+
+      {/* Hộp xác nhận chia sẻ Facebook - Chỉ tính khi đăng thành công */}
+      {pendingFbShare && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 bg-blue-50 text-[#1877F2] rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+              f
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-slate-900 text-base">Xác nhận chia sẻ Facebook</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Hệ thống đang mở Facebook để bạn đăng bài {pendingFbShare.subTitle ? `"${pendingFbShare.subTitle}"` : ""}. Lượt chia sẻ chỉ được tính khi bạn đã hoàn tất đăng bài thành công lên Facebook.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingFbShare(null)}
+                className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                ✕ Tôi đã tắt / Chưa đăng
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const elapsed = Date.now() - pendingFbShare.startTime;
+                  if (elapsed < 3500) {
+                    alert("Cửa sổ Facebook vừa mở hoặc đã tắt quá nhanh! Vui lòng hoàn tất đăng bài trên Facebook trước khi xác nhận.");
+                    return;
+                  }
+                  incrementSubmissionShareCount(pendingFbShare.targetId);
+                  setSaveToast("✓ Đã ghi nhận 1 lượt chia sẻ Facebook thành công!");
+                  setTimeout(() => setSaveToast(""), 3500);
+                  setPendingFbShare(null);
+                }}
+                className="py-2.5 px-3 rounded-xl bg-[#1877F2] hover:bg-[#1464CC] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              >
+                ✓ Đã đăng bài thành công
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL ĐĂNG NHẬP BẮT BUỘC TRƯỚC KHI NỘP TÁC PHẨM DỰ THI */}

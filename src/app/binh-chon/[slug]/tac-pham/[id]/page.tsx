@@ -93,6 +93,12 @@ export default function ArtworkDetailPage({
   const [copiedLink, setCopiedLink] = useState(false);
   const [authUser, setAuthUser] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [pendingFbShare, setPendingFbShare] = useState<{
+    targetId: string;
+    startTime: number;
+    popup?: Window | null;
+  } | null>(null);
+  const [shareSuccessToast, setShareSuccessToast] = useState("");
 
   const themeColor = contest?.themeColor || "#1B7F5C";
 
@@ -262,26 +268,53 @@ export default function ArtworkDetailPage({
     }
   };
 
-  // Chia sẻ tác phẩm đa nền tảng (Ưu tiên Web Share API hệ thống điện thoại như Ảnh 2)
+  // Ghi nhận lượt chia sẻ thành công lên server
+  const recordShareSuccess = async () => {
+    if (!submission) return;
+    try {
+      const res = await fetch(
+        `/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(submission.id)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "share" }),
+        }
+      );
+      const data = await res.json();
+      if (data.sharesCount !== undefined) {
+        setSubmission((prev) => (prev ? { ...prev, sharesCount: data.sharesCount } : prev));
+      }
+      setShareSuccessToast("✓ Đã ghi nhận 1 lượt chia sẻ Facebook thành công!");
+      setTimeout(() => setShareSuccessToast(""), 3500);
+    } catch {}
+  };
+
+  // Giám sát cửa sổ Facebook: Nếu người dùng bấm chia sẻ rồi tắt cửa sổ (< 3.5 giây) thì tự động hủy, KHÔNG tính lượt
+  useEffect(() => {
+    if (!pendingFbShare?.popup) return;
+    const interval = setInterval(() => {
+      try {
+        if (pendingFbShare.popup?.closed) {
+          const duration = Date.now() - pendingFbShare.startTime;
+          // Người dùng bấm chia sẻ xong rồi tắt luôn (< 3.5 giây) -> KHÔNG tính lượt
+          if (duration < 3500) {
+            setPendingFbShare(null);
+            clearInterval(interval);
+          }
+        }
+      } catch {
+        clearInterval(interval);
+      }
+    }, 500);
+    return () => clearInterval(interval);
+  }, [pendingFbShare]);
+
+  // Chia sẻ tác phẩm đa nền tảng (Chỉ tính khi chia sẻ thành công)
   const handleShare = async (platform: "native" | "facebook" | "zalo" | "copy" = "native") => {
     if (!submission) return;
     const url = typeof window !== "undefined" ? window.location.href : "";
     const shareTitle = `${submission.title} - Tác giả: ${submission.authorName} (${submission.unitName})`;
     const shareText = `Mời bạn xem và bình chọn cho tác phẩm "${submission.title}" của tác giả ${submission.authorName} (${submission.unitName}) tại Cuộc thi: ${contest?.title || "Bình chọn trực tuyến Ea Súp"}`;
-
-    // Tăng lượt chia sẻ trên server
-    fetch(`/api/media-contests/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(submission.id)}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "share" }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.sharesCount !== undefined) {
-          setSubmission((prev) => (prev ? { ...prev, sharesCount: data.sharesCount } : prev));
-        }
-      })
-      .catch(() => {});
 
     // Chế độ Native Share hệ thống (Mở bảng chọn chia sẻ điện thoại: Zalo, Facebook, Tin nhắn... như Ảnh 2)
     if (platform === "native") {
@@ -292,11 +325,12 @@ export default function ArtworkDetailPage({
             text: shareText,
             url: url,
           });
+          // Trình duyệt / hệ điều hành trả về thành công khi người dùng đã chọn ứng dụng và hoàn tất chia sẻ
+          await recordShareSuccess();
           return;
         } catch (err: any) {
-          if (err?.name === "AbortError") {
-            return; // Người dùng ấn nút Hủy trên giao diện hệ thống
-          }
+          // Người dùng bấm HỦY hoặc tắt bảng chia sẻ -> TUYỆT ĐỐI KHÔNG TÍNH LƯỢT CHIA SẺ!
+          return;
         }
       }
       // Nếu thiết bị / trình duyệt không hỗ trợ Web Share (máy tính để bàn), mở modal chia sẻ kèm mã QR
@@ -308,14 +342,29 @@ export default function ArtworkDetailPage({
       navigator.clipboard.writeText(url);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
-    } else if (platform === "facebook") {
-      window.open(
-        `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareTitle)}`,
-        "_blank",
-        "width=640,height=480"
+      return;
+    }
+
+    if (platform === "facebook") {
+      const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}&quote=${encodeURIComponent(shareTitle)}`;
+      const startTime = Date.now();
+      const popup = window.open(
+        fbUrl,
+        "fb_share_popup",
+        "width=640,height=580,toolbar=0,menubar=0,location=0,status=1,scrollbars=1,resizable=1"
       );
-    } else if (platform === "zalo") {
+      // Hiển thị hộp xác nhận, chờ người dùng hoàn tất đăng bài trên Facebook
+      setPendingFbShare({
+        targetId: submission.id,
+        startTime,
+        popup,
+      });
+      return;
+    }
+
+    if (platform === "zalo") {
       window.open(`https://zalo.me/share?url=${encodeURIComponent(url)}`, "_blank");
+      return;
     }
   };
 
@@ -734,6 +783,54 @@ export default function ArtworkDetailPage({
               </div>
             </div>
           </div>
+        </div>
+      )}
+      {/* Hộp xác nhận chia sẻ Facebook - Chống bấm xong rồi tắt không tính */}
+      {pendingFbShare && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200 text-center space-y-4 animate-in fade-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 bg-blue-50 text-[#1877F2] rounded-full flex items-center justify-center mx-auto text-2xl font-bold">
+              f
+            </div>
+            <div className="space-y-1">
+              <h4 className="font-extrabold text-slate-900 text-base">Xác nhận chia sẻ Facebook</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Hệ thống đang mở Facebook để bạn đăng bài. Lượt chia sẻ chỉ được tính khi bạn đã hoàn tất đăng bài lên Facebook.
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setPendingFbShare(null)}
+                className="py-2.5 px-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition-colors cursor-pointer"
+              >
+                ✕ Tôi đã tắt / Chưa đăng
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const elapsed = Date.now() - pendingFbShare.startTime;
+                  if (elapsed < 3500) {
+                    alert("Cửa sổ Facebook vừa mở hoặc đã tắt quá nhanh! Vui lòng hoàn tất đăng bài trên Facebook trước khi xác nhận.");
+                    return;
+                  }
+                  await recordShareSuccess();
+                  setPendingFbShare(null);
+                }}
+                className="py-2.5 px-3 rounded-xl bg-[#1877F2] hover:bg-[#1464CC] text-white text-xs font-bold transition-colors cursor-pointer shadow-xs"
+              >
+                ✓ Đã đăng bài thành công
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Thông báo ghi nhận chia sẻ thành công */}
+      {shareSuccessToast && (
+        <div className="fixed bottom-6 right-6 z-50 bg-emerald-700 text-white px-4 py-2.5 rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-bottom-2">
+          <span>✓</span>
+          <span>{shareSuccessToast}</span>
         </div>
       )}
     </div>
