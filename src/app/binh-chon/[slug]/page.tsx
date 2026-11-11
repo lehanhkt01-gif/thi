@@ -100,6 +100,7 @@ interface MediaSubmission {
   authorPhone?: string;
   authorCccd?: string;
   authorEmail?: string;
+  userId?: string;
   unitName: string;
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
@@ -975,11 +976,13 @@ export default function MediaContestPublicPage({
             "Content-Type": "application/json",
             "x-user-role": authUser.role || "USER",
             "x-user-email": authUser.email || "",
+            "x-user-phone": authUser.phone || "",
             "x-user-id": authUser.id || "",
           },
           body: JSON.stringify({
             userRole: authUser.role,
             userEmail: authUser.email,
+            userPhone: authUser.phone,
             userId: authUser.id,
           }),
         }
@@ -1629,8 +1632,14 @@ export default function MediaContestPublicPage({
             >
               {paginatedSubmissions.map((sub) => {
                 const hasVoted = votedMap[sub.id];
-                // Phân quyền tuyệt đối: CHỈ Admin hoặc Người tạo cuộc thi mới được xóa tác phẩm
-                const canDeleteThisSub = canManage;
+                // Phân quyền: CHỈ Người tạo tác phẩm hoặc Quản trị viên (Admin) mới được xóa tác phẩm
+                // Người dùng đăng nhập khác KHÔNG ĐƯỢC PHÉP xóa tác phẩm này
+                const isArtworkAuthor = Boolean(
+                  (authUser?.email && sub.authorEmail && authUser.email.toLowerCase().trim() === sub.authorEmail.toLowerCase().trim()) ||
+                  (authUser?.phone && sub.authorPhone && authUser.phone.trim() === sub.authorPhone.trim()) ||
+                  (authUser?.id && sub.userId && authUser.id === sub.userId)
+                );
+                const canDeleteThisSub = Boolean(canManage || isArtworkAuthor);
                 const subImages =
                   Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
                     ? sub.mediaUrls
@@ -1749,7 +1758,9 @@ export default function MediaContestPublicPage({
 
                         {canDeleteThisSub && (
                           <div className="pt-2 border-t border-red-100 flex items-center justify-between text-xs">
-                            <span className="text-[10px] text-slate-400 font-medium">Quyền Quản trị / Người tạo</span>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              {canManage ? "Quyền Quản trị" : "Tác phẩm của bạn"}
+                            </span>
                             <button
                               type="button"
                               disabled={isDeletingSubId === sub.id}
@@ -1759,7 +1770,7 @@ export default function MediaContestPublicPage({
                                 handleDeleteSubmission(sub);
                               }}
                               className="text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 px-2 py-0.5 rounded-lg flex items-center gap-1 cursor-pointer transition-colors"
-                              title="Xóa tác phẩm này (Chỉ dành cho Quản trị viên và Người tạo)"
+                              title={canManage ? "Xóa tác phẩm này (Quyền quản trị)" : "Xóa tác phẩm do bạn tạo"}
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               <span>{isDeletingSubId === sub.id ? "Đang xóa..." : "Xóa tác phẩm"}</span>
@@ -2994,21 +3005,34 @@ export default function MediaContestPublicPage({
                   </div>
                 )}
 
-                {/* Nút xóa tác phẩm dành riêng cho Quản trị viên hoặc Người tạo cuộc thi */}
-                {canManage && (
-                  <div className="pt-2 border-t border-red-100 flex items-center justify-between">
-                    <span className="text-xs text-slate-400 font-medium">Quyền Quản trị / Người tạo</span>
-                    <button
-                      type="button"
-                      disabled={isDeletingSubId === selectedSubmission.id}
-                      onClick={() => handleDeleteSubmission(selectedSubmission)}
-                      className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                      <span>{isDeletingSubId === selectedSubmission.id ? "Đang xóa..." : "Xóa tác phẩm này"}</span>
-                    </button>
-                  </div>
-                )}
+                {/* Nút xóa tác phẩm: Chỉ Admin hoặc Chính người tạo tác phẩm mới được xóa */}
+                {(() => {
+                  const isAuthor = Boolean(
+                    (authUser?.email && selectedSubmission.authorEmail && authUser.email.toLowerCase().trim() === selectedSubmission.authorEmail.toLowerCase().trim()) ||
+                    (authUser?.phone && selectedSubmission.authorPhone && authUser.phone.trim() === selectedSubmission.authorPhone.trim()) ||
+                    (authUser?.id && selectedSubmission.userId && authUser.id === selectedSubmission.userId)
+                  );
+                  const canDeleteModal = Boolean(canManage || isAuthor);
+                  if (!canDeleteModal) return null;
+
+                  return (
+                    <div className="pt-2 border-t border-red-100 flex items-center justify-between">
+                      <span className="text-xs text-slate-500 font-medium">
+                        {canManage ? "Quyền Quản trị" : "Tác phẩm do bạn tạo"}
+                      </span>
+                      <button
+                        type="button"
+                        disabled={isDeletingSubId === selectedSubmission.id}
+                        onClick={() => handleDeleteSubmission(selectedSubmission)}
+                        className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                        title={canManage ? "Xóa tác phẩm này (Quyền quản trị)" : "Xóa tác phẩm của bạn"}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>{isDeletingSubId === selectedSubmission.id ? "Đang xóa..." : "Xóa tác phẩm"}</span>
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>

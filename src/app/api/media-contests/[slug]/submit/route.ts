@@ -50,6 +50,8 @@ export async function POST(
       authorName: body.authorName,
       authorPhone: body.authorPhone || "",
       authorCccd: body.authorCccd || "",
+      authorEmail: (body.authorEmail || body.submitterEmail || req.headers.get("x-user-email") || "").toLowerCase().trim(),
+      userId: body.submitterId || req.headers.get("x-user-id") || undefined,
       unitName: body.unitName,
       mediaType: body.mediaType || contest.type || "IMAGE",
       mediaUrl: rawUrls[0],

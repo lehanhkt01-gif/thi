@@ -45,6 +45,7 @@ interface MediaSubmission {
   authorName: string;
   authorPhone?: string;
   authorEmail?: string;
+  userId?: string;
   unitName: string;
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
@@ -107,7 +108,7 @@ export default function ArtworkDetailPage({
     } catch {}
   }, []);
 
-  // Phân quyền quản trị / xóa tác phẩm: CHỈ Admin hoặc Người tạo cuộc thi (Tuyệt đối không cho người dùng xóa)
+  // Phân quyền: CHỈ Admin hoặc Người tạo cuộc thi hoặc CHÍNH NGƯỜI TẠO TÁC PHẨM NÀY mới được xóa
   const canManage = (() => {
     if (!authUser) return false;
     if (authUser.role === "ADMIN") return true;
@@ -124,6 +125,13 @@ export default function ArtworkDetailPage({
     );
     return isShared;
   })();
+
+  const isArtworkAuthor = Boolean(
+    (authUser?.email && submission?.authorEmail && authUser.email.toLowerCase().trim() === submission.authorEmail.toLowerCase().trim()) ||
+    (authUser?.phone && submission?.authorPhone && authUser.phone.trim() === submission.authorPhone.trim()) ||
+    (authUser?.id && submission?.userId && authUser.id === submission.userId)
+  );
+  const canDeleteArtwork = Boolean(canManage || isArtworkAuthor);
 
   // Xử lý xóa tác phẩm
   const handleDeleteArtwork = async () => {
@@ -145,11 +153,13 @@ export default function ArtworkDetailPage({
             "Content-Type": "application/json",
             "x-user-role": authUser.role || "USER",
             "x-user-email": authUser.email || "",
+            "x-user-phone": authUser.phone || "",
             "x-user-id": authUser.id || "",
           },
           body: JSON.stringify({
             userRole: authUser.role,
             userEmail: authUser.email,
+            userPhone: authUser.phone,
             userId: authUser.id,
           }),
         }
@@ -338,13 +348,13 @@ export default function ArtworkDetailPage({
           </nav>
 
           <div className="flex items-center space-x-2 shrink-0">
-            {canManage && (
+            {canDeleteArtwork && (
               <button
                 type="button"
                 disabled={isDeleting}
                 onClick={handleDeleteArtwork}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold transition-colors cursor-pointer shadow-2xs"
-                title="Xóa bài thi này (quyền Quản trị / Người tạo)"
+                title={canManage ? "Xóa bài thi này (quyền Quản trị)" : "Xóa bài thi do bạn tạo"}
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span className="hidden sm:inline">{isDeleting ? "Đang xóa..." : "Xóa tác phẩm"}</span>
@@ -533,15 +543,18 @@ export default function ArtworkDetailPage({
                 </div>
               </div>
 
-              {/* Khu vực Quản trị: Nút Xóa tác phẩm */}
-              {canManage && (
+              {/* Nút Xóa tác phẩm: Chỉ Admin hoặc Chính người tạo tác phẩm */}
+              {canDeleteArtwork && (
                 <div className="pt-3 border-t border-red-100 flex items-center justify-between">
-                  <span className="text-xs text-slate-500 font-medium">Quyền quản trị / Người tạo</span>
+                  <span className="text-xs text-slate-500 font-medium">
+                    {canManage ? "Quyền Quản trị" : "Tác phẩm do bạn tạo"}
+                  </span>
                   <button
                     type="button"
                     disabled={isDeleting}
                     onClick={handleDeleteArtwork}
                     className="px-4 py-2 rounded-xl bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                    title={canManage ? "Xóa tác phẩm này (quyền Quản trị)" : "Xóa tác phẩm của bạn"}
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     <span>{isDeleting ? "Đang xóa..." : "Xóa tác phẩm này"}</span>

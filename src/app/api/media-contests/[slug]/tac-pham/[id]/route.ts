@@ -57,6 +57,7 @@ export async function DELETE(
 
     let userRole = req.headers.get("x-user-role") || undefined;
     let userEmail = req.headers.get("x-user-email") || undefined;
+    let userPhone = req.headers.get("x-user-phone") || undefined;
     let userId = req.headers.get("x-user-id") || undefined;
 
     try {
@@ -64,6 +65,7 @@ export async function DELETE(
       if (body) {
         if (!userRole && body.userRole) userRole = body.userRole;
         if (!userEmail && body.userEmail) userEmail = body.userEmail;
+        if (!userPhone && body.userPhone) userPhone = body.userPhone;
         if (!userId && body.userId) userId = body.userId;
       }
     } catch {}
@@ -71,6 +73,7 @@ export async function DELETE(
     const result = store.deleteMediaSubmission(id, {
       role: userRole,
       email: userEmail,
+      phone: userPhone,
       id: userId,
     });
 
