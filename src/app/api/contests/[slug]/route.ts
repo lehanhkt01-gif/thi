@@ -120,12 +120,21 @@ export async function PUT(
       }
     }
 
+    // Quy định an toàn: Chỉ Quản trị viên (Admin) mới có quyền duyệt sang PUBLISHED
+    let resolvedStatus = body.status !== undefined ? body.status : existing?.status;
+    if (userRole !== "ADMIN") {
+      if (resolvedStatus === "PUBLISHED" && existing?.status !== "PUBLISHED") {
+        resolvedStatus = "PENDING_APPROVAL";
+      }
+    }
+
     // Bảo lưu thông tin người tạo ban đầu & ID/slug gốc của cuộc thi, không bị nhân đôi khi đổi tên tiêu đề
     const updated = store.upsertContest({
       ...body,
       id: existing?.id || body.id,
       slug: existing?.slug || body.slug || slug,
       originalSlug: body.originalSlug || slug,
+      status: resolvedStatus,
       creatorEmail: existing?.creatorEmail || body.creatorEmail,
       creatorId: existing?.creatorId || body.creatorId,
       creatorName: existing?.creatorName || body.creatorName,

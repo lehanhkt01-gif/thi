@@ -1098,6 +1098,39 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
     );
   }
 
+  // Khách thông thường truy cập cuộc thi đang Chờ duyệt (PENDING_APPROVAL)
+  if (contest?.status === "PENDING_APPROVAL" && !isAdmin && !isCreator) {
+    return (
+      <div className="max-w-lg mx-auto py-24 text-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 border border-amber-300 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+          <Clock className="w-8 h-8 animate-pulse" />
+        </div>
+        <div className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 mb-3">
+          CHỜ PHÊ DUYỆT
+        </div>
+        <h2 className="text-xl font-black text-slate-900 mb-2">Cuộc Thi Đang Chờ Admin Duyệt</h2>
+        <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+          Cuộc thi <strong className="text-slate-900">"{contest.title}"</strong> đang trong quá trình xét duyệt của Quản trị viên (Admin). Sau khi phê duyệt thành công, cuộc thi sẽ chính thức mở công khai cho tất cả thí sinh tham gia.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href="/"
+            className="px-5 py-2.5 rounded-full bg-[#DC2626] text-white text-xs font-bold shadow-md hover:bg-[#B91C1C] transition-all cursor-pointer"
+          >
+            Quay lại Cổng cuộc thi
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowLoginModal(true)}
+            className="px-5 py-2.5 rounded-full border border-slate-300 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+          >
+            Đăng nhập Quản trị viên / Người tạo
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // ==========================================
   // VIEW 1: GIAO DIỆN CUỘC THI CHUẨN ẢNH 2, 3, 4
   // ==========================================
@@ -1109,6 +1142,49 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
     return (
       <div className="w-full bg-[#F8FAFC] min-h-screen text-slate-800 pb-16">
+        {/* BANNER THÔNG BÁO CHỜ DUYỆT CHO ADMIN & NGƯỜI TẠO */}
+        {contest?.status === "PENDING_APPROVAL" && (isAdmin || isCreator) && (
+          <div className="bg-amber-600 text-white px-4 py-2 text-xs font-bold shadow-sm flex flex-col sm:flex-row items-center justify-between gap-2 z-50 sticky top-0">
+            <div className="flex items-center space-x-2">
+              <Clock className="w-4 h-4 animate-pulse shrink-0" />
+              <span>
+                CUỘC THI ĐANG CHỜ PHÊ DUYỆT (Chưa hiển thị công khai). Bạn đang xem ở chế độ xem trước của Quản trị viên / Người tạo.
+              </span>
+            </div>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/contests/${encodeURIComponent(slug)}/approve`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "x-user-role": "ADMIN",
+                        "x-user-email": authUser?.email || "",
+                        "x-user-id": authUser?.id || "",
+                      },
+                      body: JSON.stringify({ status: "PUBLISHED" }),
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                      alert("🎉 Đã phê duyệt và công khai cuộc thi thành công!");
+                      setContest((prev: any) => (prev ? { ...prev, status: "PUBLISHED" } : prev));
+                    } else {
+                      alert(d.error || "Không thể phê duyệt cuộc thi");
+                    }
+                  } catch (e: any) {
+                    alert("Lỗi duyệt cuộc thi: " + e.message);
+                  }
+                }}
+                className="px-3 py-1 rounded-lg bg-white text-emerald-800 hover:bg-emerald-50 font-black shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              >
+                ✅ Duyệt &amp; Công khai ngay
+              </button>
+            )}
+          </div>
+        )}
+
         {/* 1. SUB-NAVBAR TINH GỌN CHỐNG CHE KHUẤT (Ảnh 2: Nút Trang chủ, Thể lệ, Kế hoạch chỉ dùng biểu tượng) */}
         <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-2xs">
           <div className="max-w-6xl mx-auto px-2.5 sm:px-6 h-12 sm:h-14 flex items-center justify-between gap-1.5">

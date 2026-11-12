@@ -16,9 +16,11 @@ export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default function HomePage() {
-  const contests = store.getContests();
-  // Hiển thị công khai toàn bộ các cuộc thi ảnh/video do bất kỳ ai tạo ra, không giới hạn đăng nhập
-  const mediaContests = store.getMediaContests().filter((c) => c.status !== "CLOSED");
+  const allContests = store.getContests();
+  // Chỉ hiển thị công khai các cuộc thi ĐÃ ĐƯỢC ADMIN PHÊ DUYỆT (PUBLISHED), các cuộc thi CHỜ DUYỆT (PENDING_APPROVAL) hoặc BẢN NHÁP (DRAFT) được giữ kín
+  const contests = allContests.filter((c) => c.status === "PUBLISHED");
+  // Chỉ hiển thị công khai các cuộc thi ảnh/video ĐÃ ĐƯỢC ADMIN PHÊ DUYỆT (PUBLISHED)
+  const mediaContests = store.getMediaContests().filter((c) => c.status === "PUBLISHED");
   const stats = store.getSystemStats();
 
   // Cuộc thi nổi bật hiển thị ở cột trái (chính là cuộc thi mới nhất do người dùng tạo)

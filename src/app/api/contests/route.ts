@@ -95,15 +95,31 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Quy định an toàn: Chỉ Quản trị viên (Admin) mới có quyền công khai trực tiếp (PUBLISHED).
+      // Người dùng thông thường gửi duyệt sẽ chuyển sang trạng thái CHỜ DUYỆT (PENDING_APPROVAL)
+      let resolvedStatus = body.status || existing.status || "PENDING_APPROVAL";
+      if (userRole !== "ADMIN") {
+        if (resolvedStatus === "PUBLISHED" && existing.status !== "PUBLISHED") {
+          resolvedStatus = "PENDING_APPROVAL";
+        }
+      }
+
       const updated = store.upsertContest({
         ...body,
         id: existing.id,
         slug: existing.slug,
         originalSlug: body.originalSlug || existing.slug,
-        status: body.status || "PUBLISHED",
+        status: resolvedStatus,
       });
       return NextResponse.json({ success: true, contest: updated }, { status: 200 });
     }
+
+    const creatorRole = req.headers.get("x-user-role") || body.userRole || "";
+    // Cuộc thi mới do user thường tạo sẽ ở trạng thái PENDING_APPROVAL chờ Admin duyệt
+    const newContestStatus =
+      creatorRole === "ADMIN"
+        ? (body.status || "PUBLISHED")
+        : (body.status === "DRAFT" ? "DRAFT" : "PENDING_APPROVAL");
 
     const newContest = store.createContest({
       organizationId: body.organizationId || "org-ubnd",
@@ -123,7 +139,7 @@ export async function POST(req: NextRequest) {
       questionCount: parseInt(body.questionCount || "10", 10),
       maxAttempts: parseInt(body.maxAttempts || "3", 10),
       hasTieBreaker: body.hasTieBreaker !== false,
-      status: body.status || "PUBLISHED",
+      status: newContestStatus,
       audioUrl: body.audioUrl || "",
       themeColor: body.themeColor || "#DC2626",
       shortDesc: body.shortDesc || "",

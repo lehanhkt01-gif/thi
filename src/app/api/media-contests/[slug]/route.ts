@@ -104,6 +104,13 @@ export async function PATCH(
       );
     }
 
+    // Quy định an toàn: Chỉ Quản trị viên (Admin) mới có quyền duyệt sang PUBLISHED
+    if (userRole !== "ADMIN") {
+      if (body.status === "PUBLISHED" && contest.status !== "PUBLISHED") {
+        body.status = "PENDING_APPROVAL";
+      }
+    }
+
     const updated = store.updateMediaContest(contest.id, body);
     return NextResponse.json({ success: true, contest: updated });
   } catch (error: any) {

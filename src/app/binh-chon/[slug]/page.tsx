@@ -64,7 +64,7 @@ interface MediaContest {
   displayStartDate?: string;
   displayEndDate?: string;
   submissionsCount: number;
-  status: "DRAFT" | "PUBLISHED" | "CLOSED";
+  status: "DRAFT" | "PENDING_APPROVAL" | "PUBLISHED" | "CLOSED";
   description?: string;
   rulesHtml?: string;
   rulesFileUrl?: string;
@@ -1520,8 +1520,83 @@ export default function MediaContestPublicPage({
     }
   };
 
+  // Khách thông thường truy cập cuộc thi bình chọn đang Chờ duyệt (PENDING_APPROVAL)
+  if (contest?.status === "PENDING_APPROVAL" && !canManage) {
+    return (
+      <div className="max-w-lg mx-auto py-24 text-center px-4">
+        <div className="w-16 h-16 rounded-2xl bg-amber-100 border border-amber-300 text-amber-600 flex items-center justify-center mx-auto mb-4 shadow-sm">
+          <Clock className="w-8 h-8 animate-pulse" />
+        </div>
+        <div className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-300 mb-3">
+          CHỜ PHÊ DUYỆT
+        </div>
+        <h2 className="text-xl font-black text-slate-900 mb-2">Cuộc Thi Bình Chọn Đang Chờ Admin Duyệt</h2>
+        <p className="text-sm text-slate-600 mb-6 leading-relaxed">
+          Cuộc thi bình chọn <strong className="text-slate-900">"{contest.title}"</strong> đang trong quá trình xét duyệt của Quản trị viên (Admin). Sau khi phê duyệt thành công, cuộc thi sẽ chính thức mở công khai để đón nhận tác phẩm và lượt bình chọn.
+        </p>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+          <Link
+            href="/"
+            className="px-5 py-2.5 rounded-full bg-[#DC2626] text-white text-xs font-bold shadow-md hover:bg-[#B91C1C] transition-all cursor-pointer"
+          >
+            Quay lại Cổng cuộc thi
+          </Link>
+          <button
+            type="button"
+            onClick={() => setShowLoginModal(true)}
+            className="px-5 py-2.5 rounded-full border border-slate-300 bg-white text-slate-700 text-xs font-bold hover:bg-slate-50 transition-all cursor-pointer"
+          >
+            Đăng nhập Quản trị viên / Người tạo
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex relative overflow-x-clip">
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col relative overflow-x-clip">
+      {/* BANNER THÔNG BÁO CHỜ DUYỆT CHO ADMIN & NGƯỜI TẠO */}
+      {contest?.status === "PENDING_APPROVAL" && canManage && (
+        <div className="bg-amber-600 text-white px-4 py-2 text-xs font-bold shadow-sm flex flex-col sm:flex-row items-center justify-between gap-2 z-50 sticky top-0">
+          <div className="flex items-center space-x-2">
+            <Clock className="w-4 h-4 animate-pulse shrink-0" />
+            <span>
+              CUỘC THI BÌNH CHỌN ĐANG CHỜ PHÊ DUYỆT (Chưa hiển thị công khai). Bạn đang xem ở chế độ xem trước của Quản trị viên / Người tạo.
+            </span>
+          </div>
+          {authUser?.role === "ADMIN" && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch(`/api/media-contests/${encodeURIComponent(contest.id || slug)}/approve`, {
+                    method: "POST",
+                    headers: {
+                      "Content-Type": "application/json",
+                      "x-user-role": "ADMIN",
+                      "x-user-email": authUser?.email || "",
+                      "x-user-id": authUser?.id || "",
+                    },
+                    body: JSON.stringify({ status: "PUBLISHED" }),
+                  });
+                  const d = await res.json();
+                  if (d.success) {
+                    alert("🎉 Đã phê duyệt và công khai cuộc thi ảnh/video thành công!");
+                    setContest((prev) => (prev ? { ...prev, status: "PUBLISHED" } : prev));
+                  } else {
+                    alert(d.error || "Không thể phê duyệt cuộc thi");
+                  }
+                } catch (e: any) {
+                  alert("Lỗi duyệt: " + e.message);
+                }
+              }}
+              className="px-3 py-1 rounded-lg bg-white text-emerald-800 hover:bg-emerald-50 font-black shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-95"
+            >
+              ✅ Duyệt &amp; Công khai ngay
+            </button>
+          )}
+        </div>
+      )}
       {/* Toast thông báo lưu cài đặt */}
       {saveToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-full shadow-xl text-xs font-bold flex items-center space-x-2 animate-in fade-in slide-in-from-top-2">

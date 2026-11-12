@@ -415,6 +415,7 @@ export default function ContestWizardPage() {
     id?: string;
     name?: string;
   }>({});
+  const [contestStatus, setContestStatus] = useState<string>("PENDING_APPROVAL");
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [saveToastMessage, setSaveToastMessage] = useState("");
 
@@ -1851,6 +1852,7 @@ export default function ContestWizardPage() {
       const cleanBannerUrl = await ensureServerBannerUrl(bannerUrl);
       const method = isEditMode ? "PUT" : "POST";
       const endpoint = isEditMode ? `/api/contests/${encodeURIComponent(targetSlug)}` : "/api/contests";
+      const targetStatus = authUser?.role === "ADMIN" ? (contestStatus === "DRAFT" ? "DRAFT" : "PUBLISHED") : "PENDING_APPROVAL";
 
       const res = await fetch(endpoint, {
         method,
@@ -1865,6 +1867,7 @@ export default function ContestWizardPage() {
           originalSlug: targetSlug,
           title,
           slug: targetSlug,
+          status: targetStatus,
           bannerUrl: cleanBannerUrl,
           rulesHtml,
           rulesFileUrl: rulesFileUrl || undefined,
@@ -1921,9 +1924,14 @@ export default function ContestWizardPage() {
       if (res.ok) {
         const savedSlug = data.contest?.slug || targetSlug;
         if (data.contest?.id) setEditingContestId(data.contest.id);
+        if (data.contest?.status) setContestStatus(data.contest.status);
         setSlug(savedSlug);
         setOriginalSlug(savedSlug);
         setIsEditMode(true);
+
+        if (targetStatus === "PENDING_APPROVAL") {
+          alert("🎉 Cuộc thi đã được gửi phê duyệt thành công! Trạng thái hiện tại: CHỜ ADMIN PHÊ DUYỆT trước khi công khai trên hệ thống.");
+        }
 
         safeSetLocalStorage("easup_last_edited_slug", savedSlug);
         safeSetLocalStorage(`easup_contest_draft_${savedSlug}`, {
@@ -2019,6 +2027,7 @@ export default function ContestWizardPage() {
                 });
               }
 
+              if (c.status) setContestStatus(c.status);
               if (c.title) setTitle(c.title);
               if (c.slug) setSlug(c.slug);
               if (c.bannerUrl) setBannerUrl(c.bannerUrl);
@@ -4119,6 +4128,104 @@ export default function ContestWizardPage() {
         {currentStep === 5 && (
           <div className="space-y-6">
 
+            {/* THẺ TRẠNG THÁI PHÊ DUYỆT ADMIN */}
+            {contestStatus === "PENDING_APPROVAL" ? (
+              <div className="bg-amber-50 border border-amber-300 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+                <div className="flex items-start sm:items-center space-x-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 border border-amber-300 flex items-center justify-center shrink-0 text-amber-700">
+                    <Clock className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-amber-900 flex items-center gap-1.5">
+                      <span>TRẠNG THÁI: ĐANG CHỜ QUẢN TRỊ VIÊN (ADMIN) PHÊ DUYỆT</span>
+                    </h4>
+                    <p className="text-xs text-amber-700 mt-0.5">
+                      Cuộc thi đã được gửi duyệt. Sau khi Quản trị viên (Admin) phê duyệt, cuộc thi sẽ tự động hiển thị công khai trên Cổng cuộc thi cuocthi.easupso.com.
+                    </p>
+                  </div>
+                </div>
+
+                {authUser?.role === "ADMIN" && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/contests/${encodeURIComponent(slug)}/approve`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            "x-user-role": "ADMIN",
+                            "x-user-email": authUser.email,
+                            "x-user-id": authUser.id,
+                          },
+                          body: JSON.stringify({ status: "PUBLISHED" }),
+                        });
+                        const d = await res.json();
+                        if (d.success) {
+                          setContestStatus("PUBLISHED");
+                          alert("🎉 Đã phê duyệt và công khai cuộc thi thành công!");
+                        } else {
+                          alert(d.error || "Không thể phê duyệt cuộc thi");
+                        }
+                      } catch (e: any) {
+                        alert("Lỗi duyệt: " + e.message);
+                      }
+                    }}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all cursor-pointer whitespace-nowrap active:scale-95 shrink-0"
+                  >
+                    ✅ Phê duyệt &amp; Công khai ngay
+                  </button>
+                )}
+              </div>
+            ) : contestStatus === "PUBLISHED" ? (
+              <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+                <div className="flex items-center space-x-3">
+                  <div className="w-9 h-9 rounded-xl bg-emerald-100 border border-emerald-300 flex items-center justify-center shrink-0 text-emerald-700">
+                    <CheckCircle2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-emerald-900">
+                      TRẠNG THÁI: ĐÃ ĐƯỢC DUYỆT &amp; ĐANG CÔNG KHAI
+                    </h4>
+                    <p className="text-xs text-emerald-700">
+                      Cuộc thi đang hiển thị trực tiếp trên trang chủ và sẵn sàng cho các thí sinh tham gia.
+                    </p>
+                  </div>
+                </div>
+
+                {authUser?.role === "ADMIN" && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const res = await fetch(`/api/contests/${encodeURIComponent(slug)}/approve`, {
+                          method: "POST",
+                          headers: {
+                            "Content-Type": "application/json",
+                            "x-user-role": "ADMIN",
+                            "x-user-email": authUser.email,
+                            "x-user-id": authUser.id,
+                          },
+                          body: JSON.stringify({ status: "PENDING_APPROVAL" }),
+                        });
+                        const d = await res.json();
+                        if (d.success) {
+                          setContestStatus("PENDING_APPROVAL");
+                          alert("Đã chuyển cuộc thi về trạng thái Chờ duyệt!");
+                        }
+                      } catch (e: any) {
+                        alert("Lỗi: " + e.message);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-800 text-xs font-semibold transition-all cursor-pointer whitespace-nowrap shrink-0"
+                  >
+                    <Clock className="w-3.5 h-3.5 inline mr-1 text-amber-600" />
+                    Thu hồi về Chờ duyệt
+                  </button>
+                )}
+              </div>
+            ) : null}
+
             {/* Bảng KẾT QUẢ THI & 2 Thẻ Sóng (Mẫu Ảnh MyAloha) */}
             <div className="space-y-6">
               {/* 2 Thẻ Sóng (Red & Blue Wave Cards theo đúng Mẫu Ảnh) */}
@@ -4464,7 +4571,11 @@ export default function ContestWizardPage() {
                 onClick={handlePublishContest}
                 className="btn-admin-primary text-xs sm:text-sm px-6 py-2.5 font-bold bg-[#DC2626] hover:bg-[#B91C1C] border-[#B91C1C] text-white shadow-md cursor-pointer flex items-center"
               >
-                {isSubmitting ? "Đang xuất bản..." : "Xuất bản cuộc thi (Hoàn tất)"}
+                {isSubmitting
+                  ? "Đang lưu..."
+                  : authUser?.role === "ADMIN"
+                  ? "Xuất bản cuộc thi (Hoàn tất)"
+                  : "Gửi Admin phê duyệt (Hoàn tất)"}
               </button>
             ) : (
               <Link

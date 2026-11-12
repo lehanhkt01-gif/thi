@@ -101,7 +101,7 @@ export interface ContestModel {
   questionCount: number;
   maxAttempts: number;
   hasTieBreaker: boolean;
-  status: "DRAFT" | "PUBLISHED" | "CLOSED" | "ARCHIVED";
+  status: "DRAFT" | "PENDING_APPROVAL" | "PUBLISHED" | "CLOSED" | "ARCHIVED";
   audioUrl?: string;
   themeColor?: string;
   shortDesc?: string;
@@ -148,7 +148,7 @@ export interface MediaContestModel {
   displayStartDate?: string;
   displayEndDate?: string;
   submissionsCount: number;
-  status: "DRAFT" | "PUBLISHED" | "CLOSED";
+  status: "DRAFT" | "PENDING_APPROVAL" | "PUBLISHED" | "CLOSED";
   description?: string;
   rulesHtml?: string;
   rulesFileUrl?: string;
@@ -1499,6 +1499,46 @@ class DataStore {
       this.saveToDisk(true);
       return newContest;
     }
+  }
+
+  // Phê duyệt hoặc cập nhật trạng thái cuộc thi trắc nghiệm (Chỉ Admin mới có quyền duyệt sang PUBLISHED)
+  public approveContest(
+    idOrSlug: string,
+    status: "PUBLISHED" | "PENDING_APPROVAL" | "DRAFT",
+    adminUser?: { role?: string; email?: string }
+  ): { success: boolean; contest?: ContestModel; error?: string } {
+    this.loadFromDisk(true);
+    const contest = this.getContestById(idOrSlug) || this.getContestBySlug(idOrSlug);
+    if (!contest) return { success: false, error: "Cuộc thi không tồn tại!" };
+
+    if (status === "PUBLISHED" && adminUser?.role !== "ADMIN") {
+      return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền phê duyệt công khai cuộc thi!" };
+    }
+
+    contest.status = status;
+    this.saveToDisk(true);
+    return { success: true, contest };
+  }
+
+  // Phê duyệt hoặc cập nhật trạng thái cuộc thi bình chọn ảnh/video (Chỉ Admin mới có quyền duyệt sang PUBLISHED)
+  public approveMediaContest(
+    idOrSlug: string,
+    status: "PUBLISHED" | "PENDING_APPROVAL" | "DRAFT",
+    adminUser?: { role?: string; email?: string }
+  ): { success: boolean; contest?: MediaContestModel; error?: string } {
+    this.loadFromDisk(true);
+    this.normalizeMediaContestsList();
+    const contest = this.mediaContests.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
+    if (!contest) return { success: false, error: "Cuộc thi bình chọn không tồn tại!" };
+
+    if (status === "PUBLISHED" && adminUser?.role !== "ADMIN") {
+      return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền phê duyệt công khai cuộc thi!" };
+    }
+
+    contest.status = status;
+    contest.updatedAt = new Date().toISOString();
+    this.saveToDisk(true);
+    return { success: true, contest };
   }
 
   // Chia sẻ quyền quản lý, chỉnh sửa cuộc thi cho người khác (Hỗ trợ cả Trắc nghiệm & Ảnh/Video)

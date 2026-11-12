@@ -52,6 +52,13 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      // Quy định an toàn: Chỉ Quản trị viên (Admin) mới có quyền duyệt sang PUBLISHED
+      if (userRole !== "ADMIN") {
+        if (body.status === "PUBLISHED" && existing?.status !== "PUBLISHED") {
+          body.status = "PENDING_APPROVAL";
+        }
+      }
+
       const updated = store.updateMediaContest(targetUpdateId, body);
       if (updated) {
         return NextResponse.json({ success: true, contest: updated, mode: "updated" });
@@ -72,6 +79,12 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const creatorRole = req.headers.get("x-user-role") || body.editorRole || body.userRole || "";
+    const newMediaStatus =
+      creatorRole === "ADMIN"
+        ? (body.status || "PUBLISHED")
+        : (body.status === "DRAFT" ? "DRAFT" : "PENDING_APPROVAL");
+
     const newContest = store.createMediaContest({
       ...body,
       title: body.title,
@@ -86,7 +99,7 @@ export async function POST(req: NextRequest) {
       voteEndDate: body.voteEndDate || body.endDate || "2026-11-24T07:00",
       displayStartDate: body.displayStartDate || "10/11/2026",
       displayEndDate: body.displayEndDate || "24/11/2026",
-      status: body.status || "PUBLISHED",
+      status: newMediaStatus,
       description: body.description || "",
       layoutModes: body.layoutModes || (body.layoutMode === "both" ? ["vertical", "horizontal"] : [body.layoutMode || "vertical"]),
       layoutMode: body.layoutMode || "vertical",
