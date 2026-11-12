@@ -198,6 +198,7 @@ export interface MediaSubmissionModel {
   orientation?: "vertical" | "horizontal";
   description: string;
   votesCount: number;
+  voters?: string[];
   viewsCount?: number;
   sharesCount?: number;
   userShares?: Record<string, number>;
@@ -2262,13 +2263,61 @@ class DataStore {
     return { success: true, sharesCount: sub.sharesCount };
   }
 
-  public voteMediaSubmission(submissionId: string): { success: boolean; votesCount: number } {
+  public voteMediaSubmission(
+    submissionId: string,
+    user?: { id?: string; email?: string; phone?: string; role?: string }
+  ): {
+    success: boolean;
+    votesCount: number;
+    requireLogin?: boolean;
+    alreadyVoted?: boolean;
+    error?: string;
+    message?: string;
+  } {
     this.loadFromDisk(true);
     const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
-    if (!sub) return { success: false, votesCount: 0 };
-    sub.votesCount += 1;
+    if (!sub) return { success: false, votesCount: 0, error: "Không tìm thấy tác phẩm này!" };
+
+    // 1. BẮT BUỘC ĐĂNG NHẬP để chống lách luật tăng bình chọn
+    const userKey = (user?.id || user?.email || user?.phone || "").toLowerCase().trim();
+    if (!userKey) {
+      return {
+        success: false,
+        requireLogin: true,
+        votesCount: sub.votesCount || 0,
+        error: "Vui lòng đăng nhập tài khoản để thực hiện bình chọn!",
+      };
+    }
+
+    if (!sub.voters) sub.voters = [];
+
+    // 2. Chống lách luật: 1 tài khoản chỉ được bình chọn 01 lần duy nhất cho mỗi tác phẩm
+    if (sub.voters.includes(userKey)) {
+      return {
+        success: false,
+        alreadyVoted: true,
+        votesCount: sub.votesCount || 0,
+        error: "Tài khoản của bạn đã bình chọn cho tác phẩm này rồi!",
+      };
+    }
+
+    sub.voters.push(userKey);
+    sub.votesCount = (sub.votesCount || 0) + 1;
     this.saveToDisk();
-    return { success: true, votesCount: sub.votesCount };
+
+    return {
+      success: true,
+      votesCount: sub.votesCount,
+      message: "Bình chọn tác phẩm thành công!",
+    };
+  }
+
+  public hasUserVotedMediaSubmission(submissionId: string, userKey?: string): boolean {
+    if (!userKey) return false;
+    const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
+    if (!sub || !sub.voters) return false;
+    const key = userKey.toLowerCase().trim();
+    return sub.voters.includes(key);
   }
 
   public deleteMediaSubmission(

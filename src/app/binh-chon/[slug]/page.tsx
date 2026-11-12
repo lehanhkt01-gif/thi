@@ -109,6 +109,7 @@ interface MediaSubmission {
   description: string;
   viewsCount?: number;
   votesCount: number;
+  voters?: string[];
   sharesCount?: number;
   score?: number;
   status: string;
@@ -241,6 +242,7 @@ export default function MediaContestPublicPage({
   const [shareModalTarget, setShareModalTarget] = useState<MediaSubmission | "CONTEST" | null>(null);
   const [copiedShareModalLink, setCopiedShareModalLink] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({});
+  const [pendingVoteSubmissionId, setPendingVoteSubmissionId] = useState<string | null>(null);
   const [imageOrientations, setImageOrientations] = useState<Record<string, "vertical" | "horizontal">>({});
   const [pendingFbShare, setPendingFbShare] = useState<{
     targetId: string;
@@ -529,6 +531,27 @@ export default function MediaContestPublicPage({
         }
         const loadedSubs: MediaSubmission[] = data.submissions || [];
         setSubmissions(loadedSubs);
+
+        // Tự động đồng bộ các tác phẩm mà tài khoản này đã bình chọn từ server
+        try {
+          const authRaw = localStorage.getItem("cuocthi_admin_auth");
+          if (authRaw) {
+            const u = JSON.parse(authRaw);
+            const userKey = (u?.id || u?.email || u?.phone || "").toLowerCase().trim();
+            if (userKey) {
+              setVotedMap((prev) => {
+                const next = { ...prev };
+                loadedSubs.forEach((s) => {
+                  if (Array.isArray(s.voters) && s.voters.includes(userKey)) {
+                    next[s.id] = true;
+                  }
+                });
+                return next;
+              });
+            }
+          }
+        } catch {}
+
         if (typeof window !== "undefined") {
           const urlParams = new URLSearchParams(window.location.search);
           const artworkId = urlParams.get("artwork");
@@ -1076,17 +1099,62 @@ export default function MediaContestPublicPage({
     }
   };
 
-  // Handle Voting
-  const handleVote = async (submissionId: string) => {
-    if (votedMap[submissionId]) return;
+  // Handle Voting: BẮT BUỘC ĐĂNG NHẬP để khắc phục triệt để lách luật tăng bình chọn
+  const handleVote = async (submissionId: string, userOverride?: any) => {
+    const activeUser = userOverride || authUser;
+    if (!activeUser) {
+      setPendingVoteSubmissionId(submissionId);
+      setShowLoginModal(true);
+      setSaveToast("Vui lòng đăng nhập tài khoản để bình chọn!");
+      setTimeout(() => setSaveToast(""), 3500);
+      return;
+    }
+
+    if (votedMap[submissionId]) {
+      setSaveToast("Bạn đã bình chọn cho tác phẩm này rồi!");
+      setTimeout(() => setSaveToast(""), 3000);
+      return;
+    }
 
     try {
       const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}/vote`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": activeUser.id || "",
+          "x-user-email": activeUser.email || "",
+          "x-user-phone": activeUser.phone || "",
+          "x-user-role": activeUser.role || "USER",
+        },
+        body: JSON.stringify({
+          submissionId,
+          userId: activeUser.id,
+          userEmail: activeUser.email,
+          userPhone: activeUser.phone,
+          userRole: activeUser.role,
+        }),
       });
       const data = await res.json();
+
+      if (data.requireLogin) {
+        setPendingVoteSubmissionId(submissionId);
+        setShowLoginModal(true);
+        setSaveToast(data.error || "Vui lòng đăng nhập tài khoản để bình chọn!");
+        setTimeout(() => setSaveToast(""), 3500);
+        return;
+      }
+
+      if (data.alreadyVoted) {
+        const nextVoted = { ...votedMap, [submissionId]: true };
+        setVotedMap(nextVoted);
+        try {
+          localStorage.setItem(`easup_media_voted_${slug}`, JSON.stringify(nextVoted));
+        } catch {}
+        setSaveToast(data.error || "Tài khoản của bạn đã bình chọn cho tác phẩm này rồi!");
+        setTimeout(() => setSaveToast(""), 3500);
+        return;
+      }
+
       if (data.success) {
         const nextVoted = { ...votedMap, [submissionId]: true };
         setVotedMap(nextVoted);
@@ -1108,6 +1176,11 @@ export default function MediaContestPublicPage({
           origin: { y: 0.7 },
           colors: [themeColor, "#DC2626", "#F59E0B", "#0284C7"],
         });
+
+        setSaveToast("✓ Bình chọn tác phẩm thành công!");
+        setTimeout(() => setSaveToast(""), 3500);
+      } else {
+        alert(data.error || "Không thể thực hiện bình chọn!");
       }
     } catch (err) {
       console.error("Lỗi bình chọn:", err);
@@ -3553,13 +3626,14 @@ export default function MediaContestPublicPage({
       )}
 
       {/* ========================================================================= */}
-      {/* MODAL ĐĂNG NHẬP BẮT BUỘC TRƯỚC KHI NỘP TÁC PHẨM DỰ THI */}
+      {/* MODAL ĐĂNG NHẬP BẮT BUỘC TRƯỚC KHI BÌNH CHỌN HOẶC NỘP TÁC PHẨM DỰ THI */}
       {/* ========================================================================= */}
       <LoginModal
         isOpen={showLoginModal}
         onClose={() => {
           setShowLoginModal(false);
           setPendingSubmitAfterLogin(false);
+          setPendingVoteSubmissionId(null);
         }}
         onSuccess={(user) => {
           setAuthUser(user);
@@ -3569,6 +3643,14 @@ export default function MediaContestPublicPage({
             authorPhone: prev.authorPhone || user.phone || "",
             authorEmail: prev.authorEmail || user.email || "",
           }));
+
+          // Tự động kích hoạt bình chọn ngay sau khi đăng nhập thành công
+          if (pendingVoteSubmissionId) {
+            const targetVoteId = pendingVoteSubmissionId;
+            setPendingVoteSubmissionId(null);
+            handleVote(targetVoteId, user);
+          }
+
           if (pendingSubmitAfterLogin) {
             setPendingSubmitAfterLogin(false);
             if (!showSettingsDrawer) {

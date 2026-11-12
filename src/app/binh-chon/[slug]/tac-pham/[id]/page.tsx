@@ -18,6 +18,7 @@ import {
   Trash2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
+import LoginModal from "@/components/LoginModal";
 
 interface MediaContest {
   id: string;
@@ -54,6 +55,7 @@ interface MediaSubmission {
   description: string;
   viewsCount?: number;
   votesCount: number;
+  voters?: string[];
   sharesCount?: number;
   score?: number;
   status: string;
@@ -104,6 +106,8 @@ export default function ArtworkDetailPage({
   const [isLoading, setIsLoading] = useState(true);
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [hasVoted, setHasVoted] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [pendingVoteAfterLogin, setPendingVoteAfterLogin] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [authUser, setAuthUser] = useState<any>(null);
@@ -125,10 +129,14 @@ export default function ArtworkDetailPage({
         const parsed = JSON.parse(saved);
         if (parsed && parsed.status === "APPROVED") {
           setAuthUser(parsed);
+          const userKey = (parsed.id || parsed.email || parsed.phone || "").toLowerCase().trim();
+          if (userKey && submission && Array.isArray(submission.voters) && submission.voters.includes(userKey)) {
+            setHasVoted(true);
+          }
         }
       }
     } catch {}
-  }, []);
+  }, [submission]);
 
   // Phân quyền: CHỈ Admin hoặc Người tạo cuộc thi mới được quản lý / xóa tác phẩm
   // Người dùng đăng nhập thông thường (USER) tuyệt đối không có quyền
@@ -224,6 +232,14 @@ export default function ArtworkDetailPage({
 
           // Kiểm tra xem đã bình chọn tác phẩm này chưa
           try {
+            const authRaw = localStorage.getItem("cuocthi_admin_auth");
+            if (authRaw) {
+              const u = JSON.parse(authRaw);
+              const userKey = (u?.id || u?.email || u?.phone || "").toLowerCase().trim();
+              if (userKey && Array.isArray(data.submission?.voters) && data.submission.voters.includes(userKey)) {
+                setHasVoted(true);
+              }
+            }
             const votedSaved = localStorage.getItem(`easup_media_voted_${slug}`);
             if (votedSaved) {
               const votedMap = JSON.parse(votedSaved);
@@ -247,17 +263,64 @@ export default function ArtworkDetailPage({
     };
   }, [slug, id]);
 
-  // Xử lý bình chọn
-  const handleVote = async () => {
-    if (hasVoted || !submission) return;
+  // Xử lý bình chọn: BẮT BUỘC ĐĂNG NHẬP để chống gian lận
+  const handleVote = async (userOverride?: any) => {
+    const activeUser = userOverride || authUser;
+    if (!activeUser) {
+      setPendingVoteAfterLogin(true);
+      setShowLoginModal(true);
+      setShareSuccessToast("Vui lòng đăng nhập tài khoản để bình chọn!");
+      setTimeout(() => setShareSuccessToast(""), 3500);
+      return;
+    }
+
+    if (hasVoted || !submission) {
+      setShareSuccessToast("Bạn đã bình chọn cho tác phẩm này rồi!");
+      setTimeout(() => setShareSuccessToast(""), 3000);
+      return;
+    }
 
     try {
       const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}/vote`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submissionId: submission.id }),
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-id": activeUser.id || "",
+          "x-user-email": activeUser.email || "",
+          "x-user-phone": activeUser.phone || "",
+          "x-user-role": activeUser.role || "USER",
+        },
+        body: JSON.stringify({
+          submissionId: submission.id,
+          userId: activeUser.id,
+          userEmail: activeUser.email,
+          userPhone: activeUser.phone,
+          userRole: activeUser.role,
+        }),
       });
       const data = await res.json();
+
+      if (data.requireLogin) {
+        setPendingVoteAfterLogin(true);
+        setShowLoginModal(true);
+        setShareSuccessToast(data.error || "Vui lòng đăng nhập tài khoản để bình chọn!");
+        setTimeout(() => setShareSuccessToast(""), 3500);
+        return;
+      }
+
+      if (data.alreadyVoted) {
+        setHasVoted(true);
+        try {
+          const votedSaved = localStorage.getItem(`easup_media_voted_${slug}`);
+          const votedMap = votedSaved ? JSON.parse(votedSaved) : {};
+          votedMap[submission.id] = true;
+          localStorage.setItem(`easup_media_voted_${slug}`, JSON.stringify(votedMap));
+        } catch {}
+        setShareSuccessToast(data.error || "Tài khoản của bạn đã bình chọn cho tác phẩm này rồi!");
+        setTimeout(() => setShareSuccessToast(""), 3500);
+        return;
+      }
+
       if (data.success) {
         setHasVoted(true);
         setSubmission((prev) => (prev ? { ...prev, votesCount: data.votesCount } : prev));
@@ -277,6 +340,11 @@ export default function ArtworkDetailPage({
           origin: { y: 0.65 },
           colors: [themeColor, "#DC2626", "#F59E0B", "#0284C7"],
         });
+
+        setShareSuccessToast("✓ Bình chọn tác phẩm thành công!");
+        setTimeout(() => setShareSuccessToast(""), 3500);
+      } else {
+        alert(data.error || "Không thể thực hiện bình chọn!");
       }
     } catch (err) {
       console.error("Lỗi bình chọn:", err);
@@ -862,6 +930,22 @@ export default function ArtworkDetailPage({
           <span>{shareSuccessToast}</span>
         </div>
       )}
+
+      {/* Modal đăng nhập tài khoản bắt buộc trước khi bình chọn */}
+      <LoginModal
+        isOpen={showLoginModal}
+        onClose={() => {
+          setShowLoginModal(false);
+          setPendingVoteAfterLogin(false);
+        }}
+        onSuccess={(user) => {
+          setAuthUser(user);
+          if (pendingVoteAfterLogin) {
+            setPendingVoteAfterLogin(false);
+            handleVote(user);
+          }
+        }}
+      />
     </div>
   );
 }
