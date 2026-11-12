@@ -4584,6 +4584,17 @@ export default function AdminDashboardPage() {
                 <p className="text-xs text-slate-500">
                   {activeMediaContestForSubmissions?.title || "Cuộc thi bình chọn"}
                 </p>
+                <div className="mt-2 flex items-center flex-wrap gap-2 text-[11px]">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 font-bold">
+                    ⭐ Tổng bình chọn: {currentMediaSubmissions.reduce((a: number, s: any) => a + (s.votesCount || 0), 0).toLocaleString()}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 font-bold">
+                    🔗 Tổng chia sẻ: {currentMediaSubmissions.reduce((a: number, s: any) => a + (s.sharesCount || 0), 0).toLocaleString()}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
+                    👁️ Tổng view: {((activeMediaContestForSubmissions?.clickCount || 0) + currentMediaSubmissions.reduce((a: number, s: any) => a + (s.viewsCount || 0), 0)).toLocaleString()}
+                  </span>
+                </div>
               </div>
             </div>
 

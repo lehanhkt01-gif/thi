@@ -89,6 +89,8 @@ interface MediaContest {
   creatorId?: string;
   creatorName?: string;
   sharedEmails?: string[];
+  clickCount?: number;
+  viewsCount?: number;
 }
 
 interface MediaSubmission {
@@ -469,13 +471,35 @@ export default function MediaContestPublicPage({
     return isShared;
   })();
 
+  // Đếm số tác phẩm mà một tài khoản đã nộp trong cuộc thi này
+  const getUserSubmissionsCount = (user = authUser) => {
+    if (!user) return 0;
+    const uEmail = (user.email || "").toLowerCase().trim();
+    const uId = (user.id || "").trim();
+    const uPhone = (user.phone || "").trim();
+    return submissions.filter((s) => {
+      const matchId = Boolean(uId && s.userId && s.userId === uId);
+      const matchEmail = Boolean(uEmail && s.authorEmail && s.authorEmail.toLowerCase().trim() === uEmail);
+      const matchPhone = Boolean(uPhone && s.authorPhone && s.authorPhone.trim() === uPhone);
+      return matchId || matchEmail || matchPhone;
+    }).length;
+  };
+
   // Bắt buộc đăng nhập tài khoản trước khi mở hộp thoại nộp tác phẩm dự thi
+  // Mỗi tài khoản chỉ được gửi tối đa 2 tác phẩm dự thi
   const handleOpenSubmitArtwork = () => {
     if (!authUser) {
       setPendingSubmitAfterLogin(true);
       setShowLoginModal(true);
       return;
     }
+
+    const currentCount = getUserSubmissionsCount(authUser);
+    if (currentCount >= 2) {
+      alert("Bạn đã gửi đủ 2 tác phẩm dự thi");
+      return;
+    }
+
     if (!showSettingsDrawer) {
       loadData();
     }
@@ -1248,6 +1272,12 @@ export default function MediaContestPublicPage({
       setShowLoginModal(true);
       return;
     }
+
+    if (getUserSubmissionsCount(authUser) >= 2) {
+      alert("Bạn đã gửi đủ 2 tác phẩm dự thi");
+      return;
+    }
+
     if (
       !submitForm.title.trim() ||
       !submitForm.authorName.trim() ||
@@ -1375,6 +1405,12 @@ export default function MediaContestPublicPage({
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   );
+
+  // Thống kê tổng thể cả cuộc thi (Đếm tổng bao gồm cả các tác phẩm - Chuẩn Ảnh 1)
+  const totalContestVotes = submissions.reduce((sum, s) => sum + (s.votesCount || 0), 0);
+  const totalContestShares = submissions.reduce((sum, s) => sum + (s.sharesCount || 0), 0);
+  const totalContestViews = (contest?.clickCount || 0) + submissions.reduce((sum, s) => sum + (s.viewsCount || 0), 0);
+  const totalContestArtworks = submissions.length;
 
   const reqFields = contest?.requiredParticipantFields || [
     "authorName",
@@ -1824,6 +1860,33 @@ export default function MediaContestPublicPage({
                     <Settings className="w-4 h-4" />
                   </button>
                 )}
+              </div>
+
+              {/* Thống kê tổng quan cả cuộc thi: Bình chọn, Chia sẻ, View (Đếm tổng cả các tác phẩm - Chuẩn Ảnh 1) */}
+              <div className="mt-3 flex items-center flex-wrap gap-2 text-xs">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50/90 border border-amber-200/90 text-amber-900 shadow-2xs font-semibold">
+                  <Star className="w-3.5 h-3.5 text-amber-500 fill-amber-400 shrink-0" />
+                  <span>Tổng số lượt bình chọn:</span>
+                  <strong className="font-extrabold text-amber-700">{totalContestVotes.toLocaleString()}</strong>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50/90 border border-blue-200/90 text-blue-900 shadow-2xs font-semibold">
+                  <Share2 className="w-3.5 h-3.5 text-[#0068FF] shrink-0" />
+                  <span>Số lượng chia sẻ:</span>
+                  <strong className="font-extrabold text-blue-700">{totalContestShares.toLocaleString()}</strong>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-200/90 text-emerald-900 shadow-2xs font-semibold">
+                  <Eye className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>Số lượng view:</span>
+                  <strong className="font-extrabold text-emerald-700">{totalContestViews.toLocaleString()}</strong>
+                </div>
+
+                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100/90 border border-slate-200 text-slate-700 shadow-2xs font-semibold">
+                  <ImageIcon className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>Tổng tác phẩm:</span>
+                  <strong className="font-extrabold text-slate-800">{totalContestArtworks.toLocaleString()}</strong>
+                </div>
               </div>
             </div>
 
@@ -2816,6 +2879,13 @@ export default function MediaContestPublicPage({
               <div>
                 <h3 className="text-lg font-bold text-slate-900">Nộp Tác Phẩm Dự Thi</h3>
                 <p className="text-xs text-slate-500 line-clamp-1">{contest?.title}</p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
+                    getUserSubmissionsCount() >= 2 ? "bg-red-50 text-red-700 border border-red-200" : "bg-blue-50 text-blue-700 border border-blue-100"
+                  }`}>
+                    Bài dự thi của bạn: {getUserSubmissionsCount()}/2 tác phẩm
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -2834,6 +2904,12 @@ export default function MediaContestPublicPage({
               </div>
             ) : (
               <form onSubmit={handleSubmitArtwork} className="space-y-3.5 text-xs">
+                {getUserSubmissionsCount() >= 2 && (
+                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                    <span>Bạn đã gửi đủ 2 tác phẩm dự thi</span>
+                  </div>
+                )}
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     Tên tác phẩm dự thi <span className="text-red-500">*</span>
@@ -3054,11 +3130,11 @@ export default function MediaContestPublicPage({
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || isUploadingSubmitImage}
-                    style={{ backgroundColor: themeColor }}
-                    className="px-6 py-2.5 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-95 transition-opacity cursor-pointer"
+                    disabled={isSubmitting || isUploadingSubmitImage || getUserSubmissionsCount() >= 2}
+                    style={{ backgroundColor: getUserSubmissionsCount() >= 2 ? "#94A3B8" : themeColor }}
+                    className="px-6 py-2.5 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? "Đang gửi..." : "Gửi tác phẩm dự thi"}
+                    {isSubmitting ? "Đang gửi..." : getUserSubmissionsCount() >= 2 ? "Đã gửi đủ 2 tác phẩm" : "Gửi tác phẩm dự thi"}
                   </button>
                 </div>
               </form>
@@ -3655,6 +3731,10 @@ export default function MediaContestPublicPage({
             setPendingSubmitAfterLogin(false);
             if (!showSettingsDrawer) {
               loadData();
+            }
+            if (getUserSubmissionsCount(user) >= 2) {
+              alert("Bạn đã gửi đủ 2 tác phẩm dự thi");
+              return;
             }
             setShowSubmitModal(true);
           }

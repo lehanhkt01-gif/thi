@@ -2179,6 +2179,23 @@ class DataStore {
     );
   }
 
+  // Lấy danh sách tác phẩm của 1 người dùng trong cuộc thi (phục vụ kiểm tra giới hạn 2 tác phẩm)
+  public getUserMediaSubmissions(
+    contestIdOrSlug: string,
+    user: { id?: string; email?: string; phone?: string }
+  ): MediaSubmissionModel[] {
+    const list = this.getMediaSubmissions(contestIdOrSlug);
+    const uEmail = (user.email || "").toLowerCase().trim();
+    const uId = (user.id || "").trim();
+    const uPhone = (user.phone || "").trim();
+    return list.filter((s) => {
+      const matchId = Boolean(uId && s.userId && s.userId === uId);
+      const matchEmail = Boolean(uEmail && s.authorEmail && s.authorEmail.toLowerCase().trim() === uEmail);
+      const matchPhone = Boolean(uPhone && s.authorPhone && s.authorPhone.trim() === uPhone);
+      return matchId || matchEmail || matchPhone;
+    });
+  }
+
   public getMediaSubmission(submissionId: string): MediaSubmissionModel | undefined {
     this.loadFromDisk();
     return this.mediaSubmissions.find((s) => s.id === submissionId);
@@ -2186,6 +2203,16 @@ class DataStore {
 
   public addMediaSubmission(data: Omit<MediaSubmissionModel, "id" | "createdAt" | "votesCount">): MediaSubmissionModel {
     this.loadFromDisk(true);
+    // Giới hạn: Mỗi tài khoản chỉ được gửi tối đa 2 tác phẩm dự thi
+    const existing = this.getUserMediaSubmissions(data.contestId || data.contestSlug, {
+      id: data.userId,
+      email: data.authorEmail,
+      phone: data.authorPhone,
+    });
+    if (existing.length >= 2) {
+      throw new Error("Bạn đã gửi đủ 2 tác phẩm dự thi");
+    }
+
     const newSub: MediaSubmissionModel = {
       ...data,
       id: `sub-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
