@@ -35,6 +35,10 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
   const [period, setPeriod] = useState<"week" | "contest">("contest");
   const [authUser, setAuthUser] = useState<any>(null);
 
+  // Phân trang danh sách người thi trắc nghiệm (10 người / trang)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ITEMS_PER_PAGE = 10;
+
   // Kiểm tra quyền: Chỉ Quản trị viên (ADMIN) mới được xuất file Excel và dùng thanh công cụ nổi
   useEffect(() => {
     const checkAuth = () => {
@@ -101,11 +105,13 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchResults();
   }, [slug, selectedUnit, fromDate, toDate, scope, period]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentPage(1);
     fetchResults();
   };
 
@@ -370,157 +376,234 @@ export default function ResultsPage({ params }: { params: Promise<{ slug: string
           <div className="p-12 text-center text-xs text-slate-400">
             Không tìm thấy kết quả nào phù hợp với bộ lọc tìm kiếm.
           </div>
-        ) : scope === "individual" ? (
-          /* BẢNG CÁ NHÂN */
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-4">Hạng</th>
-                  <th className="py-3 px-4">Họ và Tên</th>
-                  <th className="py-3 px-4">Đơn vị</th>
-                  <th className="py-3 px-4">Đơn vị con</th>
-                  <th className="py-3 px-4">Ngày dự thi</th>
-                  <th className="py-3 px-4">Kết quả (Cao nhất)</th>
-                  <th className="py-3 px-4">Độ chính xác</th>
-                  <th className="py-3 px-4">Thời gian</th>
-                  <th className="py-3 px-4">Dự đoán</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {(data?.leaderboard || []).map((row: any) => (
-                  <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="py-3.5 px-4 font-bold">
-                      {row.rank === 1 ? (
-                        <span className="w-6 h-6 rounded-full bg-amber-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
-                          1
-                        </span>
-                      ) : row.rank === 2 ? (
-                        <span className="w-6 h-6 rounded-full bg-slate-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
-                          2
-                        </span>
-                      ) : row.rank === 3 ? (
-                        <span className="w-6 h-6 rounded-full bg-orange-500 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
-                          3
-                        </span>
-                      ) : (
-                        <span className="text-slate-500 font-medium pl-1">{row.rank}</span>
-                      )}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-slate-900">
-                      <div>{row.fullName}</div>
-                      <div className="text-[10px] text-slate-400 font-normal flex items-center space-x-1.5 mt-0.5">
-                        <span>{row.phoneMasked || row.cccdMasked || row.cccd}</span>
-                        <span className="text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-medium">
-                          Đã thi {row.attemptCount || 1} lượt
-                        </span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 font-semibold text-slate-700">{row.unitName}</td>
-                    <td className="py-3.5 px-4 text-slate-600 font-medium">
-                      {row.subUnitName || ""}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500">
-                      {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString("vi-VN") : "Hôm nay"}
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-[#00A9E0]">
-                      {row.score} điểm ({row.correctCount}/{row.totalQuestions})
-                    </td>
-                    <td className="py-3.5 px-4 font-bold text-emerald-700">
-                      {row.accuracyPercent}%
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-700 font-mono">
-                      {Math.floor(row.durationSeconds / 60)}p {row.durationSeconds % 60}s
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500 font-mono">
-                      {row.tieBreakerPrediction?.toLocaleString("vi-VN") || "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          /* BẢNG TỔ CHỨC / ĐƠN VỊ */
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
-                <tr>
-                  <th className="py-3 px-4 text-center w-14">Hạng</th>
-                  <th className="py-3 px-4">Tổ chức / Đơn vị / Thôn buôn</th>
-                  <th className="py-3 px-4 text-center">Số người tham gia</th>
-                  <th className="py-3 px-4 text-center">Tổng lượt thi</th>
-                  <th className="py-3 px-4 text-center">Điểm TB</th>
-                  <th className="py-3 px-4 text-center">Thời gian TB</th>
-                  <th className="py-3 px-4 text-center">Tỷ lệ đạt</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {(data?.leaderboard || []).map((org: any) => {
-                  const hasData = org.uniqueParticipants > 0;
-                  return (
-                    <tr key={org.unitName} className="hover:bg-slate-50/80 transition-colors">
-                      <td className="py-3.5 px-4 text-center font-bold">
-                        {org.rank === 1 && hasData ? (
-                          <span className="w-6 h-6 rounded-full bg-amber-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
-                            1
-                          </span>
-                        ) : org.rank === 2 && hasData ? (
-                          <span className="w-6 h-6 rounded-full bg-slate-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
-                            2
-                          </span>
-                        ) : org.rank === 3 && hasData ? (
-                          <span className="w-6 h-6 rounded-full bg-orange-500 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
-                            3
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 font-mono">{org.rank}</span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 font-bold text-slate-900">
-                        {org.unitName}
-                        {!hasData && (
-                          <span className="ml-2 text-[10px] font-normal text-slate-400 italic">
-                            (Chưa có bài thi)
-                          </span>
-                        )}
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-bold text-[#00A9E0]">
-                        {org.uniqueParticipants}
-                      </td>
-                      <td className="py-3.5 px-4 text-center text-slate-600 font-mono">
-                        {org.totalAttempts}
-                      </td>
-                      <td className="py-3.5 px-4 text-center font-bold text-slate-900">
-                        {hasData ? `${org.avgBestScore} đ` : "-"}
-                      </td>
-                      <td className="py-3.5 px-4 text-center text-slate-600 font-mono">
-                        {hasData ? `${Math.floor(org.avgDurationSeconds / 60)}p ${org.avgDurationSeconds % 60}s` : "-"}
-                      </td>
-                      <td className="py-3.5 px-4 text-center">
-                        {hasData ? (
-                          <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
-                              org.completionRate >= 80
-                                ? "bg-emerald-100 text-emerald-800"
-                                : org.completionRate >= 50
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-amber-100 text-amber-800"
-                            }`}
-                          >
-                            {org.completionRate}%
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">0%</span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        ) : (() => {
+          const leaderboardList = data?.leaderboard || [];
+          const totalPages = Math.max(1, Math.ceil(leaderboardList.length / ITEMS_PER_PAGE));
+          const paginatedLeaderboard = leaderboardList.slice(
+            (currentPage - 1) * ITEMS_PER_PAGE,
+            currentPage * ITEMS_PER_PAGE
+          );
+
+          return (
+            <>
+              {scope === "individual" ? (
+                /* BẢNG CÁ NHÂN */
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                      <tr>
+                        <th className="py-3 px-4">Hạng</th>
+                        <th className="py-3 px-4">Họ và Tên</th>
+                        <th className="py-3 px-4">Đơn vị</th>
+                        <th className="py-3 px-4">Đơn vị con</th>
+                        <th className="py-3 px-4">Ngày dự thi</th>
+                        <th className="py-3 px-4">Kết quả (Cao nhất)</th>
+                        <th className="py-3 px-4">Độ chính xác</th>
+                        <th className="py-3 px-4">Thời gian</th>
+                        <th className="py-3 px-4">Dự đoán</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedLeaderboard.map((row: any) => (
+                        <tr key={row.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="py-3.5 px-4 font-bold">
+                            {row.rank === 1 ? (
+                              <span className="w-6 h-6 rounded-full bg-amber-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
+                                1
+                              </span>
+                            ) : row.rank === 2 ? (
+                              <span className="w-6 h-6 rounded-full bg-slate-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
+                                2
+                              </span>
+                            ) : row.rank === 3 ? (
+                              <span className="w-6 h-6 rounded-full bg-orange-500 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
+                                3
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 font-medium pl-1">{row.rank}</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-slate-900">
+                            <div>{row.fullName}</div>
+                            <div className="text-[10px] text-slate-400 font-normal flex items-center space-x-1.5 mt-0.5">
+                              <span>{row.phoneMasked || row.cccdMasked || row.cccd}</span>
+                              <span className="text-blue-600 bg-blue-50 px-1.5 py-0.2 rounded font-medium">
+                                Đã thi {row.attemptCount || 1} lượt
+                              </span>
+                            </div>
+                          </td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-700">{row.unitName}</td>
+                          <td className="py-3.5 px-4 text-slate-600 font-medium">
+                            {row.subUnitName || ""}
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500">
+                            {row.submittedAt ? new Date(row.submittedAt).toLocaleDateString("vi-VN") : "Hôm nay"}
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-[#00A9E0]">
+                            {row.score} điểm ({row.correctCount}/{row.totalQuestions})
+                          </td>
+                          <td className="py-3.5 px-4 font-bold text-emerald-700">
+                            {row.accuracyPercent}%
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-700 font-mono">
+                            {Math.floor(row.durationSeconds / 60)}p {row.durationSeconds % 60}s
+                          </td>
+                          <td className="py-3.5 px-4 text-slate-500 font-mono">
+                            {row.tieBreakerPrediction?.toLocaleString("vi-VN") || "—"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                /* BẢNG TỔ CHỨC / ĐƠN VỊ */
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                      <tr>
+                        <th className="py-3 px-4 text-center w-14">Hạng</th>
+                        <th className="py-3 px-4">Tổ chức / Đơn vị / Thôn buôn</th>
+                        <th className="py-3 px-4 text-center">Số người tham gia</th>
+                        <th className="py-3 px-4 text-center">Tổng lượt thi</th>
+                        <th className="py-3 px-4 text-center">Điểm TB</th>
+                        <th className="py-3 px-4 text-center">Thời gian TB</th>
+                        <th className="py-3 px-4 text-center">Tỷ lệ đạt</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {paginatedLeaderboard.map((org: any) => {
+                        const hasData = org.uniqueParticipants > 0;
+                        return (
+                          <tr key={org.unitName} className="hover:bg-slate-50/80 transition-colors">
+                            <td className="py-3.5 px-4 text-center font-bold">
+                              {org.rank === 1 && hasData ? (
+                                <span className="w-6 h-6 rounded-full bg-amber-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
+                                  1
+                                </span>
+                              ) : org.rank === 2 && hasData ? (
+                                <span className="w-6 h-6 rounded-full bg-slate-400 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
+                                  2
+                                </span>
+                              ) : org.rank === 3 && hasData ? (
+                                <span className="w-6 h-6 rounded-full bg-orange-500 text-white inline-flex items-center justify-center font-bold text-xs shadow-xs">
+                                  3
+                                </span>
+                              ) : (
+                                <span className="text-slate-500 font-mono">{org.rank}</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 font-bold text-slate-900">
+                              {org.unitName}
+                              {!hasData && (
+                                <span className="ml-2 text-[10px] font-normal text-slate-400 italic">
+                                  (Chưa có bài thi)
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4 text-center font-bold text-[#00A9E0]">
+                              {org.uniqueParticipants}
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-slate-600 font-mono">
+                              {org.totalAttempts}
+                            </td>
+                            <td className="py-3.5 px-4 text-center font-bold text-slate-900">
+                              {hasData ? `${org.avgBestScore} đ` : "-"}
+                            </td>
+                            <td className="py-3.5 px-4 text-center text-slate-600 font-mono">
+                              {hasData ? `${Math.floor(org.avgDurationSeconds / 60)}p ${org.avgDurationSeconds % 60}s` : "-"}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              {hasData ? (
+                                <span
+                                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold ${
+                                    org.completionRate >= 80
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : org.completionRate >= 50
+                                      ? "bg-blue-100 text-blue-800"
+                                      : "bg-amber-100 text-amber-800"
+                                  }`}
+                                >
+                                  {org.completionRate}%
+                                </span>
+                              ) : (
+                                <span className="text-slate-400">0%</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Thanh phân trang 10 mục / trang */}
+              <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="text-slate-500 font-medium">
+                  Hiển thị{" "}
+                  <strong className="text-slate-800">
+                    {leaderboardList.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
+                    {Math.min(currentPage * ITEMS_PER_PAGE, leaderboardList.length)}
+                  </strong>{" "}
+                  trong số <strong className="text-slate-800">{leaderboardList.length}</strong>{" "}
+                  {scope === "individual" ? "thí sinh" : "đơn vị"}
+                </div>
+
+                {totalPages > 1 && (
+                  <div className="flex items-center space-x-1">
+                    <button
+                      type="button"
+                      disabled={currentPage <= 1}
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                    >
+                      ‹ Trước
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        return (
+                          page === 1 ||
+                          page === totalPages ||
+                          Math.abs(page - currentPage) <= 2
+                        );
+                      })
+                      .map((page, idx, arr) => {
+                        const prev = arr[idx - 1];
+                        const hasGap = prev && page - prev > 1;
+                        return (
+                          <React.Fragment key={page}>
+                            {hasGap && <span className="px-1 text-slate-400">...</span>}
+                            <button
+                              type="button"
+                              onClick={() => setCurrentPage(page)}
+                              className={`w-7 h-7 rounded-lg font-bold text-xs flex items-center justify-center transition-colors cursor-pointer ${
+                                currentPage === page
+                                  ? "bg-[#00A9E0] text-white shadow-xs"
+                                  : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-100"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+
+                    <button
+                      type="button"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                    >
+                      Sau ›
+                    </button>
+                  </div>
+                )}
+              </div>
+            </>
+          );
+        })()}
       </div>
         </>
       )}

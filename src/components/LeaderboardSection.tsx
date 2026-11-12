@@ -89,6 +89,10 @@ export default function LeaderboardSection({
   const [totalAttempts, setTotalAttempts] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
+  // Phân trang danh sách người thi trắc nghiệm (10 người / trang)
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const ITEMS_PER_PAGE = 10;
+
   // Điều khiển Dropdown menus
   const [openScopeDropdown, setOpenScopeDropdown] = useState<boolean>(false);
   const [openPeriodDropdown, setOpenPeriodDropdown] = useState<boolean>(false);
@@ -152,12 +156,14 @@ export default function LeaderboardSection({
   };
 
   useEffect(() => {
+    setCurrentPage(1);
     fetchLeaderboardData();
   }, [contestSlug, contestId, scope, period, selectedUnit]);
 
   // Handle tìm kiếm
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setCurrentPage(1);
     fetchLeaderboardData();
   };
 
@@ -166,6 +172,13 @@ export default function LeaderboardSection({
   const top2 = scope === "individual" && rankings.length > 1 ? rankings[1] : null;
   const top3 = scope === "individual" && rankings.length > 2 ? rankings[2] : null;
   const restRankings = scope === "individual" ? rankings.slice(3) : rankings;
+
+  // Phân trang: 10 người thi / trang (theo yêu cầu)
+  const totalPages = Math.max(1, Math.ceil(rankings.length / ITEMS_PER_PAGE));
+  const paginatedRankings = rankings.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  );
 
   return (
     <section id="bang-xep-hang" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
@@ -422,8 +435,9 @@ export default function LeaderboardSection({
         /* 4. CHẾ ĐỘ CÁ NHÂN (INDIVIDUAL LEADERBOARD) */
         /* ========================================================= */
         <>
-          {/* TOP 3 PODIUM NỔI BẬT (ẢNH 4) */}
-          <div className="flex items-end justify-center max-w-2xl mx-auto mb-10 px-4">
+          {/* TOP 3 PODIUM NỔI BẬT (CHỈ HIỂN THỊ Ở TRANG 1 ĐỂ TRANG TIẾP THEO TẬP TRUNG VÀO BẢNG) */}
+          {currentPage === 1 && (top1 || top2 || top3) && (
+            <div className="flex items-end justify-center max-w-2xl mx-auto mb-10 px-4">
             {/* Hạng 2 (Bạc) */}
             {top2 && (
               <div className="flex-1 flex flex-col items-center">
@@ -502,6 +516,7 @@ export default function LeaderboardSection({
               </div>
             )}
           </div>
+          )}
 
           {/* BẢNG CHI TIẾT TỪ HẠNG 4 TRỞ ĐI */}
           <div className="bg-white rounded-3xl border border-slate-200 shadow-xs overflow-hidden max-w-4xl mx-auto">
@@ -518,7 +533,7 @@ export default function LeaderboardSection({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {rankings.map((item) => (
+                  {paginatedRankings.map((item) => (
                     <tr
                       key={item.id}
                       className={`hover:bg-cyan-50/40 transition-colors ${
@@ -574,6 +589,69 @@ export default function LeaderboardSection({
                 </tbody>
               </table>
             </div>
+
+            {/* Thanh phân trang 10 người thi / trang (chuẩn yêu cầu) */}
+            <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+              <div className="text-slate-500 font-medium">
+                Hiển thị{" "}
+                <strong className="text-slate-800">
+                  {rankings.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
+                  {Math.min(currentPage * ITEMS_PER_PAGE, rankings.length)}
+                </strong>{" "}
+                trong số <strong className="text-slate-800">{rankings.length}</strong> thí sinh
+              </div>
+
+              {totalPages > 1 && (
+                <div className="flex items-center space-x-1">
+                  <button
+                    type="button"
+                    disabled={currentPage <= 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                  >
+                    ‹ Trước
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      return (
+                        page === 1 ||
+                        page === totalPages ||
+                        Math.abs(page - currentPage) <= 2
+                      );
+                    })
+                    .map((page, idx, arr) => {
+                      const prev = arr[idx - 1];
+                      const hasGap = prev && page - prev > 1;
+                      return (
+                        <React.Fragment key={page}>
+                          {hasGap && <span className="px-1 text-slate-400">...</span>}
+                          <button
+                            type="button"
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                              currentPage === page
+                                ? "bg-[#00A9E0] text-white shadow-xs"
+                                : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+
+                  <button
+                    type="button"
+                    disabled={currentPage >= totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                  >
+                    Sau ›
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </>
       ) : (
@@ -605,7 +683,7 @@ export default function LeaderboardSection({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {rankings.map((org) => {
+                {paginatedRankings.map((org) => {
                   const hasData = org.uniqueParticipants > 0;
                   return (
                     <tr
@@ -680,6 +758,55 @@ export default function LeaderboardSection({
                 })}
               </tbody>
             </table>
+          </div>
+
+          {/* Thanh phân trang tổ chức / đơn vị 10 dòng / trang */}
+          <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+            <div className="text-slate-500 font-medium">
+              Hiển thị{" "}
+              <strong className="text-slate-800">
+                {rankings.length === 0 ? 0 : (currentPage - 1) * ITEMS_PER_PAGE + 1} -{" "}
+                {Math.min(currentPage * ITEMS_PER_PAGE, rankings.length)}
+              </strong>{" "}
+              trong số <strong className="text-slate-800">{rankings.length}</strong> đơn vị
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center space-x-1">
+                <button
+                  type="button"
+                  disabled={currentPage <= 1}
+                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                  className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                >
+                  ‹ Trước
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                  <button
+                    key={page}
+                    type="button"
+                    onClick={() => setCurrentPage(page)}
+                    className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                      currentPage === page
+                        ? "bg-[#00A9E0] text-white shadow-xs"
+                        : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    {page}
+                  </button>
+                ))}
+
+                <button
+                  type="button"
+                  disabled={currentPage >= totalPages}
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                  className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                >
+                  Sau ›
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}
