@@ -16,9 +16,11 @@ import {
   X,
   Sparkles,
   Trash2,
+  ZoomIn,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import LoginModal from "@/components/LoginModal";
+import ImageLightboxModal from "@/components/ImageLightboxModal";
 
 interface MediaContest {
   id: string;
@@ -109,6 +111,7 @@ export default function ArtworkDetailPage({
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [pendingVoteAfterLogin, setPendingVoteAfterLogin] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showLightbox, setShowLightbox] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [authUser, setAuthUser] = useState<any>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -575,14 +578,24 @@ export default function ArtworkDetailPage({
       <main className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
         <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 sm:p-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* CỘT TRÁI: HÌNH ẢNH TÁC PHẨM DỰ THI (ẢNH 2) */}
+            {/* CỘT TRÁI: HÌNH ẢNH TÁC PHẨM DỰ THI (Bấm vào để phóng to - Lightbox) */}
             <div className="md:col-span-6 flex flex-col items-center">
-              <div className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-sm flex items-center justify-center">
+              <div
+                onClick={() => setShowLightbox(true)}
+                className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-sm flex items-center justify-center cursor-zoom-in group"
+                title="Bấm vào hình để phóng to toàn màn hình"
+              >
                 <img
                   src={currentImageUrl}
                   alt={submission.title}
-                  className="w-full h-auto max-h-[640px] object-contain rounded-2xl"
+                  className="w-full h-auto max-h-[640px] object-contain rounded-2xl group-hover:scale-[1.02] transition-transform duration-200"
                 />
+
+                {/* Huy hiệu phóng to nổi trên ảnh */}
+                <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center gap-1.5 shadow-md pointer-events-none group-hover:scale-105 transition-all">
+                  <ZoomIn className="w-3.5 h-3.5 text-white" />
+                  <span>Bấm để phóng to</span>
+                </div>
               </div>
 
               {/* Dải thumbnail xem các ảnh khác nếu bài dự thi có nhiều hình */}
@@ -945,6 +958,16 @@ export default function ArtworkDetailPage({
             handleVote(user);
           }
         }}
+      />
+
+      {/* Lightbox phóng to ảnh tác phẩm khi bấm vào hình */}
+      <ImageLightboxModal
+        isOpen={showLightbox}
+        images={images}
+        initialIndex={safeIdx}
+        title={submission.title}
+        authorName={`${submission.authorName} (${submission.unitName})`}
+        onClose={() => setShowLightbox(false)}
       />
     </div>
   );

@@ -42,10 +42,12 @@ import {
   Eye,
   LogOut,
   Trash2,
+  ZoomIn,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { EA_SUP_VILLAGES } from "@/lib/store";
 import LoginModal, { syncAuthSession } from "@/components/LoginModal";
+import ImageLightboxModal from "@/components/ImageLightboxModal";
 
 interface MediaContest {
   id: string;
@@ -245,6 +247,11 @@ export default function MediaContestPublicPage({
   const [copiedShareModalLink, setCopiedShareModalLink] = useState(false);
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({});
   const [pendingVoteSubmissionId, setPendingVoteSubmissionId] = useState<string | null>(null);
+  const [showLightbox, setShowLightbox] = useState(false);
+  const [lightboxImages, setLightboxImages] = useState<string[]>([]);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxTitle, setLightboxTitle] = useState("");
+  const [lightboxAuthor, setLightboxAuthor] = useState("");
   const [imageOrientations, setImageOrientations] = useState<Record<string, "vertical" | "horizontal">>({});
   const [pendingFbShare, setPendingFbShare] = useState<{
     targetId: string;
@@ -1993,6 +2000,24 @@ export default function MediaContestPublicPage({
                           }}
                           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                         />
+                        {/* Nút phóng to nhanh ảnh tác phẩm */}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setLightboxImages(subImages);
+                            setLightboxIndex(0);
+                            setLightboxTitle(sub.title);
+                            setLightboxAuthor(`${sub.authorName} (${sub.unitName})`);
+                            setShowLightbox(true);
+                          }}
+                          className="absolute top-2.5 left-2.5 p-1.5 rounded-full bg-black/60 hover:bg-black/85 text-white shadow-xs transition-all hover:scale-110 cursor-pointer z-10"
+                          title="Phóng to ảnh"
+                        >
+                          <ZoomIn className="w-3.5 h-3.5" />
+                        </button>
+
                         {subImages.length > 1 && (
                           <span className="absolute top-2.5 right-2.5 bg-black/75 text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full shadow-xs">
                             📷 {subImages.length} hình
@@ -3168,12 +3193,26 @@ export default function MediaContestPublicPage({
                 const safeIdx = Math.min(selectedSubmissionImageIdx, imgs.length - 1);
                 return (
                   <div className="md:col-span-6 flex flex-col items-center">
-                    <div className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-2xs flex items-center justify-center">
+                    <div
+                      onClick={() => {
+                        setLightboxImages(imgs);
+                        setLightboxIndex(safeIdx);
+                        setLightboxTitle(selectedSubmission.title);
+                        setLightboxAuthor(`${selectedSubmission.authorName} (${selectedSubmission.unitName})`);
+                        setShowLightbox(true);
+                      }}
+                      className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-2xs flex items-center justify-center cursor-zoom-in group"
+                      title="Bấm vào hình để phóng to toàn màn hình"
+                    >
                       <img
                         src={imgs[safeIdx] || selectedSubmission.mediaUrl}
                         alt={selectedSubmission.title}
-                        className="w-full h-auto max-h-[520px] object-contain rounded-2xl"
+                        className="w-full h-auto max-h-[520px] object-contain rounded-2xl group-hover:scale-[1.02] transition-transform duration-200"
                       />
+                      <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center gap-1.5 shadow-md pointer-events-none group-hover:scale-105 transition-all">
+                        <ZoomIn className="w-3.5 h-3.5 text-white" />
+                        <span>Bấm để phóng to</span>
+                      </div>
                     </div>
                     {imgs.length > 1 && (
                       <div className="w-full flex items-center justify-center space-x-2 pt-3 overflow-x-auto">
@@ -3739,6 +3778,16 @@ export default function MediaContestPublicPage({
             setShowSubmitModal(true);
           }
         }}
+      />
+
+      {/* Lightbox phóng to ảnh tác phẩm khi bấm vào hình */}
+      <ImageLightboxModal
+        isOpen={showLightbox}
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        title={lightboxTitle}
+        authorName={lightboxAuthor}
+        onClose={() => setShowLightbox(false)}
       />
     </div>
   );
