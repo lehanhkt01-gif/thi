@@ -252,6 +252,9 @@ export default function MediaContestPublicPage({
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxTitle, setLightboxTitle] = useState("");
   const [lightboxAuthor, setLightboxAuthor] = useState("");
+  const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
+  const [editAnnouncementText, setEditAnnouncementText] = useState("");
+  const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
   const [imageOrientations, setImageOrientations] = useState<Record<string, "vertical" | "horizontal">>({});
   const [pendingFbShare, setPendingFbShare] = useState<{
     targetId: string;
@@ -955,6 +958,54 @@ export default function MediaContestPublicPage({
     }
   };
 
+  // Lưu nội dung dòng chữ chạy thông báo (Marquee Ticker - Chuẩn Ảnh 1)
+  const handleSaveAnnouncement = async () => {
+    if (!contest || !canManage) {
+      alert("Chỉ người tạo cuộc thi hoặc Quản trị viên (Admin) mới có quyền chỉnh sửa dòng chữ chạy!");
+      return;
+    }
+
+    try {
+      setIsSavingAnnouncement(true);
+      const updatedText = editAnnouncementText.trim();
+      const payload = {
+        editingId: contest.id || slug,
+        slug: contest.slug || slug,
+        action: "update",
+        editorRole: authUser?.role,
+        editorEmail: authUser?.email,
+        editorId: authUser?.id,
+        announcement: updatedText,
+      };
+
+      const res = await fetch("/api/media-contests", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await safeParseResponseJson(res);
+      if (res.ok || data.success || data.contest) {
+        setContest((prev) => (prev ? { ...prev, announcement: updatedText } : prev));
+        broadcastMediaContestSync({ ...(data.contest || contest), announcement: updatedText });
+        setShowAnnouncementModal(false);
+        setSaveToast("✓ Đã cập nhật dòng chữ chạy thông báo thành công!");
+        setTimeout(() => setSaveToast(""), 3500);
+      } else {
+        alert(data.error || "Không thể cập nhật dòng chữ chạy!");
+      }
+    } catch (err: any) {
+      alert("Lỗi khi lưu dòng chữ chạy: " + err.message);
+    } finally {
+      setIsSavingAnnouncement(false);
+    }
+  };
+
   // Handle Share / Copy link
   const handleCopyLink = () => {
     if (typeof window !== "undefined") {
@@ -1419,6 +1470,31 @@ export default function MediaContestPublicPage({
   const totalContestViews = (contest?.clickCount || 0) + submissions.reduce((sum, s) => sum + (s.viewsCount || 0), 0);
   const totalContestArtworks = submissions.length;
 
+  // Danh sách các thông điệp chạy chữ thông báo (Marquee Ticker - Chuẩn Ảnh 1)
+  const marqueeItems = (() => {
+    if (contest?.announcement && contest.announcement.trim()) {
+      const parts = contest.announcement
+        .split(/[✦•|]/)
+        .map((p) => p.trim())
+        .filter(Boolean);
+      return parts.length > 0 ? parts : [contest.announcement.trim()];
+    }
+
+    // Mặc định tự động tạo theo chuẩn cuộc thi trắc nghiệm (Ảnh 1)
+    const startStr = contest?.startDate
+      ? new Date(contest.startDate).toLocaleDateString("vi-VN")
+      : "10/11/2026";
+    const endStr = contest?.endDate
+      ? new Date(contest.endDate).toLocaleDateString("vi-VN")
+      : "24/11/2026";
+    return [
+      `CUỘC THI DIỄN RA TỪ ${startStr} ĐẾN ${endStr}`,
+      contest?.title ? contest.title.toUpperCase() : "CUỘC THI ẢNH & VIDEO NGHỆ THUẬT EA SÚP",
+      `CUỘC THI DIỄN RA TỪ ${startStr} ĐẾN ${endStr}`,
+      "CHÀO MỪNG CÁC TÁC PHẨM DỰ THI LAN TỎA NÉT ĐẸP QUÊ HƯƠNG EA SÚP",
+    ];
+  })();
+
   const reqFields = contest?.requiredParticipantFields || [
     "authorName",
     "unitName",
@@ -1692,6 +1768,51 @@ export default function MediaContestPublicPage({
             </div>
           ) : null}
         </section>
+
+        {/* ========================================================================= */}
+        {/* DÒNG CHỮ CHẠY THÔNG BÁO MARQUEE TICKER (CHUẨN ẢNH 1 & ẢNH 2) */}
+        {/* ========================================================================= */}
+        <div
+          className="w-full text-white py-2 sm:py-2.5 overflow-hidden shadow-inner border-y border-white/20 relative group select-none"
+          style={{ backgroundColor: themeColor }}
+        >
+          <div className="flex items-center">
+            {/* Dòng chữ chạy vô tận */}
+            <div className="animate-marquee whitespace-nowrap text-xs sm:text-sm font-bold tracking-widest uppercase flex items-center space-x-6 sm:space-x-8">
+              {marqueeItems.map((item, idx) => (
+                <React.Fragment key={idx}>
+                  <span>{item}</span>
+                  <span className="text-amber-300 font-bold text-sm">✦</span>
+                </React.Fragment>
+              ))}
+              {/* Lặp lại để chu kỳ chạy liền mạch không đứt đoạn */}
+              {marqueeItems.map((item, idx) => (
+                <React.Fragment key={`rep-${idx}`}>
+                  <span>{item}</span>
+                  <span className="text-amber-300 font-bold text-sm">✦</span>
+                </React.Fragment>
+              ))}
+            </div>
+          </div>
+
+          {/* Nút chỉnh sửa nhanh dành riêng cho Người tạo cuộc thi / Quản trị viên */}
+          {canManage && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2 z-10 opacity-90 group-hover:opacity-100 transition-opacity">
+              <button
+                type="button"
+                onClick={() => {
+                  setEditAnnouncementText(contest?.announcement || "");
+                  setShowAnnouncementModal(true);
+                }}
+                className="px-2.5 py-1 sm:px-3 sm:py-1 rounded-full bg-black/60 hover:bg-black/85 text-white text-[11px] sm:text-xs font-bold flex items-center gap-1.5 shadow-md backdrop-blur-xs transition-all hover:scale-105 cursor-pointer border border-white/20"
+                title="Chỉnh sửa nội dung dòng chữ chạy thông báo"
+              >
+                <Edit className="w-3 h-3 text-amber-300" />
+                <span className="hidden sm:inline">Sửa dòng chạy</span>
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* ========================================================================= */}
         {/* 2. TIÊU ĐỀ CUỘC THI & ĐỒNG HỒ FLIP CLOCK 8 Ô SỐ (ẢNH 4) */}
@@ -3789,6 +3910,116 @@ export default function MediaContestPublicPage({
         authorName={lightboxAuthor}
         onClose={() => setShowLightbox(false)}
       />
+
+      {/* Modal chỉnh sửa nhanh dòng chữ chạy thông báo (Marquee Ticker) */}
+      {showAnnouncementModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 sm:p-7 shadow-2xl relative border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+            <button
+              type="button"
+              onClick={() => setShowAnnouncementModal(false)}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center space-x-3 mb-4">
+              <div
+                style={{ backgroundColor: `${themeColor}20`, color: themeColor }}
+                className="w-10 h-10 rounded-2xl flex items-center justify-center shrink-0"
+              >
+                <Bell className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-bold text-slate-900">
+                  Chỉnh Sửa Dòng Chữ Chạy Thông Báo
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Dòng chữ chạy xuất hiện ngay bên dưới ảnh bìa banner (như Ảnh 1)
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">
+                  Nội dung thông báo chạy chữ
+                </label>
+                <textarea
+                  rows={4}
+                  value={editAnnouncementText}
+                  onChange={(e) => setEditAnnouncementText(e.target.value)}
+                  placeholder="Nhập nội dung bạn muốn chạy dưới banner (ví dụ: THI TRỰC TUYẾN... ✦ CUỘC THI DIỄN RA TỪ...)"
+                  className="w-full p-3 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-red-500 resize-none font-medium leading-relaxed bg-white"
+                />
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Mẹo: Dùng ký tự <code className="text-amber-600 font-bold">✦</code> hoặc dấu gạch đứng <code className="text-amber-600 font-bold">|</code> giữa các ý để tạo điểm nhấn vàng như cuộc thi trắc nghiệm.
+                </p>
+              </div>
+
+              {/* Mẫu gợi ý nhanh 1-chạm */}
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-bold text-slate-600">Gợi ý mẫu có sẵn:</span>
+                <div className="flex flex-col gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const startStr = contest?.startDate ? new Date(contest.startDate).toLocaleDateString("vi-VN") : "10/11/2026";
+                      const endStr = contest?.endDate ? new Date(contest.endDate).toLocaleDateString("vi-VN") : "24/11/2026";
+                      setEditAnnouncementText(
+                        `CUỘC THI DIỄN RA TỪ ${startStr} ĐẾN ${endStr} ✦ ${(contest?.title || "CUỘC THI ẢNH").toUpperCase()} ✦ HÃY BÌNH CHỌN CHO TÁC PHẨM BẠN YÊU THÍCH NHẤT!`
+                      );
+                    }}
+                    className="text-left p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] text-slate-700 transition-colors cursor-pointer"
+                  >
+                    💡 Mẫu 1: Thời gian diễn ra &amp; Kêu gọi bình chọn
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditAnnouncementText(
+                        `CHÀO MỪNG NGÀY ĐẠI ĐOÀN KẾT TOÀN DÂN TỘC (18/11) VÀ NGÀY VĂN HÓA VIỆT NAM (24/11) ✦ ${(contest?.title || "CUỘC THI ẢNH").toUpperCase()} ✦ ĐOÀN KẾT - BẢN SẮC - PHÁT TRIỂN`
+                      );
+                    }}
+                    className="text-left p-2 rounded-lg bg-slate-50 hover:bg-slate-100 border border-slate-200 text-[11px] text-slate-700 transition-colors cursor-pointer"
+                  >
+                    💡 Mẫu 2: Chào mừng ngày hội đại đoàn kết &amp; văn hóa
+                  </button>
+                </div>
+              </div>
+
+              <div className="pt-3 border-t border-slate-100 flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => setEditAnnouncementText("")}
+                  className="px-3 py-2 rounded-xl text-slate-500 hover:text-slate-800 text-xs font-semibold cursor-pointer"
+                >
+                  Xóa về mặc định
+                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowAnnouncementModal(false)}
+                    className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 font-bold text-xs cursor-pointer"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    disabled={isSavingAnnouncement}
+                    onClick={handleSaveAnnouncement}
+                    style={{ backgroundColor: themeColor }}
+                    className="px-5 py-2 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:opacity-60"
+                  >
+                    {isSavingAnnouncement ? "Đang lưu..." : "Lưu thay đổi"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

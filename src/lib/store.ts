@@ -2148,6 +2148,7 @@ class DataStore {
             maxImagesPerSubmission: updatedContest.maxImagesPerSubmission,
             requiredParticipantFields: updatedContest.requiredParticipantFields,
             themeColor: updatedContest.themeColor,
+            announcement: updatedContest.announcement,
             sortBy: updatedContest.sortBy,
             enableSocialShare: updatedContest.enableSocialShare,
             sharePlatforms: updatedContest.sharePlatforms,
