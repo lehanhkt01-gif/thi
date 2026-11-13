@@ -2244,15 +2244,6 @@ class DataStore {
 
   public addMediaSubmission(data: Omit<MediaSubmissionModel, "id" | "createdAt" | "votesCount">): MediaSubmissionModel {
     this.loadFromDisk(true);
-    // Giới hạn: Mỗi tài khoản chỉ được gửi tối đa 2 tác phẩm dự thi
-    const existing = this.getUserMediaSubmissions(data.contestId || data.contestSlug, {
-      id: data.userId,
-      email: data.authorEmail,
-      phone: data.authorPhone,
-    });
-    if (existing.length >= 2) {
-      throw new Error("Bạn đã gửi đủ 2 tác phẩm dự thi");
-    }
 
     const newSub: MediaSubmissionModel = {
       ...data,

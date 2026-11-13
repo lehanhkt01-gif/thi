@@ -29,19 +29,6 @@ export async function POST(
       );
     }
 
-    // Kiểm tra giới hạn: Mỗi tài khoản chỉ được đăng tối đa 2 tác phẩm dự thi
-    const existingUserSubs = store.getUserMediaSubmissions(contest.id || contest.slug, {
-      id: submitterId,
-      email: submitterEmail || body.authorEmail,
-      phone: body.authorPhone,
-    });
-    if (existingUserSubs.length >= 2) {
-      return NextResponse.json(
-        { error: "Bạn đã gửi đủ 2 tác phẩm dự thi", maxSubmissionsReached: true },
-        { status: 400 }
-      );
-    }
-
     if (!body.title || !body.authorName || !body.unitName) {
       return NextResponse.json(
         { error: "Vui lòng nhập đầy đủ: Tên tác phẩm, Họ tên tác giả và Đơn vị thôn/buôn!" },

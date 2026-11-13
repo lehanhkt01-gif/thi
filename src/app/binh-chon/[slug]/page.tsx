@@ -495,18 +495,11 @@ export default function MediaContestPublicPage({
     }).length;
   };
 
-  // Bắt buộc đăng nhập tài khoản trước khi mở hộp thoại nộp tác phẩm dự thi
-  // Mỗi tài khoản chỉ được gửi tối đa 2 tác phẩm dự thi
+  // Bắt buộc đăng nhập tài khoản trước khi mở hộp thoại nộp tác phẩm dự thi (không giới hạn số tác phẩm)
   const handleOpenSubmitArtwork = () => {
     if (!authUser) {
       setPendingSubmitAfterLogin(true);
       setShowLoginModal(true);
-      return;
-    }
-
-    const currentCount = getUserSubmissionsCount(authUser);
-    if (currentCount >= 2) {
-      alert("Bạn đã gửi đủ 2 tác phẩm dự thi");
       return;
     }
 
@@ -1331,11 +1324,6 @@ export default function MediaContestPublicPage({
       return;
     }
 
-    if (getUserSubmissionsCount(authUser) >= 2) {
-      alert("Bạn đã gửi đủ 2 tác phẩm dự thi");
-      return;
-    }
-
     if (
       !submitForm.title.trim() ||
       !submitForm.authorName.trim() ||
@@ -1554,49 +1542,7 @@ export default function MediaContestPublicPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex flex-col relative overflow-x-clip">
-      {/* BANNER THÔNG BÁO CHỜ DUYỆT CHO ADMIN & NGƯỜI TẠO */}
-      {contest?.status === "PENDING_APPROVAL" && canManage && (
-        <div className="bg-amber-600 text-white px-4 py-2 text-xs font-bold shadow-sm flex flex-col sm:flex-row items-center justify-between gap-2 z-50 sticky top-0">
-          <div className="flex items-center space-x-2">
-            <Clock className="w-4 h-4 animate-pulse shrink-0" />
-            <span>
-              CUỘC THI BÌNH CHỌN ĐANG CHỜ PHÊ DUYỆT (Chưa hiển thị công khai). Bạn đang xem ở chế độ xem trước của Quản trị viên / Người tạo.
-            </span>
-          </div>
-          {authUser?.role === "ADMIN" && (
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  const res = await fetch(`/api/media-contests/${encodeURIComponent(contest.id || slug)}/approve`, {
-                    method: "POST",
-                    headers: {
-                      "Content-Type": "application/json",
-                      "x-user-role": "ADMIN",
-                      "x-user-email": authUser?.email || "",
-                      "x-user-id": authUser?.id || "",
-                    },
-                    body: JSON.stringify({ status: "PUBLISHED" }),
-                  });
-                  const d = await res.json();
-                  if (d.success) {
-                    alert("🎉 Đã phê duyệt và công khai cuộc thi ảnh/video thành công!");
-                    setContest((prev) => (prev ? { ...prev, status: "PUBLISHED" } : prev));
-                  } else {
-                    alert(d.error || "Không thể phê duyệt cuộc thi");
-                  }
-                } catch (e: any) {
-                  alert("Lỗi duyệt: " + e.message);
-                }
-              }}
-              className="px-3 py-1 rounded-lg bg-white text-emerald-800 hover:bg-emerald-50 font-black shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-95"
-            >
-              ✅ Duyệt &amp; Công khai ngay
-            </button>
-          )}
-        </div>
-      )}
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 flex relative overflow-x-clip">
       {/* Toast thông báo lưu cài đặt */}
       {saveToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-slate-900 text-white px-4 py-2.5 rounded-full shadow-xl text-xs font-bold flex items-center space-x-2 animate-in fade-in slide-in-from-top-2">
@@ -1703,6 +1649,49 @@ export default function MediaContestPublicPage({
       {/* VÙNG CHÍNH GIỮA: GIAO DIỆN CUỘC THI ẢNH (ẢNH 4) */}
       {/* ========================================================================= */}
       <div className="flex-1 min-w-0 flex flex-col">
+        {/* BANNER THÔNG BÁO CHỜ DUYỆT CHO ADMIN & NGƯỜI TẠO */}
+        {contest?.status === "PENDING_APPROVAL" && canManage && (
+          <div className="bg-amber-600 text-white px-4 py-2 text-xs font-bold shadow-sm flex flex-col sm:flex-row items-center justify-between gap-2 z-50 sticky top-0">
+            <div className="flex items-center space-x-2">
+              <Clock className="w-4 h-4 animate-pulse shrink-0" />
+              <span>
+                CUỘC THI BÌNH CHỌN ĐANG CHỜ PHÊ DUYỆT (Chưa hiển thị công khai). Bạn đang xem ở chế độ xem trước của Quản trị viên / Người tạo.
+              </span>
+            </div>
+            {authUser?.role === "ADMIN" && (
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const res = await fetch(`/api/media-contests/${encodeURIComponent(contest.id || slug)}/approve`, {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "x-user-role": "ADMIN",
+                        "x-user-email": authUser?.email || "",
+                        "x-user-id": authUser?.id || "",
+                      },
+                      body: JSON.stringify({ status: "PUBLISHED" }),
+                    });
+                    const d = await res.json();
+                    if (d.success) {
+                      alert("🎉 Đã phê duyệt và công khai cuộc thi ảnh/video thành công!");
+                      setContest((prev) => (prev ? { ...prev, status: "PUBLISHED" } : prev));
+                    } else {
+                      alert(d.error || "Không thể phê duyệt cuộc thi");
+                    }
+                  } catch (e: any) {
+                    alert("Lỗi duyệt: " + e.message);
+                  }
+                }}
+                className="px-3 py-1 rounded-lg bg-white text-emerald-800 hover:bg-emerald-50 font-black shadow-xs transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              >
+                ✅ Duyệt &amp; Công khai ngay
+              </button>
+            )}
+          </div>
+        )}
+
         {/* Thanh công cụ phía trên: Thiết kế tinh gọn, trên Mobile chỉ hiển thị biểu tượng (icon-only) để không bao giờ bị tràn/che khuất */}
         <div className="w-full px-3 sm:px-6 pt-3 pb-2 flex items-center justify-between gap-1.5 sm:gap-2">
           <div className="flex items-center space-x-1 sm:space-x-2 text-xs shrink-0">
@@ -3125,12 +3114,6 @@ export default function MediaContestPublicPage({
               </div>
             ) : (
               <form onSubmit={handleSubmitArtwork} className="space-y-3.5 text-xs">
-                {getUserSubmissionsCount() >= 2 && (
-                  <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs font-bold flex items-center gap-2">
-                    <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-                    <span>Bạn đã gửi đủ 2 tác phẩm dự thi</span>
-                  </div>
-                )}
                 <div>
                   <label className="block font-bold text-slate-700 mb-1">
                     Tên tác phẩm dự thi <span className="text-red-500">*</span>
@@ -3351,11 +3334,11 @@ export default function MediaContestPublicPage({
                   </button>
                   <button
                     type="submit"
-                    disabled={isSubmitting || isUploadingSubmitImage || getUserSubmissionsCount() >= 2}
-                    style={{ backgroundColor: getUserSubmissionsCount() >= 2 ? "#94A3B8" : themeColor }}
+                    disabled={isSubmitting || isUploadingSubmitImage}
+                    style={{ backgroundColor: themeColor }}
                     className="px-6 py-2.5 rounded-xl text-white font-bold text-xs shadow-md hover:opacity-95 transition-opacity cursor-pointer disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? "Đang gửi..." : getUserSubmissionsCount() >= 2 ? "Đã gửi đủ 2 tác phẩm" : "Gửi tác phẩm dự thi"}
+                    {isSubmitting ? "Đang gửi..." : "Gửi tác phẩm dự thi"}
                   </button>
                 </div>
               </form>
@@ -3966,10 +3949,6 @@ export default function MediaContestPublicPage({
             setPendingSubmitAfterLogin(false);
             if (!showSettingsDrawer) {
               loadData();
-            }
-            if (getUserSubmissionsCount(user) >= 2) {
-              alert("Bạn đã gửi đủ 2 tác phẩm dự thi");
-              return;
             }
             setShowSubmitModal(true);
           }
