@@ -411,7 +411,7 @@ export default function ContestHeroSlider({
                   <img
                     src={currentSlide.bannerUrl}
                     alt={currentSlide.title}
-                    className="w-full h-full object-cover object-center transform transition-transform duration-700 ease-out group-hover/img:scale-105"
+                    className="w-full h-full object-contain object-center transform transition-transform duration-700 ease-out group-hover/img:scale-105"
                     onError={(e: any) => {
                       e.currentTarget.src = "/banner-easup.png";
                     }}

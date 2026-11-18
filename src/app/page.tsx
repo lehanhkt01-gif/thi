@@ -83,12 +83,12 @@ export default function HomePage() {
               <div className="md:col-span-7 group">
                 {featuredContest ? (
                   <Link href={`/thi/${featuredContest.slug}`} className="block">
-                    <div className="relative aspect-[16/9] w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 mb-2.5">
+                    <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 mb-2.5">
                       {featuredContest.bannerUrl ? (
                         <img
                           src={featuredContest.bannerUrl || "/banners/banner-nong-dan-ea-sup.jpg"}
                           alt={featuredContest.title}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-auto max-h-[280px] object-contain mx-auto block group-hover:scale-105 transition-transform duration-300"
                         />
                       ) : (
                         <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-rose-700 to-amber-700 p-4 flex flex-col justify-between text-white">
@@ -235,12 +235,12 @@ export default function HomePage() {
                       </div>
                       <Link
                         href={`/binh-chon/${mc.slug}`}
-                        className="block relative rounded-lg overflow-hidden border border-emerald-200 shadow-2xs mb-2.5 group"
+                        className="block relative rounded-lg overflow-hidden border border-emerald-200 shadow-2xs mb-2.5 group bg-slate-900"
                       >
                         <img
                           src={mc.bannerUrl || "/images/contest_stage_banner.jpg"}
                           alt={mc.title}
-                          className="w-full h-28 object-cover group-hover:scale-105 transition-transform duration-300"
+                          className="w-full h-auto max-h-40 object-contain mx-auto block group-hover:scale-105 transition-transform duration-300"
                         />
                         <div className="absolute bottom-0 inset-x-0 bg-black/65 backdrop-blur-2xs py-1 px-2 text-[10px] text-white font-semibold flex items-center justify-between">
                           <span>{mc.type === "VIDEO" ? "Thi Video" : "Thi Ảnh đẹp"}</span>
