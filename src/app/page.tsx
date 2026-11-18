@@ -7,6 +7,7 @@ import {
   Mail,
   Sparkles,
   ArrowRight,
+  Trophy,
 } from "lucide-react";
 import HeroContestCarousel from "@/components/HeroContestCarousel";
 import HomeStatsCards from "@/components/HomeStatsCards";
@@ -60,11 +61,19 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* Main Column: Các cuộc thi lớn đang diễn ra (8 cols) */}
           <div className="lg:col-span-8 bg-white rounded-2xl border border-slate-200 p-6 shadow-xs">
-            <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-5">
-              <h3 className="text-base font-bold text-slate-900">
-                Các cuộc thi lớn đang diễn ra
-              </h3>
-              <Link href="/admin" className="text-xs font-semibold text-[#0284C7] hover:underline">
+            <div className="flex items-center justify-between pb-3.5 border-b border-slate-100 mb-5 gap-2">
+              <div className="flex items-center space-x-2.5">
+                <span className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#DC2626] via-[#F59E0B] to-[#009E60] text-white flex items-center justify-center shadow-sm shrink-0">
+                  <Trophy className="w-4 h-4" />
+                </span>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black uppercase tracking-wide bg-gradient-to-r from-[#DC2626] via-[#D97706] to-[#009E60] bg-clip-text text-transparent drop-shadow-2xs leading-tight">
+                    THI TRỰC TUYẾN
+                  </h3>
+                  <div className="h-1 w-20 rounded-full bg-gradient-to-r from-[#DC2626] via-[#F59E0B] to-[#009E60] mt-1" />
+                </div>
+              </div>
+              <Link href="/admin" className="text-xs font-semibold text-[#0284C7] hover:underline shrink-0">
                 Xem tất cả &gt;
               </Link>
             </div>

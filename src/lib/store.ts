@@ -102,6 +102,8 @@ export interface ContestModel {
   maxAttempts: number;
   hasTieBreaker: boolean;
   status: "DRAFT" | "PENDING_APPROVAL" | "PUBLISHED" | "CLOSED" | "ARCHIVED";
+  isPinned?: boolean;
+  pinnedAt?: string;
   audioUrl?: string;
   themeColor?: string;
   shortDesc?: string;
@@ -149,6 +151,8 @@ export interface MediaContestModel {
   displayEndDate?: string;
   submissionsCount: number;
   status: "DRAFT" | "PENDING_APPROVAL" | "PUBLISHED" | "CLOSED";
+  isPinned?: boolean;
+  pinnedAt?: string;
   description?: string;
   rulesHtml?: string;
   rulesFileUrl?: string;
@@ -1315,7 +1319,18 @@ class DataStore {
     this.loadFromDisk();
     return this.contests
       .filter((c) => !this.isContestDeleted(c))
-      .map((c) => this.syncAndEnrichContestFiles(c));
+      .map((c) => this.syncAndEnrichContestFiles(c))
+      .sort((a, b) => {
+        const pinA = a.isPinned ? 1 : 0;
+        const pinB = b.isPinned ? 1 : 0;
+        if (pinA !== pinB) return pinB - pinA;
+        if (pinA && pinB) {
+          const tA = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+          const tB = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+          return tB - tA;
+        }
+        return 0;
+      });
   }
 
   public getContestBySlug(slug: string): ContestModel | undefined {
@@ -1536,6 +1551,48 @@ class DataStore {
     }
 
     contest.status = status;
+    contest.updatedAt = new Date().toISOString();
+    this.saveToDisk(true);
+    return { success: true, contest };
+  }
+
+  // Ghim / Bỏ ghim cuộc thi trắc nghiệm lên trên cùng (đồng bộ với trang chủ)
+  public pinContest(
+    idOrSlug: string,
+    isPinned: boolean,
+    adminUser?: { role?: string; email?: string }
+  ): { success: boolean; contest?: ContestModel; error?: string } {
+    this.loadFromDisk(true);
+    const contest = this.getContestById(idOrSlug) || this.getContestBySlug(idOrSlug);
+    if (!contest) return { success: false, error: "Cuộc thi không tồn tại!" };
+
+    if (adminUser?.role !== "ADMIN") {
+      return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền ghim cuộc thi lên trên cùng!" };
+    }
+
+    contest.isPinned = isPinned;
+    contest.pinnedAt = isPinned ? new Date().toISOString() : undefined;
+    this.saveToDisk(true);
+    return { success: true, contest };
+  }
+
+  // Ghim / Bỏ ghim cuộc thi bình chọn ảnh/video lên trên cùng (đồng bộ với trang chủ)
+  public pinMediaContest(
+    idOrSlug: string,
+    isPinned: boolean,
+    adminUser?: { role?: string; email?: string }
+  ): { success: boolean; contest?: MediaContestModel; error?: string } {
+    this.loadFromDisk(true);
+    this.normalizeMediaContestsList();
+    const contest = this.mediaContests.find((c) => c.id === idOrSlug || c.slug === idOrSlug);
+    if (!contest) return { success: false, error: "Cuộc thi bình chọn không tồn tại!" };
+
+    if (adminUser?.role !== "ADMIN") {
+      return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền ghim cuộc thi lên trên cùng!" };
+    }
+
+    contest.isPinned = isPinned;
+    contest.pinnedAt = isPinned ? new Date().toISOString() : undefined;
     contest.updatedAt = new Date().toISOString();
     this.saveToDisk(true);
     return { success: true, contest };
@@ -1949,7 +2006,18 @@ class DataStore {
       .map((c) => ({
         ...c,
         submissionsCount: this.mediaSubmissions.filter((s) => s.contestId === c.id || s.contestSlug === c.slug).length,
-      }));
+      }))
+      .sort((a, b) => {
+        const pinA = a.isPinned ? 1 : 0;
+        const pinB = b.isPinned ? 1 : 0;
+        if (pinA !== pinB) return pinB - pinA;
+        if (pinA && pinB) {
+          const tA = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+          const tB = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+          return tB - tA;
+        }
+        return 0;
+      });
   }
 
   public getMediaContestBySlug(slug: string): MediaContestModel | undefined {

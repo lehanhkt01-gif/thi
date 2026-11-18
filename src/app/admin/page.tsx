@@ -56,6 +56,7 @@ import {
   Link2,
   QrCode,
   Mail,
+  Pin,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import { EA_SUP_VILLAGES, DEFAULT_ORGANIZATIONS } from "@/lib/store";
@@ -703,6 +704,101 @@ export default function AdminDashboardPage() {
       }
     } catch (e: any) {
       alert("Lỗi khi duyệt cuộc thi ảnh: " + e.message);
+    }
+  };
+
+  // Ghim / Bỏ ghim cuộc thi trắc nghiệm lên trên cùng (đồng bộ với Trang chủ)
+  const handlePinContest = async (slug: string, currentPinned: boolean) => {
+    if (authUser?.role !== "ADMIN") {
+      alert("Chỉ Quản trị viên (Admin) mới có quyền ghim cuộc thi lên trên cùng!");
+      return;
+    }
+    const nextPinned = !currentPinned;
+    try {
+      const res = await fetch(`/api/contests/${encodeURIComponent(slug)}/pin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
+        body: JSON.stringify({ isPinned: nextPinned }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const pinnedAt = data.contest?.pinnedAt || (nextPinned ? new Date().toISOString() : undefined);
+        setContests((prev) => {
+          const updated = prev.map((item) =>
+            item.slug === slug || item.id === slug
+              ? { ...item, isPinned: nextPinned, pinnedAt }
+              : item
+          );
+          return [...updated].sort((a, b) => {
+            const pinA = a.isPinned ? 1 : 0;
+            const pinB = b.isPinned ? 1 : 0;
+            if (pinA !== pinB) return pinB - pinA;
+            if (pinA && pinB) {
+              const tA = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+              const tB = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+              return tB - tA;
+            }
+            return 0;
+          });
+        });
+      } else {
+        alert(data.error || "Không thể ghim cuộc thi!");
+      }
+    } catch (e: any) {
+      alert("Lỗi khi ghim cuộc thi: " + e.message);
+    }
+  };
+
+  // Ghim / Bỏ ghim cuộc thi bình chọn ảnh/video lên trên cùng (đồng bộ với Trang chủ)
+  const handlePinMediaContest = async (id: string, currentPinned: boolean) => {
+    if (authUser?.role !== "ADMIN") {
+      alert("Chỉ Quản trị viên (Admin) mới có quyền ghim cuộc thi lên trên cùng!");
+      return;
+    }
+    const nextPinned = !currentPinned;
+    try {
+      const res = await fetch(`/api/media-contests/${encodeURIComponent(id)}/pin`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-user-role": authUser?.role || "",
+          "x-user-email": authUser?.email || "",
+          "x-user-id": authUser?.id || "",
+        },
+        body: JSON.stringify({ isPinned: nextPinned }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        const pinnedAt = data.contest?.pinnedAt || (nextPinned ? new Date().toISOString() : undefined);
+        setMediaContests((prev) => {
+          const updated = prev.map((item) =>
+            item.id === id || item.slug === id
+              ? { ...item, isPinned: nextPinned, pinnedAt }
+              : item
+          );
+          return [...updated].sort((a, b) => {
+            const pinA = a.isPinned ? 1 : 0;
+            const pinB = b.isPinned ? 1 : 0;
+            if (pinA !== pinB) return pinB - pinA;
+            if (pinA && pinB) {
+              const tA = a.pinnedAt ? new Date(a.pinnedAt).getTime() : 0;
+              const tB = b.pinnedAt ? new Date(b.pinnedAt).getTime() : 0;
+              return tB - tA;
+            }
+            return 0;
+          });
+        });
+        broadcastMediaContestSync(data.contest);
+      } else {
+        alert(data.error || "Không thể ghim cuộc thi ảnh!");
+      }
+    } catch (e: any) {
+      alert("Lỗi khi ghim cuộc thi ảnh: " + e.message);
     }
   };
 
@@ -2283,6 +2379,15 @@ export default function AdminDashboardPage() {
                                     "BẢN NHÁP"
                                   )}
                                 </span>
+                                {c.isPinned && (
+                                  <span
+                                    className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-extrabold text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.2 rounded-md"
+                                    title="Đang ghim lên đầu danh sách và Trang chủ"
+                                  >
+                                    <Pin className="w-2.5 h-2.5 fill-red-600 text-red-600" />
+                                    <span>GHIM TOP</span>
+                                  </span>
+                                )}
                                 <span className="shrink-0 text-slate-300">•</span>
                                 <span className="font-semibold text-slate-700 truncate max-w-[130px] sm:max-w-[200px]" title={c.organizerName}>
                                   {c.organizerName || "UBND Xã Ea Súp"}
@@ -2389,6 +2494,31 @@ export default function AdminDashboardPage() {
                                 title="Thu hồi công khai, chuyển về trạng thái Chờ duyệt"
                               >
                                 <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" /> Thu hồi duyệt
+                              </button>
+                            )}
+
+                            {/* NÚT GHIM CUỘC THI LÊN TRÊN CÙNG (ĐỒNG BỘ VỚI TRANG CHỦ) */}
+                            {authUser?.role === "ADMIN" && (
+                              <button
+                                type="button"
+                                onClick={() => handlePinContest(c.slug, Boolean(c.isPinned))}
+                                className={`px-2 py-1 rounded-lg border text-xs font-semibold transition-all inline-flex items-center shadow-2xs cursor-pointer active:scale-95 ${
+                                  c.isPinned
+                                    ? "border-red-300 bg-red-50 hover:bg-red-100 text-red-700 font-bold"
+                                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                }`}
+                                title={
+                                  c.isPinned
+                                    ? "Bỏ ghim cuộc thi này khỏi vị trí trên cùng"
+                                    : "Ghim cuộc thi này lên trên cùng (đồng bộ với Trang chủ)"
+                                }
+                              >
+                                <Pin
+                                  className={`w-3.5 h-3.5 sm:mr-1 ${
+                                    c.isPinned ? "fill-red-600 text-red-600" : "text-slate-500"
+                                  }`}
+                                />
+                                <span className="hidden sm:inline">{c.isPinned ? "Đã ghim" : "Ghim"}</span>
                               </button>
                             )}
 
@@ -2753,6 +2883,15 @@ export default function AdminDashboardPage() {
                                       "BẢN NHÁP"
                                     )}
                                   </span>
+                                  {c.isPinned && (
+                                    <span
+                                      className="shrink-0 inline-flex items-center gap-0.5 text-[10px] font-extrabold text-red-700 bg-red-50 border border-red-200 px-1.5 py-0.2 rounded-md"
+                                      title="Đang ghim lên đầu danh sách và Trang chủ"
+                                    >
+                                      <Pin className="w-2.5 h-2.5 fill-red-600 text-red-600" />
+                                      <span>GHIM TOP</span>
+                                    </span>
+                                  )}
                                   <span className="shrink-0 text-slate-300">•</span>
                                   <span
                                     className="font-semibold text-slate-700 truncate max-w-[130px] sm:max-w-[200px]"
@@ -2878,6 +3017,31 @@ export default function AdminDashboardPage() {
                                 title="Thu hồi công khai, chuyển về trạng thái Chờ duyệt"
                               >
                                 <Clock className="w-3.5 h-3.5 mr-1 text-amber-600" /> Thu hồi duyệt
+                              </button>
+                            )}
+
+                            {/* NÚT GHIM CUỘC THI ẢNH/VIDEO LÊN TRÊN CÙNG (ĐỒNG BỘ VỚI TRANG CHỦ) */}
+                            {authUser?.role === "ADMIN" && (
+                              <button
+                                type="button"
+                                onClick={() => handlePinMediaContest(c.id || c.slug, Boolean(c.isPinned))}
+                                className={`px-2 py-1 rounded-lg border text-xs font-semibold transition-all inline-flex items-center shadow-2xs cursor-pointer active:scale-95 ${
+                                  c.isPinned
+                                    ? "border-red-300 bg-red-50 hover:bg-red-100 text-red-700 font-bold"
+                                    : "border-slate-200 bg-white hover:bg-slate-50 text-slate-700"
+                                }`}
+                                title={
+                                  c.isPinned
+                                    ? "Bỏ ghim cuộc thi này khỏi vị trí trên cùng"
+                                    : "Ghim cuộc thi này lên trên cùng (đồng bộ với Trang chủ)"
+                                }
+                              >
+                                <Pin
+                                  className={`w-3.5 h-3.5 sm:mr-1 ${
+                                    c.isPinned ? "fill-red-600 text-red-600" : "text-slate-500"
+                                  }`}
+                                />
+                                <span className="hidden sm:inline">{c.isPinned ? "Đã ghim" : "Ghim"}</span>
                               </button>
                             )}
 

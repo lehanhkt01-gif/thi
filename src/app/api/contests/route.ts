@@ -40,6 +40,8 @@ export async function GET() {
       unitGroupName: c.unitGroupName,
       customSlug: c.customSlug,
       clickCount: c.clickCount || 0,
+      isPinned: Boolean(c.isPinned),
+      pinnedAt: c.pinnedAt,
       sharedEmails: c.sharedEmails || [],
       createdAt: c.createdAt,
     }));
