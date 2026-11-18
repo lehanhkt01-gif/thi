@@ -184,7 +184,7 @@ export default function HomePage() {
                   </span>
                   <div>
                     <h3 className="text-base sm:text-lg font-black uppercase tracking-wide bg-gradient-to-r from-[#DC2626] via-[#D97706] to-[#009E60] bg-clip-text text-transparent drop-shadow-2xs leading-tight">
-                      CUỘC THI ẢNH ĐẸP
+                      CUỘC THI ẢNH, VIDEO CLIP
                     </h3>
                     <div className="h-1 w-20 rounded-full bg-gradient-to-r from-[#DC2626] via-[#F59E0B] to-[#009E60] mt-1" />
                   </div>
