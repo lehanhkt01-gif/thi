@@ -515,8 +515,13 @@ export default function MediaContestPublicPage({
     if (!showSettingsDrawer) {
       loadData();
     }
+    if (submitForm.mediaUrls.length === 0 && !submitForm.mediaUrl) {
+      setVideoProcessStatus("");
+      setVideoProcessProgress(0);
+    }
     setSubmitForm((prev) => ({
       ...prev,
+      mediaType: contest?.type || prev.mediaType || "IMAGE",
       authorName: prev.authorName || authUser.name || "",
       authorPhone: prev.authorPhone || authUser.phone || "",
       authorEmail: prev.authorEmail || authUser.email || "",
@@ -811,16 +816,19 @@ export default function MediaContestPublicPage({
         ? [submitForm.mediaUrl]
         : [];
 
+    const isVideoContest = contest?.type === "VIDEO";
+    const unitLabel = isVideoContest ? "video" : "hình ảnh";
+
     const remainingSlots = maxImagesPerSubmission - currentUrls.length;
     if (remainingSlots <= 0) {
-      alert(`Mỗi bài dự thi chỉ được tải lên tối đa ${maxImagesPerSubmission} hình ảnh!`);
+      alert(`Mỗi bài dự thi chỉ được tải lên tối đa ${maxImagesPerSubmission} ${unitLabel}!`);
       if (e.target) e.target.value = "";
       return;
     }
 
     const filesToProcess = Array.from(fileList).slice(0, remainingSlots);
     if (fileList.length > remainingSlots) {
-      alert(`Chỉ chọn thêm ${remainingSlots} hình để đảm bảo giới hạn tối đa ${maxImagesPerSubmission} hình/bài dự thi.`);
+      alert(`Chỉ chọn thêm ${remainingSlots} ${unitLabel} để đảm bảo giới hạn tối đa ${maxImagesPerSubmission} ${unitLabel}/bài dự thi.`);
     }
 
     try {
@@ -832,7 +840,17 @@ export default function MediaContestPublicPage({
       let detectedMediaType: "IMAGE" | "VIDEO" | null = null;
 
       for (const file of filesToProcess) {
-        if (isVideoFile(file)) {
+        const fileIsVideo = isVideoFile(file);
+        if (isVideoContest && !fileIsVideo) {
+          alert(`Cuộc thi đang ở chế độ Bình chọn Video. Tệp "${file.name}" không phải là video hợp lệ (.mp4, .webm, .mov...)!`);
+          continue;
+        }
+        if (!isVideoContest && fileIsVideo) {
+          alert(`Cuộc thi đang ở chế độ Bình chọn Ảnh. Vui lòng chỉ chọn tệp hình ảnh!`);
+          continue;
+        }
+
+        if (fileIsVideo) {
           detectedMediaType = "VIDEO";
           const compressedResult = await compressVideoIfNeeded(
             file,
@@ -3300,13 +3318,15 @@ export default function MediaContestPublicPage({
                   </div>
                 )}
 
-                {/* Tải nhiều ảnh trực tiếp từ máy tính / điện thoại (Tối đa maxImagesPerSubmission hình - Tự động nhận diện khung hình dọc/ngang theo ảnh) */}
+                {/* Tải ảnh hoặc video trực tiếp từ máy tính / điện thoại đồng bộ theo cài đặt cuộc thi */}
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
                     <label className="font-bold text-slate-700">
-                      Hình ảnh / Video tác phẩm <span className="text-red-500">*</span>{" "}
+                      {contest?.type === "VIDEO" ? "Video tác phẩm" : "Hình ảnh tác phẩm"}{" "}
+                      <span className="text-red-500">*</span>{" "}
                       <span className="text-[11px] font-normal text-slate-500">
-                        (Đã chọn {submitForm.mediaUrls.length}/{maxImagesPerSubmission} hình tối đa)
+                        (Đã chọn {submitForm.mediaUrls.length}/{maxImagesPerSubmission}{" "}
+                        {contest?.type === "VIDEO" ? "video" : "hình"} tối đa)
                       </span>
                     </label>
                     <button
@@ -3321,14 +3341,22 @@ export default function MediaContestPublicPage({
                         {isUploadingSubmitImage
                           ? "Đang xử lý..."
                           : submitForm.mediaUrls.length > 0
-                            ? "+ Thêm hình / video"
-                            : "Tải ảnh / video từ máy"}
+                            ? contest?.type === "VIDEO"
+                              ? "+ Thêm video"
+                              : "+ Thêm hình"
+                            : contest?.type === "VIDEO"
+                              ? "Tải video từ máy"
+                              : "Tải ảnh từ máy"}
                       </span>
                     </button>
                     <input
                       ref={submitFileInputRef}
                       type="file"
-                      accept="image/*,video/mp4,video/webm,video/quicktime,video/*"
+                      accept={
+                        contest?.type === "VIDEO"
+                          ? "video/*,.mp4,.webm,.mov,.m4v,.avi,.mkv"
+                          : "image/*"
+                      }
                       multiple={maxImagesPerSubmission > 1}
                       onChange={handleSubmissionFileChange}
                       className="hidden"
@@ -3442,7 +3470,11 @@ export default function MediaContestPublicPage({
                           : [],
                       });
                     }}
-                    placeholder="Hoặc dán đường dẫn ảnh/video (https://...)"
+                    placeholder={
+                      contest?.type === "VIDEO"
+                        ? "Hoặc dán đường dẫn video (https://...)"
+                        : "Hoặc dán đường dẫn ảnh (https://...)"
+                    }
                     className="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:outline-none focus:border-slate-600 bg-white"
                   />
                 </div>
