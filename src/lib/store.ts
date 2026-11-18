@@ -3683,25 +3683,46 @@ class DataStore {
     this.loadFromDisk();
     const now = new Date();
 
-    const activeContests = this.contests.filter((c) => {
+    this.normalizeMediaContestsList();
+    const validQuizContests = this.contests.filter((c) => !this.isContestDeleted(c));
+    const validMediaContests = this.mediaContests.filter((c) => !this.isMediaContestDeleted(c));
+
+    const activeQuizContests = validQuizContests.filter((c) => {
       const isStarted = new Date(c.startTime) <= now;
       const isNotEnded = new Date(c.endTime) >= now;
       return c.status === "PUBLISHED" && isStarted && isNotEnded;
     }).length;
 
-    const upcomingContests = this.contests.filter((c) => {
-      return c.status === "DRAFT" || new Date(c.startTime) > now;
+    const activeMediaContests = validMediaContests.filter((mc) => {
+      if (mc.status !== "PUBLISHED") return false;
+      const startStr = mc.submitStartDate || mc.startDate;
+      const endStr = mc.voteEndDate || mc.endDate;
+      const startMs = startStr ? new Date(startStr).getTime() : NaN;
+      const endMs = endStr ? new Date(endStr).getTime() : NaN;
+      const isStarted = isNaN(startMs) || startMs <= now.getTime();
+      const isNotEnded = isNaN(endMs) || endMs >= now.getTime();
+      return isStarted && isNotEnded;
     }).length;
+
+    const activeContests = activeQuizContests + activeMediaContests;
+
+    const upcomingQuizContests = validQuizContests.filter((c) => {
+      return c.status === "DRAFT" || c.status === "PENDING_APPROVAL" || new Date(c.startTime) > now;
+    }).length;
+
+    const upcomingMediaContests = validMediaContests.filter((mc) => {
+      if (mc.status === "DRAFT" || mc.status === "PENDING_APPROVAL") return true;
+      const startStr = mc.submitStartDate || mc.startDate;
+      const startMs = startStr ? new Date(startStr).getTime() : NaN;
+      return mc.status === "PUBLISHED" && !isNaN(startMs) && startMs > now.getTime();
+    }).length;
+
+    const upcomingContests = upcomingQuizContests + upcomingMediaContests;
 
     // Đồng bộ 2 chiều: Đếm toàn bộ các lượt thi trắc nghiệm + số lượng bài dự thi & bình chọn của phần thi ảnh, thi video
     const submittedAttempts = this.attempts.filter((a) => !!a.submittedAt);
 
-    this.normalizeMediaContestsList();
-    const activeMediaContestIds = new Set(
-      this.mediaContests
-        .filter((c) => !this.isMediaContestDeleted(c))
-        .map((c) => c.id)
-    );
+    const activeMediaContestIds = new Set(validMediaContests.map((c) => c.id));
     const validMediaSubmissions = this.mediaSubmissions.filter(
       (s) =>
         !this.isMediaContestDeleted({ id: s.contestId, slug: s.contestSlug }) &&
@@ -3733,7 +3754,7 @@ class DataStore {
       totalAttempts,
       totalAttempts7Days: attempts7Days,
       totalParticipants,
-      totalContests: this.contests.length,
+      totalContests: validQuizContests.length + validMediaContests.length,
     };
   }
 }
