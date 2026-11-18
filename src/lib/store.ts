@@ -3693,9 +3693,27 @@ class DataStore {
       return c.status === "DRAFT" || new Date(c.startTime) > now;
     }).length;
 
-    // Đồng bộ 2 chiều: Đếm chính xác toàn bộ các lượt thi đã nộp bài của mọi thí sinh
+    // Đồng bộ 2 chiều: Đếm toàn bộ các lượt thi trắc nghiệm + số lượng bài dự thi & bình chọn của phần thi ảnh, thi video
     const submittedAttempts = this.attempts.filter((a) => !!a.submittedAt);
-    const totalAttempts = submittedAttempts.length;
+
+    this.normalizeMediaContestsList();
+    const activeMediaContestIds = new Set(
+      this.mediaContests
+        .filter((c) => !this.isMediaContestDeleted(c))
+        .map((c) => c.id)
+    );
+    const validMediaSubmissions = this.mediaSubmissions.filter(
+      (s) =>
+        !this.isMediaContestDeleted({ id: s.contestId, slug: s.contestSlug }) &&
+        (activeMediaContestIds.size === 0 || activeMediaContestIds.has(s.contestId))
+    );
+    const mediaSubmissionsCount = validMediaSubmissions.length;
+    const mediaVotesCount = validMediaSubmissions.reduce(
+      (sum, s) => sum + (Number(s.votesCount) || 0),
+      0
+    );
+
+    const totalAttempts = submittedAttempts.length + mediaSubmissionsCount + mediaVotesCount;
 
     // Số lượt thi trong 7 ngày gần nhất
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
