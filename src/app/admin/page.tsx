@@ -1309,8 +1309,12 @@ export default function AdminDashboardPage() {
   // User Management State (Chỉ Quản trị viên - Admin)
   const [usersList, setUsersList] = useState<any[]>([]);
   const [userSearchQuery, setUserSearchQuery] = useState("");
-  const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "ADMIN" | "USER">("ALL");
+  const [userRoleFilter, setUserRoleFilter] = useState<"ALL" | "ADMIN" | "USER">("ADMIN");
   const [userStatusFilter, setUserStatusFilter] = useState<"ALL" | "APPROVED" | "PENDING" | "REJECTED">("ALL");
+  const [userCurrentPage, setUserCurrentPage] = useState<number>(1);
+  const USERS_PER_PAGE = 10;
+  const [showPromoteAdminModal, setShowPromoteAdminModal] = useState(false);
+  const [promoteSearchQuery, setPromoteSearchQuery] = useState("");
   const [showUserModal, setShowUserModal] = useState(false);
   const [showAdminLoginModal, setShowAdminLoginModal] = useState(false);
   const [adminLoginEmail, setAdminLoginEmail] = useState("");
@@ -1380,8 +1384,18 @@ export default function AdminDashboardPage() {
       });
       const data = await res.json();
       if (data.success) {
+        if (newRole === "ADMIN") {
+          const target = usersList.find((item) => item.id === id);
+          if (target && target.status !== "APPROVED") {
+            await fetch(`/api/admin/users/${id}`, {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "APPROVE" }),
+            }).catch(() => {});
+          }
+        }
         alert(data.message);
-        loadUsers();
+        await loadUsers();
       } else {
         alert(data.error || "Có lỗi xảy ra");
       }
@@ -3548,29 +3562,73 @@ export default function AdminDashboardPage() {
                         </p>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={handleOpenCreateUser}
-                        className="inline-flex items-center px-4 py-2.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-sm transition-all cursor-pointer shrink-0"
-                      >
-                        <Plus className="w-4 h-4 mr-1.5" />
-                        Thêm tài khoản mới
-                      </button>
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setPromoteSearchQuery("");
+                            setShowPromoteAdminModal(true);
+                          }}
+                          className="inline-flex items-center px-3.5 py-2.5 rounded-xl border border-red-200 bg-red-50 hover:bg-red-100 text-red-700 font-bold text-xs shadow-2xs transition-all cursor-pointer"
+                          title="Chọn một tài khoản người dùng hiện có để nâng cấp làm Quản trị viên (Admin)"
+                        >
+                          <ShieldCheck className="w-4 h-4 mr-1.5 text-red-600" />
+                          Thêm Admin từ người dùng
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handleOpenCreateUser}
+                          className="inline-flex items-center px-4 py-2.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-sm transition-all cursor-pointer"
+                        >
+                          <Plus className="w-4 h-4 mr-1.5" />
+                          Thêm tài khoản mới
+                        </button>
+                      </div>
                     </div>
 
-                    {/* 4 Thẻ Thống Kê Nhanh */}
+                    {/* 4 Thẻ Thống Kê Nhanh (Bấm chọn để lọc đúng nhóm tài khoản) */}
                     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 pt-5">
-                      {/* Tổng tài khoản */}
-                      <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
-                        <div className="text-xs font-semibold text-slate-500">Tổng tài khoản</div>
+                      {/* 1. Tổng tài khoản */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserRoleFilter("ALL");
+                          setUserStatusFilter("ALL");
+                          setUserCurrentPage(1);
+                        }}
+                        className={`text-left p-4 rounded-xl border transition-all cursor-pointer ${
+                          userRoleFilter === "ALL" && userStatusFilter === "ALL"
+                            ? "bg-slate-100 border-slate-500 ring-2 ring-slate-400/40 shadow-sm"
+                            : "bg-slate-50 border-slate-200 hover:bg-slate-100/80 hover:border-slate-300"
+                        }`}
+                        title="Bấm để xem toàn bộ tài khoản"
+                      >
+                        <div className="text-xs font-semibold text-slate-600 flex items-center justify-between">
+                          <span>Tổng tài khoản</span>
+                          <Users className="w-4 h-4 text-slate-500" />
+                        </div>
                         <div className="text-2xl font-black text-slate-900 mt-1">
                           {usersList.length}
                         </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5">Admin &amp; Người dùng</div>
-                      </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">Admin &amp; Người dùng</div>
+                      </button>
 
-                      {/* Quản trị viên (Admin) */}
-                      <div className="p-4 rounded-xl bg-red-50/70 border border-red-200">
+                      {/* 2. Quản trị viên (Admin) */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserRoleFilter("ADMIN");
+                          setUserStatusFilter("ALL");
+                          setUserCurrentPage(1);
+                        }}
+                        className={`text-left p-4 rounded-xl border transition-all cursor-pointer ${
+                          userRoleFilter === "ADMIN" && userStatusFilter === "ALL"
+                            ? "bg-red-50 border-red-500 ring-2 ring-red-400/40 shadow-sm"
+                            : "bg-red-50/70 border-red-200 hover:bg-red-50 hover:border-red-300"
+                        }`}
+                        title="Bấm để lọc danh sách Quản trị viên (Admin)"
+                      >
                         <div className="text-xs font-semibold text-red-700 flex items-center justify-between">
                           <span>Quản trị viên (Admin)</span>
                           <ShieldCheck className="w-4 h-4 text-red-600" />
@@ -3579,10 +3637,23 @@ export default function AdminDashboardPage() {
                           {usersList.filter((u) => u.role === "ADMIN").length}
                         </div>
                         <div className="text-[11px] text-red-600 mt-0.5">Toàn quyền hệ thống</div>
-                      </div>
+                      </button>
 
-                      {/* Người dùng (Đã duyệt) */}
-                      <div className="p-4 rounded-xl bg-blue-50/70 border border-blue-200">
+                      {/* 3. Người dùng (Đã duyệt) */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserRoleFilter("USER");
+                          setUserStatusFilter("APPROVED");
+                          setUserCurrentPage(1);
+                        }}
+                        className={`text-left p-4 rounded-xl border transition-all cursor-pointer ${
+                          userRoleFilter === "USER" && userStatusFilter === "APPROVED"
+                            ? "bg-blue-50 border-blue-500 ring-2 ring-blue-400/40 shadow-sm"
+                            : "bg-blue-50/70 border-blue-200 hover:bg-blue-50 hover:border-blue-300"
+                        }`}
+                        title="Bấm để lọc danh sách Người dùng đã duyệt"
+                      >
                         <div className="text-xs font-semibold text-blue-700 flex items-center justify-between">
                           <span>Người dùng (Đã duyệt)</span>
                           <Users className="w-4 h-4 text-blue-600" />
@@ -3591,15 +3662,22 @@ export default function AdminDashboardPage() {
                           {usersList.filter((u) => u.role === "USER" && u.status === "APPROVED").length}
                         </div>
                         <div className="text-[11px] text-blue-600 mt-0.5">Tạo cuộc thi &amp; xuất kết quả</div>
-                      </div>
+                      </button>
 
-                      {/* Chờ xét duyệt */}
-                      <div
-                        onClick={() => setUserStatusFilter("PENDING")}
-                        className={`p-4 rounded-xl border cursor-pointer transition-all ${
-                          pendingUsersCount > 0
-                            ? "bg-amber-50 border-amber-300 ring-2 ring-amber-400/30"
-                            : "bg-slate-50 border-slate-200"
+                      {/* 4. Chờ xét duyệt */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setUserRoleFilter("ALL");
+                          setUserStatusFilter("PENDING");
+                          setUserCurrentPage(1);
+                        }}
+                        className={`text-left p-4 rounded-xl border cursor-pointer transition-all ${
+                          userStatusFilter === "PENDING"
+                            ? "bg-amber-50 border-amber-500 ring-2 ring-amber-400/50 shadow-sm"
+                            : pendingUsersCount > 0
+                            ? "bg-amber-50 border-amber-300 ring-2 ring-amber-400/30 hover:border-amber-400"
+                            : "bg-slate-50 border-slate-200 hover:bg-slate-100"
                         }`}
                         title="Bấm để lọc danh sách chờ duyệt"
                       >
@@ -3615,7 +3693,7 @@ export default function AdminDashboardPage() {
                         <div className="text-[11px] text-amber-700 mt-0.5 font-medium">
                           {pendingUsersCount > 0 ? "Cần Admin phê duyệt ngay" : "Không có hồ sơ chờ"}
                         </div>
-                      </div>
+                      </button>
                     </div>
                   </div>
 
@@ -3626,7 +3704,10 @@ export default function AdminDashboardPage() {
                       <input
                         type="text"
                         value={userSearchQuery}
-                        onChange={(e) => setUserSearchQuery(e.target.value)}
+                        onChange={(e) => {
+                          setUserSearchQuery(e.target.value);
+                          setUserCurrentPage(1);
+                        }}
                         placeholder="Tìm theo họ tên, email, SĐT, đơn vị..."
                         className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-red-600 focus:bg-white transition-all"
                       />
@@ -3636,7 +3717,10 @@ export default function AdminDashboardPage() {
                       {/* Lọc theo Vai trò */}
                       <select
                         value={userRoleFilter}
-                        onChange={(e) => setUserRoleFilter(e.target.value as any)}
+                        onChange={(e) => {
+                          setUserRoleFilter(e.target.value as any);
+                          setUserCurrentPage(1);
+                        }}
                         className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none"
                       >
                         <option value="ALL">Tất cả vai trò</option>
@@ -3647,7 +3731,10 @@ export default function AdminDashboardPage() {
                       {/* Lọc theo Trạng thái */}
                       <select
                         value={userStatusFilter}
-                        onChange={(e) => setUserStatusFilter(e.target.value as any)}
+                        onChange={(e) => {
+                          setUserStatusFilter(e.target.value as any);
+                          setUserCurrentPage(1);
+                        }}
                         className="px-3 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 bg-slate-50 outline-none"
                       >
                         <option value="ALL">Tất cả trạng thái</option>
@@ -3663,8 +3750,9 @@ export default function AdminDashboardPage() {
                             setUserSearchQuery("");
                             setUserRoleFilter("ALL");
                             setUserStatusFilter("ALL");
+                            setUserCurrentPage(1);
                           }}
-                          className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors"
+                          className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                         >
                           Đặt lại lọc
                         </button>
@@ -3672,169 +3760,350 @@ export default function AdminDashboardPage() {
                     </div>
                   </div>
 
-                  {/* BẢNG DANH SÁCH NGƯỜI DÙNG & PHÂN QUYỀN */}
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-[#F8FAFC] text-slate-600 font-bold border-b border-slate-200">
-                          <tr>
-                            <th className="py-3.5 px-4">Tài khoản &amp; Đơn vị</th>
-                            <th className="py-3.5 px-4">Thông tin liên hệ</th>
-                            <th className="py-3.5 px-4 text-center">Vai trò (Phân quyền)</th>
-                            <th className="py-3.5 px-4 text-center">Trạng thái xét duyệt</th>
-                            <th className="py-3.5 px-4 text-right">Thao tác</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100">
-                          {usersList
-                            .filter((u) => {
-                              const q = userSearchQuery.toLowerCase().trim();
-                              const matchesSearch =
-                                !q ||
-                                u.name?.toLowerCase().includes(q) ||
-                                u.email?.toLowerCase().includes(q) ||
-                                u.phone?.includes(q) ||
-                                u.organizationName?.toLowerCase().includes(q);
-                              const matchesRole =
-                                userRoleFilter === "ALL" || u.role === userRoleFilter;
-                              const matchesStatus =
-                                userStatusFilter === "ALL" || u.status === userStatusFilter;
-                              return matchesSearch && matchesRole && matchesStatus;
-                            })
-                            .map((u) => (
-                              <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
-                                {/* Tài khoản & Đơn vị */}
-                                <td className="py-3.5 px-4">
-                                  <div className="font-bold text-slate-900 text-sm">{u.name}</div>
-                                  <div className="text-slate-500 text-[11px] mt-0.5 flex items-center space-x-1">
-                                    <Building className="w-3 h-3 text-slate-400 shrink-0" />
-                                    <span>{u.organizationName || "Ủy ban Nhân dân xã Ea Súp"}</span>
-                                  </div>
-                                  <div className="text-[10px] text-slate-400 mt-0.5">
-                                    Tạo: {new Date(u.createdAt).toLocaleDateString("vi-VN")}
-                                  </div>
-                                </td>
+                  {/* BẢNG DANH SÁCH NGƯỜI DÙNG & PHÂN QUYỀN (10 TÀI KHOẢN / TRANG) */}
+                  {(() => {
+                    const filteredUsers = usersList.filter((u) => {
+                      const q = userSearchQuery.toLowerCase().trim();
+                      const matchesSearch =
+                        !q ||
+                        u.name?.toLowerCase().includes(q) ||
+                        u.email?.toLowerCase().includes(q) ||
+                        u.phone?.includes(q) ||
+                        u.organizationName?.toLowerCase().includes(q);
+                      const matchesRole =
+                        userRoleFilter === "ALL" || u.role === userRoleFilter;
+                      const matchesStatus =
+                        userStatusFilter === "ALL" || u.status === userStatusFilter;
+                      return matchesSearch && matchesRole && matchesStatus;
+                    });
+                    const totalUserPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+                    const safeUserPage = Math.min(userCurrentPage, totalUserPages);
+                    const paginatedUsers = filteredUsers.slice(
+                      (safeUserPage - 1) * USERS_PER_PAGE,
+                      safeUserPage * USERS_PER_PAGE
+                    );
 
-                                {/* Liên hệ */}
-                                <td className="py-3.5 px-4">
-                                  <div className="font-mono text-slate-800 font-medium">{u.email}</div>
-                                  <div className="text-slate-500 text-[11px] mt-0.5">{u.phone}</div>
-                                </td>
-
-                                {/* Vai trò (Phân quyền) */}
-                                <td className="py-3.5 px-4 text-center">
-                                  <div className="inline-flex flex-col items-center space-y-1">
-                                    {u.role === "ADMIN" ? (
-                                      <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-red-100 text-red-800 font-bold text-[11px]">
-                                        <ShieldCheck className="w-3.5 h-3.5" />
-                                        <span>ADMIN (Toàn quyền)</span>
-                                      </span>
-                                    ) : (
-                                      <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 font-bold text-[11px]">
-                                        <User className="w-3.5 h-3.5" />
-                                        <span>NGƯỜI DÙNG</span>
-                                      </span>
-                                    )}
-
-                                    {/* Nút Phân quyền nhanh */}
-                                    <button
-                                      type="button"
-                                      onClick={() =>
-                                        handleChangeRole(u.id, u.role === "ADMIN" ? "USER" : "ADMIN")
-                                      }
-                                      className="text-[10px] text-slate-500 hover:text-red-600 underline font-semibold cursor-pointer"
-                                      title="Chuyển đổi vai trò tài khoản này"
-                                    >
-                                      {u.role === "ADMIN" ? "Đổi sang Người dùng" : "Nâng cấp lên Admin"}
-                                    </button>
-                                  </div>
-                                </td>
-
-                                {/* Trạng thái xét duyệt */}
-                                <td className="py-3.5 px-4 text-center">
-                                  {u.status === "APPROVED" && (
-                                    <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                                      <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                      <span>Đã duyệt</span>
-                                    </span>
-                                  )}
-                                  {u.status === "PENDING" && (
-                                    <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[11px] animate-pulse">
-                                      <Clock className="w-3 h-3 text-amber-600" />
-                                      <span>Chờ xét duyệt</span>
-                                    </span>
-                                  )}
-                                  {u.status === "REJECTED" && (
-                                    <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold text-[11px]">
-                                      <X className="w-3 h-3 text-slate-500" />
-                                      <span>Đã từ chối</span>
-                                    </span>
-                                  )}
-                                </td>
-
-                                {/* Thao tác */}
-                                <td className="py-3.5 px-4 text-right">
-                                  <div className="flex items-center justify-end space-x-1.5">
-                                    {/* Nút Xét duyệt nếu đang Chờ duyệt */}
-                                    {u.status === "PENDING" && (
-                                      <>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleApproveUser(u.id, "APPROVED")}
-                                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-colors inline-flex items-center space-x-1 cursor-pointer"
-                                          title="Phê duyệt tài khoản này"
-                                        >
-                                          <Check className="w-3.5 h-3.5" />
-                                          <span>Duyệt</span>
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => handleApproveUser(u.id, "REJECTED")}
-                                          className="px-2 py-1 rounded-lg border border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors inline-flex items-center cursor-pointer"
-                                          title="Từ chối tài khoản này"
-                                        >
-                                          <X className="w-3.5 h-3.5" />
-                                        </button>
-                                      </>
-                                    )}
-
-                                    {/* Nút Đặt lại mật khẩu về mặc định 12345678@ */}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleResetUserPassword(u)}
-                                      className="p-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
-                                      title="Đặt lại mật khẩu về mặc định (12345678@)"
-                                    >
-                                      <KeyRound className="w-3.5 h-3.5" />
-                                    </button>
-
-                                    {/* Nút Chỉnh sửa */}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleOpenEditUser(u)}
-                                      className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                                      title="Chỉnh sửa tài khoản"
-                                    >
-                                      <Edit className="w-3.5 h-3.5" />
-                                    </button>
-
-                                    {/* Nút Xóa */}
-                                    <button
-                                      type="button"
-                                      onClick={() => handleDeleteUser(u.id, u.name)}
-                                      className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                                      title="Xóa tài khoản khỏi hệ thống"
-                                    >
-                                      <Trash2 className="w-3.5 h-3.5" />
-                                    </button>
-                                  </div>
-                                </td>
+                    return (
+                      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead className="bg-[#F8FAFC] text-slate-600 font-bold border-b border-slate-200">
+                              <tr>
+                                <th className="py-3.5 px-4">Tài khoản &amp; Đơn vị</th>
+                                <th className="py-3.5 px-4">Thông tin liên hệ</th>
+                                <th className="py-3.5 px-4 text-center">Vai trò (Phân quyền)</th>
+                                <th className="py-3.5 px-4 text-center">Trạng thái xét duyệt</th>
+                                <th className="py-3.5 px-4 text-right">Thao tác</th>
                               </tr>
-                            ))}
-                        </tbody>
-                      </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100">
+                              {paginatedUsers.length === 0 ? (
+                                <tr>
+                                  <td colSpan={5} className="py-10 text-center text-slate-400 text-xs">
+                                    Không tìm thấy tài khoản nào phù hợp với bộ lọc hiện tại.
+                                  </td>
+                                </tr>
+                              ) : (
+                                paginatedUsers.map((u) => (
+                                  <tr key={u.id} className="hover:bg-slate-50/80 transition-colors">
+                                    {/* Tài khoản & Đơn vị */}
+                                    <td className="py-3.5 px-4">
+                                      <div className="font-bold text-slate-900 text-sm">{u.name}</div>
+                                      <div className="text-slate-500 text-[11px] mt-0.5 flex items-center space-x-1">
+                                        <Building className="w-3 h-3 text-slate-400 shrink-0" />
+                                        <span>{u.organizationName || "Ủy ban Nhân dân xã Ea Súp"}</span>
+                                      </div>
+                                      <div className="text-[10px] text-slate-400 mt-0.5">
+                                        Tạo: {new Date(u.createdAt).toLocaleDateString("vi-VN")}
+                                      </div>
+                                    </td>
+
+                                    {/* Liên hệ */}
+                                    <td className="py-3.5 px-4">
+                                      <div className="font-mono text-slate-800 font-medium">{u.email}</div>
+                                      <div className="text-slate-500 text-[11px] mt-0.5">{u.phone}</div>
+                                    </td>
+
+                                    {/* Vai trò (Phân quyền) */}
+                                    <td className="py-3.5 px-4 text-center">
+                                      <div className="inline-flex flex-col items-center space-y-1">
+                                        {u.role === "ADMIN" ? (
+                                          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-red-100 text-red-800 font-bold text-[11px]">
+                                            <ShieldCheck className="w-3.5 h-3.5" />
+                                            <span>ADMIN (Toàn quyền)</span>
+                                          </span>
+                                        ) : (
+                                          <span className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-full bg-blue-100 text-blue-800 font-bold text-[11px]">
+                                            <User className="w-3.5 h-3.5" />
+                                            <span>NGƯỜI DÙNG</span>
+                                          </span>
+                                        )}
+
+                                        {/* Nút Phân quyền nhanh */}
+                                        <button
+                                          type="button"
+                                          onClick={() =>
+                                            handleChangeRole(u.id, u.role === "ADMIN" ? "USER" : "ADMIN")
+                                          }
+                                          className="text-[10px] text-slate-500 hover:text-red-600 underline font-semibold cursor-pointer"
+                                          title="Chuyển đổi vai trò tài khoản này"
+                                        >
+                                          {u.role === "ADMIN" ? "Đổi sang Người dùng" : "Nâng cấp lên Admin"}
+                                        </button>
+                                      </div>
+                                    </td>
+
+                                    {/* Trạng thái xét duyệt */}
+                                    <td className="py-3.5 px-4 text-center">
+                                      {u.status === "APPROVED" && (
+                                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
+                                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                          <span>Đã duyệt</span>
+                                        </span>
+                                      )}
+                                      {u.status === "PENDING" && (
+                                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-bold text-[11px] animate-pulse">
+                                          <Clock className="w-3 h-3 text-amber-600" />
+                                          <span>Chờ xét duyệt</span>
+                                        </span>
+                                      )}
+                                      {u.status === "REJECTED" && (
+                                        <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full bg-slate-200 text-slate-700 font-bold text-[11px]">
+                                          <X className="w-3 h-3 text-slate-500" />
+                                          <span>Đã từ chối</span>
+                                        </span>
+                                      )}
+                                    </td>
+
+                                    {/* Thao tác */}
+                                    <td className="py-3.5 px-4 text-right">
+                                      <div className="flex items-center justify-end space-x-1.5">
+                                        {/* Nút Xét duyệt nếu đang Chờ duyệt */}
+                                        {u.status === "PENDING" && (
+                                          <>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleApproveUser(u.id, "APPROVED")}
+                                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-2xs transition-colors inline-flex items-center space-x-1 cursor-pointer"
+                                              title="Phê duyệt tài khoản này"
+                                            >
+                                              <Check className="w-3.5 h-3.5" />
+                                              <span>Duyệt</span>
+                                            </button>
+                                            <button
+                                              type="button"
+                                              onClick={() => handleApproveUser(u.id, "REJECTED")}
+                                              className="px-2 py-1 rounded-lg border border-slate-300 text-slate-600 hover:text-red-600 hover:bg-red-50 text-xs font-semibold transition-colors inline-flex items-center cursor-pointer"
+                                              title="Từ chối tài khoản này"
+                                            >
+                                              <X className="w-3.5 h-3.5" />
+                                            </button>
+                                          </>
+                                        )}
+
+                                        {/* Nút Đặt lại mật khẩu về mặc định 12345678@ */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleResetUserPassword(u)}
+                                          className="p-1.5 rounded-lg border border-amber-200 text-amber-700 hover:bg-amber-50 transition-colors cursor-pointer"
+                                          title="Đặt lại mật khẩu về mặc định (12345678@)"
+                                        >
+                                          <KeyRound className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        {/* Nút Chỉnh sửa */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleOpenEditUser(u)}
+                                          className="p-1.5 rounded-lg border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                                          title="Chỉnh sửa tài khoản"
+                                        >
+                                          <Edit className="w-3.5 h-3.5" />
+                                        </button>
+
+                                        {/* Nút Xóa */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleDeleteUser(u.id, u.name)}
+                                          className="p-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
+                                          title="Xóa tài khoản khỏi hệ thống"
+                                        >
+                                          <Trash2 className="w-3.5 h-3.5" />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Thanh phân trang 10 tài khoản / trang */}
+                        <div className="p-3.5 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                          <div className="text-slate-500 font-medium">
+                            Hiển thị{" "}
+                            <strong className="text-slate-800">
+                              {filteredUsers.length === 0 ? 0 : (safeUserPage - 1) * USERS_PER_PAGE + 1} -{" "}
+                              {Math.min(safeUserPage * USERS_PER_PAGE, filteredUsers.length)}
+                            </strong>{" "}
+                            trong số <strong className="text-slate-800">{filteredUsers.length}</strong> tài khoản
+                          </div>
+
+                          {totalUserPages > 1 && (
+                            <div className="flex items-center space-x-1">
+                              <button
+                                type="button"
+                                disabled={safeUserPage <= 1}
+                                onClick={() => setUserCurrentPage((p) => Math.max(1, p - 1))}
+                                className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                              >
+                                ‹ Trước
+                              </button>
+
+                              {Array.from({ length: totalUserPages }, (_, i) => i + 1)
+                                .filter((page) => {
+                                  return (
+                                    page === 1 ||
+                                    page === totalUserPages ||
+                                    Math.abs(page - safeUserPage) <= 2
+                                  );
+                                })
+                                .map((page, idx, arr) => {
+                                  const prev = arr[idx - 1];
+                                  const hasGap = prev && page - prev > 1;
+                                  return (
+                                    <React.Fragment key={page}>
+                                      {hasGap && <span className="px-1 text-slate-400">...</span>}
+                                      <button
+                                        type="button"
+                                        onClick={() => setUserCurrentPage(page)}
+                                        className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                                          safeUserPage === page
+                                            ? "bg-[#DC2626] text-white shadow-xs"
+                                            : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                      >
+                                        {page}
+                                      </button>
+                                    </React.Fragment>
+                                  );
+                                })}
+
+                              <button
+                                type="button"
+                                disabled={safeUserPage >= totalUserPages}
+                                onClick={() => setUserCurrentPage((p) => Math.min(totalUserPages, p + 1))}
+                                className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed font-medium transition-colors cursor-pointer"
+                              >
+                                Sau ›
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Modal Thêm Tài Khoản Admin Từ Tài Khoản Người Dùng */}
+                  {showPromoteAdminModal && (
+                    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+                      <div className="bg-white rounded-3xl max-w-2xl w-full p-6 shadow-2xl relative border border-slate-200 max-h-[85vh] flex flex-col">
+                        <button
+                          type="button"
+                          onClick={() => setShowPromoteAdminModal(false)}
+                          className="absolute top-5 right-5 text-slate-400 hover:text-slate-700 p-1 rounded-full hover:bg-slate-100 cursor-pointer"
+                        >
+                          <X className="w-5 h-5" />
+                        </button>
+
+                        <div className="flex items-center space-x-2.5 pb-3 border-b border-slate-100">
+                          <span className="w-9 h-9 rounded-xl bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                            <ShieldCheck className="w-5 h-5" />
+                          </span>
+                          <div>
+                            <h3 className="text-base font-extrabold text-slate-900">
+                              Thêm Tài Khoản Admin Từ Người Dùng
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              Tìm kiếm tài khoản người dùng hiện có để cấp quyền Quản trị viên (Admin).
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="py-3">
+                          <div className="relative">
+                            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+                            <input
+                              type="text"
+                              value={promoteSearchQuery}
+                              onChange={(e) => setPromoteSearchQuery(e.target.value)}
+                              placeholder="Nhập tên, email, SĐT hoặc đơn vị người dùng cần cấp quyền Admin..."
+                              className="w-full pl-9 pr-4 py-2 rounded-xl border border-slate-200 text-xs bg-slate-50 outline-none focus:border-red-600 focus:bg-white"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto divide-y divide-slate-100 border border-slate-200 rounded-xl">
+                          {(() => {
+                            const candidates = usersList
+                              .filter((u) => u.role !== "ADMIN")
+                              .filter((u) => {
+                                const q = promoteSearchQuery.toLowerCase().trim();
+                                if (!q) return true;
+                                return (
+                                  u.name?.toLowerCase().includes(q) ||
+                                  u.email?.toLowerCase().includes(q) ||
+                                  u.phone?.includes(q) ||
+                                  u.organizationName?.toLowerCase().includes(q)
+                                );
+                              })
+                              .slice(0, 30);
+
+                            if (candidates.length === 0) {
+                              return (
+                                <div className="p-8 text-center text-xs text-slate-400">
+                                  Không tìm thấy tài khoản người dùng nào phù hợp.
+                                </div>
+                              );
+                            }
+
+                            return candidates.map((u) => (
+                              <div
+                                key={u.id}
+                                className="p-3 flex items-center justify-between gap-3 hover:bg-slate-50 transition-colors"
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="font-bold text-slate-900 text-xs truncate">
+                                    {u.name}
+                                  </div>
+                                  <div className="text-[11px] text-slate-500 font-mono truncate">
+                                    {u.email} {u.phone ? `• ${u.phone}` : ""}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400 truncate">
+                                    {u.organizationName || "Ủy ban Nhân dân xã Ea Súp"}
+                                  </div>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    await handleChangeRole(u.id, "ADMIN");
+                                    setUserRoleFilter("ADMIN");
+                                    setUserStatusFilter("ALL");
+                                    setUserCurrentPage(1);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-[#DC2626] hover:bg-[#B91C1C] text-white font-bold text-xs shadow-2xs transition-all cursor-pointer shrink-0 flex items-center space-x-1"
+                                >
+                                  <ShieldCheck className="w-3.5 h-3.5" />
+                                  <span>Thêm làm Admin</span>
+                                </button>
+                              </div>
+                            ));
+                          })()}
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               ) : (
                 /* Access Denied Banner for Non-Admin */
