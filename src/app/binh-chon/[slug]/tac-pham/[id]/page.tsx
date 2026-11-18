@@ -21,6 +21,7 @@ import {
 import confetti from "canvas-confetti";
 import LoginModal from "@/components/LoginModal";
 import ImageLightboxModal from "@/components/ImageLightboxModal";
+import { isVideoUrl } from "@/lib/videoUpload";
 
 interface MediaContest {
   id: string;
@@ -578,25 +579,38 @@ export default function ArtworkDetailPage({
       <main className="max-w-5xl mx-auto px-4 py-8 sm:py-12">
         <div className="bg-white rounded-3xl border border-slate-200/80 shadow-md p-6 sm:p-10">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* CỘT TRÁI: HÌNH ẢNH TÁC PHẨM DỰ THI (Bấm vào để phóng to - Lightbox) */}
+            {/* CỘT TRÁI: HÌNH ẢNH / VIDEO TÁC PHẨM DỰ THI */}
             <div className="md:col-span-6 flex flex-col items-center">
-              <div
-                onClick={() => setShowLightbox(true)}
-                className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-sm flex items-center justify-center cursor-zoom-in group"
-                title="Bấm vào hình để phóng to toàn màn hình"
-              >
-                <img
-                  src={currentImageUrl}
-                  alt={submission.title}
-                  className="w-full h-auto max-h-[640px] object-contain rounded-2xl group-hover:scale-[1.02] transition-transform duration-200"
-                />
-
-                {/* Huy hiệu phóng to nổi trên ảnh */}
-                <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center gap-1.5 shadow-md pointer-events-none group-hover:scale-105 transition-all">
-                  <ZoomIn className="w-3.5 h-3.5 text-white" />
-                  <span>Bấm để phóng to</span>
+              {isVideoUrl(currentImageUrl) ? (
+                <div className="w-full relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/90 shadow-sm flex items-center justify-center">
+                  <video
+                    key={currentImageUrl}
+                    src={currentImageUrl}
+                    controls
+                    playsInline
+                    preload="metadata"
+                    className="w-full max-h-[640px] rounded-2xl"
+                  />
                 </div>
-              </div>
+              ) : (
+                <div
+                  onClick={() => setShowLightbox(true)}
+                  className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-sm flex items-center justify-center cursor-zoom-in group"
+                  title="Bấm vào hình để phóng to toàn màn hình"
+                >
+                  <img
+                    src={currentImageUrl}
+                    alt={submission.title}
+                    className="w-full h-auto max-h-[640px] object-contain rounded-2xl group-hover:scale-[1.02] transition-transform duration-200"
+                  />
+
+                  {/* Huy hiệu phóng to nổi trên ảnh */}
+                  <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center gap-1.5 shadow-md pointer-events-none group-hover:scale-105 transition-all">
+                    <ZoomIn className="w-3.5 h-3.5 text-white" />
+                    <span>Bấm để phóng to</span>
+                  </div>
+                </div>
+              )}
 
               {/* Dải thumbnail xem các ảnh khác nếu bài dự thi có nhiều hình */}
               {images.length > 1 && (

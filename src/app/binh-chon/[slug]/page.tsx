@@ -48,6 +48,13 @@ import confetti from "canvas-confetti";
 import { EA_SUP_VILLAGES } from "@/lib/store";
 import LoginModal, { syncAuthSession } from "@/components/LoginModal";
 import ImageLightboxModal from "@/components/ImageLightboxModal";
+import {
+  isVideoUrl,
+  isVideoFile,
+  compressVideoIfNeeded,
+  uploadFileChunked,
+  formatFileSizeMB,
+} from "@/lib/videoUpload";
 
 interface MediaContest {
   id: string;
@@ -241,6 +248,8 @@ export default function MediaContestPublicPage({
     description: "",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [videoProcessStatus, setVideoProcessStatus] = useState<string>("");
+  const [videoProcessProgress, setVideoProcessProgress] = useState<number>(0);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [copiedLink, setCopiedLink] = useState(false);
   const [shareModalTarget, setShareModalTarget] = useState<MediaSubmission | "CONTEST" | null>(null);
@@ -816,25 +825,83 @@ export default function MediaContestPublicPage({
 
     try {
       setIsUploadingSubmitImage(true);
+      setVideoProcessStatus("");
+      setVideoProcessProgress(0);
       const uploadedUrls: string[] = [];
       let detectedOrientation: "vertical" | "horizontal" | null = null;
+      let detectedMediaType: "IMAGE" | "VIDEO" | null = null;
 
       for (const file of filesToProcess) {
-        const { blob, dataUrl, orientation } = await compressImageToJpeg(file);
-        if (!detectedOrientation) {
-          detectedOrientation = orientation;
-        }
-        let finalUrl = dataUrl;
-        try {
-          const formData = new FormData();
-          formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
-          const res = await fetch("/api/upload", { method: "POST", body: formData });
-          const data = await safeParseResponseJson(res);
-          if (res.ok && data.success && data.url) {
-            finalUrl = data.url;
+        if (isVideoFile(file)) {
+          detectedMediaType = "VIDEO";
+          const compressedResult = await compressVideoIfNeeded(
+            file,
+            30 * 1024 * 1024,
+            (pct, statusText) => {
+              setVideoProcessProgress(pct);
+              setVideoProcessStatus(statusText);
+            }
+          );
+
+          if (!detectedOrientation) {
+            detectedOrientation = compressedResult.orientation;
           }
-        } catch {}
-        uploadedUrls.push(finalUrl);
+
+          if (compressedResult.finalSize > 30 * 1024 * 1024) {
+            alert(
+              `Video "${file.name}" sau khi giảm độ phân giải vẫn còn ${formatFileSizeMB(
+                compressedResult.finalSize
+              )} (> 30MB). Vui lòng chọn video ngắn hơn hoặc cắt bớt thời lượng.`
+            );
+            continue;
+          }
+
+          setVideoProcessProgress(0);
+          setVideoProcessStatus(
+            compressedResult.compressed
+              ? `Đã nén từ ${formatFileSizeMB(compressedResult.originalSize)} xuống ${formatFileSizeMB(
+                  compressedResult.finalSize
+                )}. Đang tải lên hệ thống...`
+              : `Đang tải video (${formatFileSizeMB(compressedResult.finalSize)}) lên hệ thống...`
+          );
+
+          const finalVideoUrl = await uploadFileChunked(
+            compressedResult.blob,
+            compressedResult.fileName,
+            (pct) => {
+              setVideoProcessProgress(pct);
+              setVideoProcessStatus(
+                compressedResult.compressed
+                  ? `Đã nén xuống ${formatFileSizeMB(compressedResult.finalSize)} • Đang tải lên ${pct}%`
+                  : `Đang tải video lên hệ thống... ${pct}%`
+              );
+            }
+          );
+          uploadedUrls.push(finalVideoUrl);
+          setVideoProcessStatus(
+            compressedResult.compressed
+              ? `✅ Đã giảm độ phân giải & tải video thành công (${formatFileSizeMB(
+                  compressedResult.originalSize
+                )} → ${formatFileSizeMB(compressedResult.finalSize)})`
+              : `✅ Đã tải video lên thành công (${formatFileSizeMB(compressedResult.finalSize)})`
+          );
+        } else {
+          const { blob, dataUrl, orientation } = await compressImageToJpeg(file);
+          if (!detectedOrientation) {
+            detectedOrientation = orientation;
+          }
+          let finalUrl = dataUrl;
+          try {
+            const formData = new FormData();
+            formData.append("file", blob, file.name.replace(/\.[^/.]+$/, ".jpg"));
+            const res = await fetch("/api/upload", { method: "POST", body: formData });
+            const data = await safeParseResponseJson(res);
+            if (res.ok && data.success && data.url) {
+              finalUrl = data.url;
+            }
+          } catch {}
+          uploadedUrls.push(finalUrl);
+        }
       }
 
       const nextUrls = [...currentUrls, ...uploadedUrls].slice(0, maxImagesPerSubmission);
@@ -842,13 +909,15 @@ export default function MediaContestPublicPage({
         ...prev,
         mediaUrls: nextUrls,
         mediaUrl: nextUrls[0] || "",
+        mediaType: detectedMediaType || prev.mediaType,
         orientation:
           currentUrls.length === 0 && detectedOrientation
             ? detectedOrientation
             : prev.orientation,
       }));
-    } catch (err) {
-      console.warn("Lỗi tải ảnh tác phẩm:", err);
+    } catch (err: any) {
+      console.warn("Lỗi tải tệp tác phẩm:", err);
+      alert(err?.message || "Không thể tải tệp lên hệ thống. Vui lòng thử lại!");
     } finally {
       setIsUploadingSubmitImage(false);
       if (e.target) e.target.value = "";
@@ -1381,7 +1450,7 @@ export default function MediaContestPublicPage({
           ...submitForm,
           submitterEmail: authUser?.email || "",
           submitterId: authUser?.id || "",
-          mediaType: contest?.type || submitForm.mediaType,
+          mediaType: isVideoUrl(finalMediaUrls[0]) ? "VIDEO" : (contest?.type || submitForm.mediaType),
           mediaUrl: finalMediaUrls[0],
           mediaUrls: finalMediaUrls,
           orientation: submitForm.orientation,
@@ -1390,6 +1459,8 @@ export default function MediaContestPublicPage({
       const data = await safeParseResponseJson(res);
       if (data.success) {
         setSubmitSuccess(true);
+        setVideoProcessStatus("");
+        setVideoProcessProgress(0);
         await loadData();
         broadcastMediaContestSync();
         setTimeout(() => {
@@ -2165,26 +2236,55 @@ export default function MediaContestPublicPage({
                               : "w-full aspect-[3/4]"
                         }`}
                       >
-                        <img
-                          src={subImages[0] || sub.mediaUrl}
-                          alt={sub.title}
-                          onLoad={(e) => {
-                            const imgEl = e.currentTarget;
-                            if (imgEl.naturalWidth && imgEl.naturalHeight) {
-                              const naturalOrient: "vertical" | "horizontal" =
-                                imgEl.naturalWidth > imgEl.naturalHeight
-                                  ? "horizontal"
-                                  : "vertical";
-                              if (imageOrientations[sub.id] !== naturalOrient) {
-                                setImageOrientations((prev) => ({
-                                  ...prev,
-                                  [sub.id]: naturalOrient,
-                                }));
+                        {isVideoUrl(subImages[0] || sub.mediaUrl) ? (
+                          <>
+                            <video
+                              src={subImages[0] || sub.mediaUrl}
+                              muted
+                              playsInline
+                              preload="metadata"
+                              onLoadedMetadata={(e) => {
+                                const vEl = e.currentTarget;
+                                if (vEl.videoWidth && vEl.videoHeight) {
+                                  const naturalOrient: "vertical" | "horizontal" =
+                                    vEl.videoWidth > vEl.videoHeight ? "horizontal" : "vertical";
+                                  if (imageOrientations[sub.id] !== naturalOrient) {
+                                    setImageOrientations((prev) => ({
+                                      ...prev,
+                                      [sub.id]: naturalOrient,
+                                    }));
+                                  }
+                                }
+                              }}
+                              className="w-full h-full object-cover bg-slate-900"
+                            />
+                            <span className="absolute top-2.5 left-2.5 bg-black/75 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                              <Video className="w-3 h-3 text-red-400" />
+                              <span>VIDEO</span>
+                            </span>
+                          </>
+                        ) : (
+                          <img
+                            src={subImages[0] || sub.mediaUrl}
+                            alt={sub.title}
+                            onLoad={(e) => {
+                              const imgEl = e.currentTarget;
+                              if (imgEl.naturalWidth && imgEl.naturalHeight) {
+                                const naturalOrient: "vertical" | "horizontal" =
+                                  imgEl.naturalWidth > imgEl.naturalHeight
+                                    ? "horizontal"
+                                    : "vertical";
+                                if (imageOrientations[sub.id] !== naturalOrient) {
+                                  setImageOrientations((prev) => ({
+                                    ...prev,
+                                    [sub.id]: naturalOrient,
+                                  }));
+                                }
                               }
-                            }
-                          }}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
+                            }}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        )}
                         {/* Nút phóng to nhanh ảnh tác phẩm */}
                         <button
                           type="button"
@@ -3090,10 +3190,8 @@ export default function MediaContestPublicPage({
                 <h3 className="text-lg font-bold text-slate-900">Nộp Tác Phẩm Dự Thi</h3>
                 <p className="text-xs text-slate-500 line-clamp-1">{contest?.title}</p>
                 <div className="mt-1 flex items-center gap-1.5">
-                  <span className={`px-2 py-0.5 rounded-md text-[11px] font-bold ${
-                    getUserSubmissionsCount() >= 2 ? "bg-red-50 text-red-700 border border-red-200" : "bg-blue-50 text-blue-700 border border-blue-100"
-                  }`}>
-                    Bài dự thi của bạn: {getUserSubmissionsCount()}/2 tác phẩm
+                  <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-50 text-blue-700 border border-blue-100">
+                    Bài dự thi của bạn: {getUserSubmissionsCount()} tác phẩm
                   </span>
                 </div>
               </div>
@@ -3213,7 +3311,7 @@ export default function MediaContestPublicPage({
                     </label>
                     <button
                       type="button"
-                      disabled={submitForm.mediaUrls.length >= maxImagesPerSubmission}
+                      disabled={isUploadingSubmitImage || submitForm.mediaUrls.length >= maxImagesPerSubmission}
                       onClick={() => submitFileInputRef.current?.click()}
                       style={{ color: themeColor }}
                       className="text-xs font-bold hover:underline flex items-center space-x-1 cursor-pointer disabled:opacity-40"
@@ -3221,71 +3319,111 @@ export default function MediaContestPublicPage({
                       <Upload className="w-3.5 h-3.5" />
                       <span>
                         {isUploadingSubmitImage
-                          ? "Đang tải ảnh..."
+                          ? "Đang xử lý..."
                           : submitForm.mediaUrls.length > 0
-                            ? "+ Thêm hình"
-                            : "Tải ảnh từ máy"}
+                            ? "+ Thêm hình / video"
+                            : "Tải ảnh / video từ máy"}
                       </span>
                     </button>
                     <input
                       ref={submitFileInputRef}
                       type="file"
-                      accept="image/*"
+                      accept="image/*,video/mp4,video/webm,video/quicktime,video/*"
                       multiple={maxImagesPerSubmission > 1}
                       onChange={handleSubmissionFileChange}
                       className="hidden"
                     />
                   </div>
 
+                  {/* Thanh trạng thái nén giảm độ phân giải & tải video lên hệ thống */}
+                  {(isUploadingSubmitImage || videoProcessStatus) && (
+                    <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] text-amber-900 space-y-1.5">
+                      <div className="flex items-center justify-between gap-2 font-semibold">
+                        <span className="truncate">{videoProcessStatus || "Đang xử lý tệp tải lên..."}</span>
+                        {isUploadingSubmitImage && (
+                          <span className="shrink-0 font-mono font-bold text-amber-700">
+                            {videoProcessProgress}%
+                          </span>
+                        )}
+                      </div>
+                      {isUploadingSubmitImage && (
+                        <div className="w-full h-1.5 bg-amber-200/70 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-amber-600 transition-all duration-200"
+                            style={{ width: `${Math.max(4, videoProcessProgress)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {submitForm.mediaUrls.length > 0 && (
                     <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 pt-1">
-                      {submitForm.mediaUrls.map((url, idx) => (
-                        <div
-                          key={idx}
-                          className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 border border-slate-200 group"
-                        >
-                          <img
-                            src={url}
-                            alt={`Hình ${idx + 1}`}
-                            onLoad={(e) => {
-                              if (idx === 0) {
-                                const imgEl = e.currentTarget;
-                                if (imgEl.naturalWidth && imgEl.naturalHeight) {
-                                  const autoOrient: "vertical" | "horizontal" =
-                                    imgEl.naturalWidth > imgEl.naturalHeight
-                                      ? "horizontal"
-                                      : "vertical";
-                                  if (submitForm.orientation !== autoOrient) {
-                                    setSubmitForm((prev) => ({
-                                      ...prev,
-                                      orientation: autoOrient,
-                                    }));
-                                  }
-                                }
-                              }
-                            }}
-                            className="w-full h-full object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const next = submitForm.mediaUrls.filter((_, i) => i !== idx);
-                              setSubmitForm({
-                                ...submitForm,
-                                mediaUrls: next,
-                                mediaUrl: next[0] || "",
-                              });
-                            }}
-                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center text-[10px] hover:bg-red-600 cursor-pointer"
-                            title="Xóa hình này"
+                      {submitForm.mediaUrls.map((url, idx) => {
+                        const isVid = isVideoUrl(url);
+                        return (
+                          <div
+                            key={idx}
+                            className="relative aspect-square rounded-xl overflow-hidden bg-slate-900 border border-slate-200 group"
                           >
-                            ✕
-                          </button>
-                          <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.2 rounded">
-                            #{idx + 1}
-                          </span>
-                        </div>
-                      ))}
+                            {isVid ? (
+                              <>
+                                <video
+                                  src={url}
+                                  muted
+                                  playsInline
+                                  preload="metadata"
+                                  className="w-full h-full object-cover"
+                                />
+                                <span className="absolute top-1 left-1 bg-black/70 text-white text-[9px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                                  <Video className="w-2.5 h-2.5" /> Video
+                                </span>
+                              </>
+                            ) : (
+                              <img
+                                src={url}
+                                alt={`Hình ${idx + 1}`}
+                                onLoad={(e) => {
+                                  if (idx === 0) {
+                                    const imgEl = e.currentTarget;
+                                    if (imgEl.naturalWidth && imgEl.naturalHeight) {
+                                      const autoOrient: "vertical" | "horizontal" =
+                                        imgEl.naturalWidth > imgEl.naturalHeight
+                                          ? "horizontal"
+                                          : "vertical";
+                                      if (submitForm.orientation !== autoOrient) {
+                                        setSubmitForm((prev) => ({
+                                          ...prev,
+                                          orientation: autoOrient,
+                                        }));
+                                      }
+                                    }
+                                  }
+                                }}
+                                className="w-full h-full object-cover bg-slate-100"
+                              />
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const next = submitForm.mediaUrls.filter((_, i) => i !== idx);
+                                setSubmitForm({
+                                  ...submitForm,
+                                  mediaUrls: next,
+                                  mediaUrl: next[0] || "",
+                                });
+                              }}
+                              className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center text-[10px] hover:bg-red-600 cursor-pointer"
+                              title="Xóa tệp này"
+                            >
+                              ✕
+                            </button>
+                            <span className="absolute bottom-1 left-1 bg-black/60 text-white text-[9px] px-1.5 py-0.2 rounded">
+                              #{idx + 1}
+                            </span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
 
@@ -3370,29 +3508,44 @@ export default function MediaContestPublicPage({
                     ? selectedSubmission.mediaUrls
                     : [selectedSubmission.mediaUrl];
                 const safeIdx = Math.min(selectedSubmissionImageIdx, imgs.length - 1);
+                const currentMediaUrl = imgs[safeIdx] || selectedSubmission.mediaUrl;
+                const isCurrentVideo = isVideoUrl(currentMediaUrl);
                 return (
                   <div className="md:col-span-6 flex flex-col items-center">
-                    <div
-                      onClick={() => {
-                        setLightboxImages(imgs);
-                        setLightboxIndex(safeIdx);
-                        setLightboxTitle(selectedSubmission.title);
-                        setLightboxAuthor(`${selectedSubmission.authorName} (${selectedSubmission.unitName})`);
-                        setShowLightbox(true);
-                      }}
-                      className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-2xs flex items-center justify-center cursor-zoom-in group"
-                      title="Bấm vào hình để phóng to toàn màn hình"
-                    >
-                      <img
-                        src={imgs[safeIdx] || selectedSubmission.mediaUrl}
-                        alt={selectedSubmission.title}
-                        className="w-full h-auto max-h-[520px] object-contain rounded-2xl group-hover:scale-[1.02] transition-transform duration-200"
-                      />
-                      <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center gap-1.5 shadow-md pointer-events-none group-hover:scale-105 transition-all">
-                        <ZoomIn className="w-3.5 h-3.5 text-white" />
-                        <span>Bấm để phóng to</span>
+                    {isCurrentVideo ? (
+                      <div className="w-full relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/90 shadow-2xs flex items-center justify-center">
+                        <video
+                          key={currentMediaUrl}
+                          src={currentMediaUrl}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="w-full max-h-[520px] rounded-2xl"
+                        />
                       </div>
-                    </div>
+                    ) : (
+                      <div
+                        onClick={() => {
+                          setLightboxImages(imgs);
+                          setLightboxIndex(safeIdx);
+                          setLightboxTitle(selectedSubmission.title);
+                          setLightboxAuthor(`${selectedSubmission.authorName} (${selectedSubmission.unitName})`);
+                          setShowLightbox(true);
+                        }}
+                        className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-2xs flex items-center justify-center cursor-zoom-in group"
+                        title="Bấm vào hình để phóng to toàn màn hình"
+                      >
+                        <img
+                          src={currentMediaUrl}
+                          alt={selectedSubmission.title}
+                          className="w-full h-auto max-h-[520px] object-contain rounded-2xl group-hover:scale-[1.02] transition-transform duration-200"
+                        />
+                        <div className="absolute bottom-3 right-3 px-3 py-1.5 rounded-full bg-black/65 hover:bg-black/80 text-white text-xs font-bold backdrop-blur-xs flex items-center gap-1.5 shadow-md pointer-events-none group-hover:scale-105 transition-all">
+                          <ZoomIn className="w-3.5 h-3.5 text-white" />
+                          <span>Bấm để phóng to</span>
+                        </div>
+                      </div>
+                    )}
                     {imgs.length > 1 && (
                       <div className="w-full flex items-center justify-center space-x-2 pt-3 overflow-x-auto">
                         {imgs.map((u, i) => (

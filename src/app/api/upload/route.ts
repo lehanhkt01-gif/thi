@@ -58,13 +58,16 @@ export async function POST(req: NextRequest) {
         if (extFromName) fileExt = extFromName;
       }
 
-      const matches = base64Data.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+      const matches = base64Data.match(/^data:([A-Za-z0-9-+\/]+);base64,(.+)$/);
       if (matches && matches.length === 3) {
         const mime = matches[1];
         if (mime.includes("jpeg") || mime.includes("jpg")) fileExt = ".jpg";
         else if (mime.includes("webp")) fileExt = ".webp";
         else if (mime.includes("gif")) fileExt = ".gif";
         else if (mime.includes("pdf")) fileExt = ".pdf";
+        else if (mime.includes("mp4")) fileExt = ".mp4";
+        else if (mime.includes("webm")) fileExt = ".webm";
+        else if (mime.includes("quicktime") || mime.includes("mov")) fileExt = ".mov";
         else if (!path.extname(fileNameOriginal)) fileExt = ".png";
 
         fileBuffer = Buffer.from(matches[2], "base64");
@@ -86,10 +89,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Giới hạn dung lượng tối đa 25MB
-    if (fileSize > 25 * 1024 * 1024) {
+    // Giới hạn dung lượng mỗi request/tệp tối đa 32MB (cho phép video <= 30MB sau khi nén)
+    if (fileSize > 32 * 1024 * 1024) {
       return NextResponse.json(
-        { success: false, error: "Dung lượng tệp vượt quá giới hạn 25MB. Vui lòng nén tệp hoặc chọn tệp nhỏ hơn." },
+        { success: false, error: "Dung lượng tệp vượt quá giới hạn 30MB. Vui lòng nén tệp hoặc chọn tệp nhỏ hơn." },
         { status: 400 }
       );
     }
