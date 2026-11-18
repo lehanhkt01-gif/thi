@@ -2209,9 +2209,20 @@ export default function AdminDashboardPage() {
             ) : activeTab === "trac-nghiem" && (
               <div className="space-y-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-200 gap-2">
-                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
-                    DANH SÁCH CUỘC THI
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
+                      DANH SÁCH CUỘC THI
+                    </h2>
+                    {authUser?.role === "ADMIN" && (
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"
+                        title="Số lượng cuộc thi đang được ghim ở cột ưu tiên trên Trang chủ (tối đa 3)"
+                      >
+                        <Pin className="w-3 h-3 fill-red-600 text-red-600" />
+                        <span>Đã ghim: {contests.filter((x) => x.isPinned).length}/3</span>
+                      </span>
+                    )}
+                  </div>
 
                   {/* Filter Status Tabs */}
                   <div className="flex items-center space-x-1 bg-white border border-slate-200 p-1 rounded-xl text-xs font-semibold">
@@ -2707,9 +2718,20 @@ export default function AdminDashboardPage() {
 
                 {/* HEADER DANH SÁCH CUỘC THI & FILTER TABS (Đồng bộ 100% với Ảnh 2) */}
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-200 gap-2 pt-1">
-                  <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
-                    DANH SÁCH CUỘC THI
-                  </h2>
+                  <div className="flex flex-wrap items-center gap-2.5">
+                    <h2 className="text-xl font-bold text-slate-800 uppercase tracking-tight">
+                      DANH SÁCH CUỘC THI
+                    </h2>
+                    {authUser?.role === "ADMIN" && (
+                      <span
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-red-50 text-red-700 border border-red-200"
+                        title="Số lượng cuộc thi đang được ghim ở cột ưu tiên (tối đa 3)"
+                      >
+                        <Pin className="w-3 h-3 fill-red-600 text-red-600" />
+                        <span>Đã ghim: {mediaContests.filter((x) => x.isPinned).length}/3</span>
+                      </span>
+                    )}
+                  </div>
 
                   {/* Filter Status Tabs */}
                   <div className="flex items-center space-x-1 bg-white border border-slate-200 p-1 rounded-xl text-xs font-semibold">

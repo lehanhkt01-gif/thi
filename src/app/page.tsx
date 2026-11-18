@@ -24,11 +24,14 @@ export default function HomePage() {
   const mediaContests = store.getMediaContests().filter((c) => c.status === "PUBLISHED");
   const stats = store.getSystemStats();
 
-  // Cuộc thi nổi bật hiển thị ở cột trái (chính là cuộc thi mới nhất do người dùng tạo)
-  const featuredContest = contests[0] || null;
+  // Tối đa 3 cuộc thi được ghim xuất hiện tại cột ưu tiên bên trái; nếu chưa ghim cuộc thi nào thì lấy cuộc thi đầu tiên
+  const pinnedContests = contests.filter((c) => c.isPinned).slice(0, 3);
+  const featuredContests =
+    pinnedContests.length > 0 ? pinnedContests : contests.length > 0 ? [contests[0]] : [];
+  const featuredIds = new Set(featuredContests.map((c) => c.id));
 
-  // Danh sách các cuộc thi còn lại đồng bộ với danh sách do người tạo tại Ảnh 1
-  const rightListContests = contests.slice(1);
+  // Danh sách các cuộc thi còn lại ở cột bên phải
+  const rightListContests = contests.filter((c) => !featuredIds.has(c.id));
 
   return (
     <div className="w-full bg-[#F8FAFC] pb-16">
@@ -79,49 +82,55 @@ export default function HomePage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
-              {/* Featured Left Card: Cuộc thi do người dùng tạo tại Ảnh 1 */}
-              <div className="md:col-span-7 group">
-                {featuredContest ? (
-                  <Link href={`/thi/${featuredContest.slug}`} className="block">
-                    <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 mb-2.5">
-                      {featuredContest.bannerUrl ? (
-                        <img
-                          src={featuredContest.bannerUrl || "/banners/banner-nong-dan-ea-sup.jpg"}
-                          alt={featuredContest.title}
-                          className="w-full h-auto max-h-[280px] object-contain mx-auto block group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="absolute inset-0 bg-gradient-to-r from-red-600 via-rose-700 to-amber-700 p-4 flex flex-col justify-between text-white">
-                          <div className="text-[10px] font-bold text-red-100 uppercase tracking-wider">
-                            {featuredContest.organizerName || "ỦY BAN NHÂN DÂN XÃ EA SÚP"}
-                          </div>
-                          <div className="my-auto text-center">
-                            <div className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
-                              CUỘC THI TRỰC TUYẾN
+              {/* Featured Left Column: Tối đa 3 cuộc thi được ghim xếp theo thứ tự cột ưu tiên */}
+              <div className="md:col-span-7 space-y-5">
+                {featuredContests.length > 0 ? (
+                  featuredContests.map((fc, idx) => (
+                    <Link
+                      key={fc.id || fc.slug || idx}
+                      href={`/thi/${fc.slug}`}
+                      className="block group"
+                    >
+                      <div className="relative w-full rounded-xl overflow-hidden border border-slate-200 shadow-xs bg-slate-900 mb-2">
+                        {fc.bannerUrl ? (
+                          <img
+                            src={fc.bannerUrl || "/banners/banner-nong-dan-ea-sup.jpg"}
+                            alt={fc.title}
+                            className="w-full h-auto max-h-[280px] object-contain mx-auto block group-hover:scale-105 transition-transform duration-300"
+                          />
+                        ) : (
+                          <div className="min-h-[180px] bg-gradient-to-r from-red-600 via-rose-700 to-amber-700 p-4 flex flex-col justify-between text-white">
+                            <div className="text-[10px] font-bold text-red-100 uppercase tracking-wider">
+                              {fc.organizerName || "ỦY BAN NHÂN DÂN XÃ EA SÚP"}
                             </div>
-                            <h4 className="text-sm font-black leading-tight text-white mt-1 drop-shadow-md line-clamp-2">
-                              {featuredContest.title.toUpperCase()}
-                            </h4>
+                            <div className="my-auto text-center">
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-amber-300">
+                                CUỘC THI TRỰC TUYẾN
+                              </div>
+                              <h4 className="text-sm font-black leading-tight text-white mt-1 drop-shadow-md line-clamp-2">
+                                {fc.title.toUpperCase()}
+                              </h4>
+                            </div>
+                            <div className="flex items-center justify-between text-[9px] text-red-100 pt-1 border-t border-white/20">
+                              <span>{fc.durationMinutes || 15} phút/lượt</span>
+                              <span className="font-bold underline">Vào thi ngay ➔</span>
+                            </div>
                           </div>
-                          <div className="flex items-center justify-between text-[9px] text-red-100 pt-1 border-t border-white/20">
-                            <span>{featuredContest.durationMinutes || 15} phút/lượt</span>
-                            <span className="font-bold underline">Vào thi ngay ➔</span>
-                          </div>
+                        )}
+                        <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-3 text-white flex items-center justify-between">
+                          <span className="text-[11px] font-bold text-amber-300 uppercase truncate max-w-[220px]">
+                            {fc.organizerName || "UBND XÃ EA SÚP"}
+                          </span>
+                          <span className="text-[10px] font-bold text-white bg-[#DC2626] px-2.5 py-1 rounded-full shadow-xs shrink-0">
+                            Vào thi ngay ➔
+                          </span>
                         </div>
-                      )}
-                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent p-3 text-white flex items-center justify-between">
-                        <span className="text-[11px] font-bold text-amber-300 uppercase truncate max-w-[220px]">
-                          {featuredContest.organizerName || "UBND XÃ EA SÚP"}
-                        </span>
-                        <span className="text-[10px] font-bold text-white bg-[#DC2626] px-2.5 py-1 rounded-full shadow-xs shrink-0">
-                          Vào thi ngay ➔
-                        </span>
                       </div>
-                    </div>
-                    <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#DC2626] transition-colors leading-snug line-clamp-2">
-                      {featuredContest.title}
-                    </h4>
-                  </Link>
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-[#DC2626] transition-colors leading-snug line-clamp-2">
+                        {fc.title}
+                      </h4>
+                    </Link>
+                  ))
                 ) : (
                   <div className="p-8 border border-dashed border-slate-300 rounded-xl text-center">
                     <p className="text-xs text-slate-500 mb-2">Chưa có cuộc thi nào được xuất bản.</p>

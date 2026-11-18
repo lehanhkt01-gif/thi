@@ -1570,6 +1570,19 @@ class DataStore {
       return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền ghim cuộc thi lên trên cùng!" };
     }
 
+    if (isPinned && !contest.isPinned) {
+      const currentPinnedCount = this.contests.filter(
+        (c) => !this.isContestDeleted(c) && c.isPinned && c.id !== contest.id
+      ).length;
+      if (currentPinnedCount >= 3) {
+        return {
+          success: false,
+          error:
+            "Chỉ được ghim tối đa 3 cuộc thi xuất hiện tại vị trí ưu tiên trên Trang chủ! Vui lòng bỏ ghim bớt 1 cuộc thi trước khi ghim thêm.",
+        };
+      }
+    }
+
     contest.isPinned = isPinned;
     contest.pinnedAt = isPinned ? new Date().toISOString() : undefined;
     this.saveToDisk(true);
@@ -1589,6 +1602,19 @@ class DataStore {
 
     if (adminUser?.role !== "ADMIN") {
       return { success: false, error: "Chỉ Quản trị viên (Admin) mới có quyền ghim cuộc thi lên trên cùng!" };
+    }
+
+    if (isPinned && !contest.isPinned) {
+      const currentPinnedCount = this.mediaContests.filter(
+        (c) => !this.isMediaContestDeleted(c) && c.isPinned && c.id !== contest.id
+      ).length;
+      if (currentPinnedCount >= 3) {
+        return {
+          success: false,
+          error:
+            "Chỉ được ghim tối đa 3 cuộc thi bình chọn lên trên cùng! Vui lòng bỏ ghim bớt trước khi ghim thêm.",
+        };
+      }
     }
 
     contest.isPinned = isPinned;
