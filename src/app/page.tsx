@@ -189,9 +189,6 @@ export default function HomePage() {
                     <div className="h-1 w-20 rounded-full bg-gradient-to-r from-[#DC2626] via-[#F59E0B] to-[#009E60] mt-1" />
                   </div>
                 </div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/80 shadow-2xs shrink-0">
-                  ★ Nổi bật
-                </span>
               </div>
 
               {/* Danh sách công khai toàn bộ các Cuộc thi Ảnh/Video do bất kỳ ai tạo ra (Ảnh 2) */}
