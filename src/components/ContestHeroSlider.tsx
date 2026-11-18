@@ -526,7 +526,7 @@ export default function ContestHeroSlider({
           <div className="text-xs sm:text-[13px] text-sky-200 hidden sm:block tracking-wide">
             WEBSITE:{" "}
             <strong className="text-white font-mono font-bold text-xs sm:text-sm">
-              cuocthi.easupso.com
+              thi.easupso.com
             </strong>
           </div>
         </div>

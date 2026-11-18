@@ -290,7 +290,7 @@ export default function HomePage() {
                   <Phone className="w-3.5 h-3.5" />
                   <span>0888023023</span>
                 </a>
-                <a href="mailto:support@cuocthi.easupso.com" className="flex items-center space-x-1 hover:text-[#0284C7]">
+                <a href="mailto:support@thi.easupso.com" className="flex items-center space-x-1 hover:text-[#0284C7]">
                   <Mail className="w-3.5 h-3.5" />
                   <span>Hỗ trợ</span>
                 </a>

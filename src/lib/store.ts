@@ -1,4 +1,4 @@
-// src/lib/store.ts - Unified In-Memory & Database Store for cuocthi.easupso.com
+// src/lib/store.ts - Unified In-Memory & Database Store for thi.easupso.com
 // Implements Zero Answer Leakage, Server-side Grading, and Ea Súp Master Data
 
 export const EA_SUP_VILLAGES = [
@@ -550,7 +550,7 @@ class DataStore {
         <h3 class="text-lg font-bold text-slate-900 mb-2">I. MỤC ĐÍCH & Ý NGHĨA</h3>
         <p class="mb-3">Nâng cao hiểu biết cho cán bộ, hội viên nông dân và nhân dân 20 thôn buôn xã Ea Súp về các chủ trương, nghị quyết của Hội Nông dân các cấp và chuyển đổi số nông nghiệp.</p>
         <h3 class="text-lg font-bold text-slate-900 mb-2">II. HÌNH THỨC & THỜI GIAN</h3>
-        <p>Thi trực tuyến trên cổng cuocthi.easupso.com. Mỗi thí sinh có tối đa 3 lượt thi, thời gian 15 phút/lượt.</p>
+        <p>Thi trực tuyến trên cổng thi.easupso.com. Mỗi thí sinh có tối đa 3 lượt thi, thời gian 15 phút/lượt.</p>
       `,
       organizerName: "Ủy ban Nhân dân xã Ea Súp",
       organizerAddress: "Trung tâm hành chính xã Ea Súp, Huyện Ea Súp, Tỉnh Đắk Lắk",

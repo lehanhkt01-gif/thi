@@ -62,7 +62,7 @@ export default function FloatingActionBar({
 
   const shareUrl = typeof window !== "undefined"
     ? `${window.location.origin}/thi/${contestSlug}`
-    : `https://cuocthi.easupso.com/thi/${contestSlug}`;
+    : `https://thi.easupso.com/thi/${contestSlug}`;
 
   const handleCopyLink = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {

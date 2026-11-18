@@ -348,7 +348,7 @@ export default function ContestWizardPage() {
 <h3>I. MỤC ĐÍCH & Ý NGHĨA</h3>
 <p>Nâng cao hiểu biết cho cán bộ, đoàn viên và nhân dân 20 thôn buôn xã Ea Súp về công tác chuyển đổi số và nghị quyết phát triển kinh tế - xã hội địa phương.</p>
 <h3>II. HÌNH THỨC & THỜI GIAN</h3>
-<p>Thi trực tuyến trên cổng cuocthi.easupso.com. Mỗi thí sinh có 3 lượt thi, thời gian 15 phút/lượt.</p>
+<p>Thi trực tuyến trên cổng thi.easupso.com. Mỗi thí sinh có 3 lượt thi, thời gian 15 phút/lượt.</p>
   `.trim());
   const [rulesFileUrl, setRulesFileUrl] = useState("");
   const [planHtml, setPlanHtml] = useState("");
@@ -2717,7 +2717,7 @@ export default function ContestWizardPage() {
                     <div className="w-6 h-6 rounded-full bg-white text-red-600 flex items-center justify-center font-bold text-xs shadow-xs">
                       🏛️
                     </div>
-                    <span className="font-semibold text-slate-200">cuocthi.easupso.com</span>
+                    <span className="font-semibold text-slate-200">thi.easupso.com</span>
                   </div>
                   <span className="text-[10px] bg-red-600 text-white px-2 py-0.5 rounded-full font-bold">
                     Ea Súp Live
@@ -4140,7 +4140,7 @@ export default function ContestWizardPage() {
                       <span>TRẠNG THÁI: ĐANG CHỜ QUẢN TRỊ VIÊN (ADMIN) PHÊ DUYỆT</span>
                     </h4>
                     <p className="text-xs text-amber-700 mt-0.5">
-                      Cuộc thi đã được gửi duyệt. Sau khi Quản trị viên (Admin) phê duyệt, cuộc thi sẽ tự động hiển thị công khai trên Cổng cuộc thi cuocthi.easupso.com.
+                      Cuộc thi đã được gửi duyệt. Sau khi Quản trị viên (Admin) phê duyệt, cuộc thi sẽ tự động hiển thị công khai trên Cổng cuộc thi thi.easupso.com.
                     </p>
                   </div>
                 </div>
@@ -4694,13 +4694,13 @@ export default function ContestWizardPage() {
               <input
                 type="text"
                 readOnly
-                value={`https://cuocthi.easupso.com/thi/${slug}`}
+                value={`https://thi.easupso.com/thi/${slug}`}
                 className="flex-1 bg-transparent text-xs text-slate-700 font-mono outline-none"
               />
               <button
                 type="button"
                 onClick={() => {
-                  navigator.clipboard.writeText(`https://cuocthi.easupso.com/thi/${slug}`);
+                  navigator.clipboard.writeText(`https://thi.easupso.com/thi/${slug}`);
                   alert("Đã sao chép liên kết vào bộ nhớ tạm!");
                 }}
                 className="ml-2 px-3 py-1 bg-red-600 text-white text-xs font-bold rounded-lg"
@@ -4745,7 +4745,7 @@ export default function ContestWizardPage() {
                 <strong>I. MỤC ĐÍCH, YÊU CẦU:</strong> Tuyên truyền sâu rộng nghị quyết, pháp luật và chuyển đổi số đến 100% cán bộ, đoàn viên, hội viên và nhân dân 20 thôn, buôn.
               </p>
               <p>
-                <strong>II. HÌNH THỨC DỰ THI:</strong> Thi trắc nghiệm trực tuyến trên cổng <code>cuocthi.easupso.com</code>.
+                <strong>II. HÌNH THỨC DỰ THI:</strong> Thi trắc nghiệm trực tuyến trên cổng <code>thi.easupso.com</code>.
               </p>
               <p>
                 <strong>III. THỜI GIAN:</strong> Phát động từ tháng 10/2026 đến hết tháng 12/2026.

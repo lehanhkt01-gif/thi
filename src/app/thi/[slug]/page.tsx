@@ -1352,7 +1352,7 @@ export default function ExamPage({ params }: { params: Promise<{ slug: string }>
 
                   <div className="flex items-center space-x-2 bg-white text-slate-800 font-semibold px-3.5 py-1.5 rounded-full shadow-xs">
                     <Globe className="w-4 h-4" style={{ color: contest?.themeColor || "#DC2626" }} />
-                    <span>Tham gia tại: <strong>cuocthi.easupso.com</strong></span>
+                    <span>Tham gia tại: <strong>thi.easupso.com</strong></span>
                   </div>
                 </div>
               </div>

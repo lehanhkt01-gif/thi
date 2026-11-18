@@ -5147,7 +5147,7 @@ export default function AdminDashboardPage() {
               <div>
                 <strong>I. MỤC ĐÍCH, YÊU CẦU:</strong>
                 <p>1. Tuyên truyền sâu rộng các chủ trương của Đảng, pháp luật của Nhà nước và phong trào thi đua yêu nước tới cán bộ, đoàn viên và nhân dân 20 thôn, buôn.</p>
-                <p>2. Khuyến khích ứng dụng công nghệ số, bình chọn minh bạch trên cổng cuocthi.easupso.com.</p>
+                <p>2. Khuyến khích ứng dụng công nghệ số, bình chọn minh bạch trên cổng thi.easupso.com.</p>
               </div>
 
               <div>

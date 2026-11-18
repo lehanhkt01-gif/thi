@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "thi trực tuyến",
     "thi trắc nghiệm",
     "thi.easupso.com",
-    "cuocthi.easupso.com",
+    "thi.easupso.com",
     "easupso",
     "tìm hiểu pháp luật",
     "Đắk Lắk",
