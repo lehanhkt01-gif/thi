@@ -256,7 +256,7 @@ export default function HomePage() {
                         href={`/binh-chon/${mc.slug}`}
                         className="w-full inline-flex items-center justify-center py-2 px-3 rounded-xl bg-[#009E60] hover:bg-[#008552] text-white text-xs font-bold shadow-xs transition-colors"
                       >
-                        Tham gia bình chọn ngay &gt;&gt;
+                        Tham gia và Bình chọn ngay
                       </Link>
                     </div>
                   ))
