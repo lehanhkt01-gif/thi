@@ -158,6 +158,10 @@ export default function AdminDashboardPage() {
   const [mediaCreatorFilter, setMediaCreatorFilter] = useState<string>("ALL");
   const [selectedMediaContestIds, setSelectedMediaContestIds] = useState<string[]>([]);
   const [showCreateMediaModal, setShowCreateMediaModal] = useState(false);
+  const showCreateMediaModalRef = React.useRef(false);
+  useEffect(() => {
+    showCreateMediaModalRef.current = showCreateMediaModal;
+  }, [showCreateMediaModal]);
   const [showPlanTemplateModal, setShowPlanTemplateModal] = useState(false);
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [activeMediaContestForSubmissions, setActiveMediaContestForSubmissions] = useState<any>(null);
@@ -906,8 +910,9 @@ export default function AdminDashboardPage() {
       });
 
       if (
+        !showCreateMediaModalRef.current &&
         editingMediaContestId &&
-        (incoming.id === editingMediaContestId || incoming.slug === editingMediaContestId)
+        (incoming.id === editingMediaContestId || incoming.slug === incoming.slug && incoming.slug === editingMediaContestId)
       ) {
         const syncedModes: ("vertical" | "horizontal")[] =
           Array.isArray(incoming.layoutModes) && incoming.layoutModes.length > 0
@@ -5039,11 +5044,12 @@ export default function AdminDashboardPage() {
                       </label>
                       <input
                         type="text"
-                        value={newMediaForm.organizerName}
+                        value={newMediaForm.organizerName ?? ""}
                         onChange={(e) =>
-                          setNewMediaForm({ ...newMediaForm, organizerName: e.target.value })
+                          setNewMediaForm((prev) => ({ ...prev, organizerName: e.target.value }))
                         }
-                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                        placeholder="Nhập tên đơn vị tổ chức..."
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                       />
                     </div>
                     <div>
@@ -5052,11 +5058,12 @@ export default function AdminDashboardPage() {
                       </label>
                       <input
                         type="text"
-                        value={newMediaForm.organizerAddress}
+                        value={newMediaForm.organizerAddress ?? ""}
                         onChange={(e) =>
-                          setNewMediaForm({ ...newMediaForm, organizerAddress: e.target.value })
+                          setNewMediaForm((prev) => ({ ...prev, organizerAddress: e.target.value }))
                         }
-                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                        placeholder="Nhập địa chỉ liên hệ..."
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                       />
                     </div>
                     <div className="grid grid-cols-2 gap-2">
@@ -5066,11 +5073,12 @@ export default function AdminDashboardPage() {
                         </label>
                         <input
                           type="text"
-                          value={newMediaForm.organizerPhone}
+                          value={newMediaForm.organizerPhone ?? ""}
                           onChange={(e) =>
-                            setNewMediaForm({ ...newMediaForm, organizerPhone: e.target.value })
+                            setNewMediaForm((prev) => ({ ...prev, organizerPhone: e.target.value }))
                           }
-                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                          placeholder="Số điện thoại..."
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                         />
                       </div>
                       <div>
@@ -5079,11 +5087,12 @@ export default function AdminDashboardPage() {
                         </label>
                         <input
                           type="email"
-                          value={newMediaForm.organizerEmail}
+                          value={newMediaForm.organizerEmail ?? ""}
                           onChange={(e) =>
-                            setNewMediaForm({ ...newMediaForm, organizerEmail: e.target.value })
+                            setNewMediaForm((prev) => ({ ...prev, organizerEmail: e.target.value }))
                           }
-                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 text-xs"
+                          placeholder="Email ban tổ chức..."
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                         />
                       </div>
                     </div>

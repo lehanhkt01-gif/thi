@@ -199,6 +199,10 @@ export default function MediaContestPublicPage({
   const [pendingSubmitAfterLogin, setPendingSubmitAfterLogin] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(true);
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const showSettingsDrawerRef = useRef(false);
+  useEffect(() => {
+    showSettingsDrawerRef.current = showSettingsDrawer;
+  }, [showSettingsDrawer]);
   const [openAccordions, setOpenAccordions] = useState<Record<SettingsSectionKey, boolean>>({
     "cau-hinh": true,
     "yeu-cau-thong-tin": false,
@@ -623,20 +627,22 @@ export default function MediaContestPublicPage({
     if ("BroadcastChannel" in window) {
       bc = new BroadcastChannel("easup_media_contest_sync");
       bc.onmessage = (ev) => {
-        if (ev.data?.type === "MEDIA_CONTEST_SYNC") {
+        if (ev.data?.type === "MEDIA_CONTEST_SYNC" && !showSettingsDrawerRef.current) {
           loadData();
         }
       };
     }
 
     const onStorage = (e: StorageEvent) => {
-      if (e.key === "easup_media_contest_sync_event") {
+      if (e.key === "easup_media_contest_sync_event" && !showSettingsDrawerRef.current) {
         loadData();
       }
     };
 
     const onFocus = () => {
-      loadData();
+      if (!showSettingsDrawerRef.current) {
+        loadData();
+      }
     };
 
     window.addEventListener("storage", onStorage);
@@ -3100,18 +3106,20 @@ export default function MediaContestPublicPage({
                     <label className="block font-semibold text-slate-700 mb-1">Đơn vị tổ chức</label>
                     <input
                       type="text"
-                      value={contest.organizerName || ""}
+                      value={contest.organizerName ?? ""}
                       onChange={(e) => updateContestField("organizerName", e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                      placeholder="Nhập tên đơn vị tổ chức..."
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                     />
                   </div>
                   <div>
                     <label className="block font-semibold text-slate-700 mb-1">Địa chỉ</label>
                     <input
                       type="text"
-                      value={contest.organizerAddress || ""}
+                      value={contest.organizerAddress ?? ""}
                       onChange={(e) => updateContestField("organizerAddress", e.target.value)}
-                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                      placeholder="Nhập địa chỉ liên hệ..."
+                      className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                     />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
@@ -3119,18 +3127,20 @@ export default function MediaContestPublicPage({
                       <label className="block font-semibold text-slate-700 mb-1">Điện thoại</label>
                       <input
                         type="text"
-                        value={contest.organizerPhone || ""}
+                        value={contest.organizerPhone ?? ""}
                         onChange={(e) => updateContestField("organizerPhone", e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                        placeholder="Số điện thoại..."
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                       />
                     </div>
                     <div>
                       <label className="block font-semibold text-slate-700 mb-1">Email</label>
                       <input
                         type="text"
-                        value={contest.organizerEmail || ""}
+                        value={contest.organizerEmail ?? ""}
                         onChange={(e) => updateContestField("organizerEmail", e.target.value)}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 text-xs"
+                        placeholder="Email ban tổ chức..."
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-900 text-xs focus:outline-none focus:border-red-500"
                       />
                     </div>
                   </div>
