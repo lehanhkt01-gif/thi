@@ -38,10 +38,53 @@ export async function POST(
 
     const maxImgs = contest.maxImagesPerSubmission || 5;
     const rawUrls: string[] = Array.isArray(body.mediaUrls) && body.mediaUrls.length > 0
-      ? body.mediaUrls.filter(Boolean).slice(0, maxImgs)
-      : body.mediaUrl
-        ? [body.mediaUrl]
-        : ["https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"];
+      ? body.mediaUrls.map((u: any) => String(u || "").trim()).filter(Boolean).slice(0, maxImgs)
+      : body.mediaUrl && String(body.mediaUrl).trim()
+        ? [String(body.mediaUrl).trim()]
+        : [];
+
+    if (rawUrls.length === 0) {
+      return NextResponse.json(
+        {
+          error:
+            contest.type === "VIDEO"
+              ? "Vui lòng tải lên tệp Video dự thi trước khi gửi!"
+              : "Vui lòng tải lên Hình ảnh dự thi trước khi gửi!",
+        },
+        { status: 400 }
+      );
+    }
+
+    const isVideoMediaUrl = (url: string): boolean => {
+      const clean = url.trim().toLowerCase();
+      if (clean.startsWith("data:video/")) return true;
+      const withoutQuery = clean.split("?")[0].split("#")[0];
+      return /\.(mp4|webm|mov|m4v|avi|mkv|ogv)$/.test(withoutQuery);
+    };
+
+    if (contest.type === "VIDEO") {
+      const hasNonVideo = rawUrls.some((u) => !isVideoMediaUrl(u));
+      if (hasNonVideo) {
+        return NextResponse.json(
+          {
+            error:
+              "Cuộc thi này đang thiết lập chế độ Bình chọn Video. Không thể nộp hình ảnh hoặc đường dẫn không phải Video (.mp4, .webm, .mov...)!",
+          },
+          { status: 400 }
+        );
+      }
+    } else if (contest.type === "IMAGE") {
+      const hasVideo = rawUrls.some((u) => isVideoMediaUrl(u));
+      if (hasVideo) {
+        return NextResponse.json(
+          {
+            error:
+              "Cuộc thi này đang thiết lập chế độ Bình chọn Ảnh. Vui lòng chỉ nộp hình ảnh!",
+          },
+          { status: 400 }
+        );
+      }
+    }
 
     const newSub = store.addMediaSubmission({
       contestId: contest.id,
@@ -53,7 +96,7 @@ export async function POST(
       authorEmail: (body.authorEmail || body.submitterEmail || req.headers.get("x-user-email") || "").toLowerCase().trim(),
       userId: body.submitterId || req.headers.get("x-user-id") || undefined,
       unitName: body.unitName,
-      mediaType: body.mediaType || contest.type || "IMAGE",
+      mediaType: contest.type || "IMAGE",
       mediaUrl: rawUrls[0],
       mediaUrls: rawUrls,
       orientation: body.orientation || undefined,

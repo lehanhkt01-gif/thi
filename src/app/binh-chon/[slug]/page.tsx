@@ -1426,15 +1426,41 @@ export default function MediaContestPublicPage({
       return;
     }
 
+    if (isUploadingSubmitImage) {
+      alert("Tệp đang được xử lý và tải lên hệ thống. Vui lòng chờ hoàn tất trước khi bấm Gửi!");
+      return;
+    }
+
+    const candidateUrls =
+      submitForm.mediaUrls.length > 0
+        ? submitForm.mediaUrls.map((u) => u.trim()).filter(Boolean)
+        : submitForm.mediaUrl && submitForm.mediaUrl.trim()
+          ? [submitForm.mediaUrl.trim()]
+          : [];
+
+    if (candidateUrls.length === 0) {
+      alert(
+        contest?.type === "VIDEO"
+          ? "Cuộc thi yêu cầu nộp Video dự thi. Vui lòng tải lên tệp Video trước khi gửi!"
+          : "Vui lòng tải lên Hình ảnh dự thi trước khi gửi!"
+      );
+      return;
+    }
+
+    if (contest?.type === "VIDEO" && candidateUrls.some((u) => !isVideoUrl(u))) {
+      alert(
+        "Cuộc thi này đang thiết lập chế độ Bình chọn Video. Không thể nộp hình ảnh hoặc đường dẫn không phải Video (.mp4, .webm, .mov...)!"
+      );
+      return;
+    }
+
+    if (contest?.type === "IMAGE" && candidateUrls.some((u) => isVideoUrl(u))) {
+      alert("Cuộc thi này đang thiết lập chế độ Bình chọn Ảnh. Vui lòng chỉ nộp hình ảnh!");
+      return;
+    }
+
     setIsSubmitting(true);
     try {
-      const candidateUrls =
-        submitForm.mediaUrls.length > 0
-          ? submitForm.mediaUrls
-          : submitForm.mediaUrl
-            ? [submitForm.mediaUrl]
-            : [];
-
       const uploadedUrls: string[] = [];
       for (const itemUrl of candidateUrls.slice(0, maxImagesPerSubmission)) {
         if (itemUrl && itemUrl.startsWith("data:")) {
@@ -1442,7 +1468,10 @@ export default function MediaContestPublicPage({
             const upRes = await fetch("/api/upload", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ base64: itemUrl, name: "tac-pham.jpg" }),
+              body: JSON.stringify({
+                base64: itemUrl,
+                name: itemUrl.startsWith("data:video/") ? "tac-pham.mp4" : "tac-pham.jpg",
+              }),
             });
             const upData = await safeParseResponseJson(upRes);
             if (upRes.ok && upData.success && upData.url) {
@@ -1458,10 +1487,13 @@ export default function MediaContestPublicPage({
         }
       }
 
-      const finalMediaUrls =
-        uploadedUrls.length > 0
-          ? uploadedUrls
-          : ["https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80"];
+      if (uploadedUrls.length === 0) {
+        alert("Không có tệp tác phẩm hợp lệ để gửi!");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const finalMediaUrls = uploadedUrls;
 
       const res = await fetch(`/api/media-contests/${encodeURIComponent(slug)}/submit`, {
         method: "POST",
