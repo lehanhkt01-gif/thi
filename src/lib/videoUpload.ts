@@ -109,22 +109,39 @@ function transcodeVideoInBrowser(
 
     let audioCtx: AudioContext | null = null;
     let animationId = 0;
+    let vfcId = 0;
     let recorder: MediaRecorder | null = null;
     const chunks: BlobPart[] = [];
 
+    // Gắn video & canvas vào DOM (ẩn ở ngoài màn hình với opacity 0.01) để trình duyệt không tạm dừng giải mã khung hình (tránh lỗi đứng hình)
+    const hostContainer = document.createElement("div");
+    hostContainer.style.cssText =
+      "position:fixed;left:-9999px;top:0;width:4px;height:4px;opacity:0.01;pointer-events:none;overflow:hidden;z-index:-1;";
+    video.style.cssText = "width:100%;height:100%;";
+    canvas.style.cssText = "width:100%;height:100%;";
+    hostContainer.appendChild(video);
+    hostContainer.appendChild(canvas);
+    document.body.appendChild(hostContainer);
+
     const cleanup = () => {
       if (animationId) cancelAnimationFrame(animationId);
+      if (vfcId && typeof (video as any).cancelVideoFrameCallback === "function") {
+        (video as any).cancelVideoFrameCallback(vfcId);
+      }
       URL.revokeObjectURL(url);
       if (audioCtx && audioCtx.state !== "closed") {
         audioCtx.close().catch(() => {});
       }
       video.pause();
       video.removeAttribute("src");
+      if (hostContainer.parentNode) {
+        hostContainer.parentNode.removeChild(hostContainer);
+      }
     };
 
     video.onloadeddata = () => {
       try {
-        const canvasStream = canvas.captureStream(24);
+        const canvasStream = canvas.captureStream(30);
         const tracks: MediaStreamTrack[] = [...canvasStream.getVideoTracks()];
 
         // Tách luồng âm thanh im lặng qua AudioContext để giữ nguyên tiếng trong video nén
@@ -147,7 +164,7 @@ function transcodeVideoInBrowser(
         const { mimeType, ext } = pickSupportedVideoMimeType();
         const options: MediaRecorderOptions = {
           videoBitsPerSecond,
-          audioBitsPerSecond: 64000,
+          audioBitsPerSecond: 96000,
         };
         if (mimeType) {
           options.mimeType = mimeType;
@@ -172,26 +189,45 @@ function transcodeVideoInBrowser(
           reject(new Error("Quá trình nén video bị gián đoạn."));
         };
 
-        const renderFrame = () => {
-          if (video.paused || video.ended) return;
-          ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+        const drawCurrentFrame = () => {
+          if (video.readyState >= 2) {
+            ctx.drawImage(video, 0, 0, targetWidth, targetHeight);
+          }
           if (onProgress && meta.duration > 0) {
             const pct = Math.min(99, Math.round((video.currentTime / meta.duration) * 100));
             onProgress(pct);
           }
-          animationId = requestAnimationFrame(renderFrame);
+        };
+
+        const useVfc = typeof (video as any).requestVideoFrameCallback === "function";
+        const scheduleNextFrame = () => {
+          if (video.paused || video.ended) return;
+          if (useVfc) {
+            vfcId = (video as any).requestVideoFrameCallback(() => {
+              drawCurrentFrame();
+              scheduleNextFrame();
+            });
+          } else {
+            animationId = requestAnimationFrame(() => {
+              drawCurrentFrame();
+              scheduleNextFrame();
+            });
+          }
         };
 
         video.onended = () => {
+          drawCurrentFrame();
           if (onProgress) onProgress(100);
           if (recorder && recorder.state !== "inactive") {
             recorder.stop();
           }
         };
 
+        // Vẽ khung hình đầu tiên trước khi start
+        drawCurrentFrame();
         recorder.start(500);
         video.play().then(() => {
-          renderFrame();
+          scheduleNextFrame();
         }).catch((playErr) => {
           cleanup();
           reject(new Error("Không thể phát video để nén: " + (playErr?.message || "")));
@@ -209,6 +245,22 @@ function transcodeVideoInBrowser(
   });
 }
 
+let cachedFfmpegAvailable: boolean | null = null;
+
+export async function isServerFfmpegAvailable(): Promise<boolean> {
+  if (cachedFfmpegAvailable !== null) return cachedFfmpegAvailable;
+  try {
+    const res = await fetch("/api/upload", { method: "GET", cache: "no-store" });
+    if (res.ok) {
+      const data = await res.json();
+      cachedFfmpegAvailable = Boolean(data?.ffmpegAvailable);
+      return cachedFfmpegAvailable;
+    }
+  } catch {}
+  cachedFfmpegAvailable = false;
+  return false;
+}
+
 export async function compressVideoIfNeeded(
   file: File,
   maxBytes: number = MAX_VIDEO_SIZE_BYTES,
@@ -218,6 +270,7 @@ export async function compressVideoIfNeeded(
   fileName: string;
   orientation: "vertical" | "horizontal";
   compressed: boolean;
+  serverCompression?: boolean;
   originalSize: number;
   finalSize: number;
 }> {
@@ -234,22 +287,35 @@ export async function compressVideoIfNeeded(
     };
   }
 
-  // Mục tiêu nén xuống ~26MB để đảm bảo chắc chắn dưới 30MB
-  const targetBytes = Math.floor(maxBytes * 0.86);
-  const targetTotalBps = Math.floor((targetBytes * 8) / Math.max(meta.duration, 1));
-  const audioBps = 64000;
-  let videoBps = Math.max(150000, Math.min(2200000, targetTotalBps - audioBps));
+  // Ưu tiên nén bằng FFmpeg trên máy chủ để đạt chất lượng hình ảnh sắc nét (H.264 + faststart) và không bao giờ bị đứng hình
+  const hasServerFfmpeg = await isServerFfmpegAvailable();
+  if (hasServerFfmpeg) {
+    return {
+      blob: file,
+      fileName: file.name,
+      orientation: meta.orientation,
+      compressed: false,
+      serverCompression: true,
+      originalSize: file.size,
+      finalSize: file.size,
+    };
+  }
 
-  // Chọn độ phân giải giảm dần theo thời lượng / bitrate
-  let maxDim = 720;
-  if (videoBps < 450000) maxDim = 480;
-  else if (videoBps < 900000) maxDim = 640;
-  else maxDim = 720;
+  // Fallback: Nén trực tiếp trên trình duyệt nếu máy chủ không có FFmpeg
+  const targetBytes = Math.floor(maxBytes * 0.88);
+  const targetTotalBps = Math.floor((targetBytes * 8) / Math.max(meta.duration, 1));
+  const audioBps = 96000;
+  const videoBps = Math.max(250000, Math.min(2400000, targetTotalBps - audioBps));
+
+  let maxDim = 1280;
+  if (videoBps < 450000) maxDim = 640;
+  else if (videoBps < 900000) maxDim = 960;
+  else maxDim = 1280;
 
   if (onProgress) {
     onProgress(
       1,
-      `Video ${formatFileSizeMB(file.size)} > 30MB. Đang giảm độ phân giải xuống ${maxDim}p...`
+      `Video ${formatFileSizeMB(file.size)} > 30MB. Đang xử lý tối ưu chất lượng xuống dưới 30MB...`
     );
   }
 
@@ -257,26 +323,25 @@ export async function compressVideoIfNeeded(
     if (onProgress) {
       onProgress(
         pct,
-        `Đang giảm độ phân giải (${maxDim}p) để đưa dung lượng dưới 30MB... ${pct}%`
+        `Đang tối ưu video xuống dưới 30MB (giữ nét)... ${pct}%`
       );
     }
   });
 
-  // Nếu lần 1 vẫn > 30MB, tự động nén tiếp lần 2 ở độ phân giải thấp hơn (480p / 360p)
   if (result.blob.size > maxBytes) {
-    const pass2Dim = maxDim > 480 ? 480 : 360;
-    const pass2Bps = Math.max(120000, Math.floor(videoBps * 0.6));
+    const pass2Dim = maxDim > 854 ? 854 : 640;
+    const pass2Bps = Math.max(180000, Math.floor(videoBps * 0.65));
     if (onProgress) {
       onProgress(
         1,
-        `Dung lượng sau nén (${formatFileSizeMB(result.blob.size)}) vẫn > 30MB. Đang nén tối ưu mức ${pass2Dim}p...`
+        `Dung lượng sau nén (${formatFileSizeMB(result.blob.size)}) vẫn > 30MB. Đang tối ưu thêm...`
       );
     }
     result = await transcodeVideoInBrowser(file, meta, pass2Dim, pass2Bps, (pct) => {
       if (onProgress) {
         onProgress(
           pct,
-          `Đang tối ưu độ phân giải (${pass2Dim}p) xuống dưới 30MB... ${pct}%`
+          `Đang tối ưu video xuống dưới 30MB... ${pct}%`
         );
       }
     });
@@ -296,7 +361,8 @@ export async function compressVideoIfNeeded(
 export async function uploadFileChunked(
   blob: Blob,
   fileName: string,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  onServerResult?: (info: { compressed?: boolean; originalSize?: number; finalSize?: number }) => void
 ): Promise<string> {
   const CHUNK_SIZE = 512 * 1024; // 512KB mỗi phần (an toàn qua Nginx 1MB limit)
   const totalChunks = Math.max(1, Math.ceil(blob.size / CHUNK_SIZE));
@@ -335,6 +401,14 @@ export async function uploadFileChunked(
       finalUrl = data.url;
     }
 
+    if (i === totalChunks - 1 && onServerResult) {
+      onServerResult({
+        compressed: data.compressed,
+        originalSize: data.originalSize,
+        finalSize: data.finalSize,
+      });
+    }
+
     if (onProgress) {
       onProgress(Math.round(((i + 1) / totalChunks) * 100));
     }
@@ -346,3 +420,4 @@ export async function uploadFileChunked(
 
   return finalUrl;
 }
+

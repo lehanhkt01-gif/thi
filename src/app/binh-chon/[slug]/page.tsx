@@ -871,7 +871,7 @@ export default function MediaContestPublicPage({
             detectedOrientation = compressedResult.orientation;
           }
 
-          if (compressedResult.finalSize > 30 * 1024 * 1024) {
+          if (!compressedResult.serverCompression && compressedResult.finalSize > 30 * 1024 * 1024) {
             alert(
               `Video "${file.name}" sau khi giảm độ phân giải vẫn còn ${formatFileSizeMB(
                 compressedResult.finalSize
@@ -882,33 +882,56 @@ export default function MediaContestPublicPage({
 
           setVideoProcessProgress(0);
           setVideoProcessStatus(
-            compressedResult.compressed
-              ? `Đã nén từ ${formatFileSizeMB(compressedResult.originalSize)} xuống ${formatFileSizeMB(
-                  compressedResult.finalSize
-                )}. Đang tải lên hệ thống...`
-              : `Đang tải video (${formatFileSizeMB(compressedResult.finalSize)}) lên hệ thống...`
+            compressedResult.serverCompression
+              ? `Đang tải video (${formatFileSizeMB(compressedResult.originalSize)}) lên máy chủ để nén tối ưu sắc nét...`
+              : compressedResult.compressed
+                ? `Đã nén từ ${formatFileSizeMB(compressedResult.originalSize)} xuống ${formatFileSizeMB(
+                    compressedResult.finalSize
+                  )}. Đang tải lên hệ thống...`
+                : `Đang tải video (${formatFileSizeMB(compressedResult.finalSize)}) lên hệ thống...`
           );
 
+          let serverCompInfo: { compressed?: boolean; originalSize?: number; finalSize?: number } | null = null;
           const finalVideoUrl = await uploadFileChunked(
             compressedResult.blob,
             compressedResult.fileName,
             (pct) => {
               setVideoProcessProgress(pct);
-              setVideoProcessStatus(
-                compressedResult.compressed
-                  ? `Đã nén xuống ${formatFileSizeMB(compressedResult.finalSize)} • Đang tải lên ${pct}%`
-                  : `Đang tải video lên hệ thống... ${pct}%`
-              );
+              if (compressedResult.serverCompression) {
+                setVideoProcessStatus(
+                  pct >= 100
+                    ? "Đang xử lý nén H.264 trên máy chủ (giữ chất lượng nét, chống đứng hình)..."
+                    : `Đang tải video lên máy chủ để tối ưu... ${pct}%`
+                );
+              } else {
+                setVideoProcessStatus(
+                  compressedResult.compressed
+                    ? `Đã nén xuống ${formatFileSizeMB(compressedResult.finalSize)} • Đang tải lên ${pct}%`
+                    : `Đang tải video lên hệ thống... ${pct}%`
+                );
+              }
+            },
+            (info) => {
+              serverCompInfo = info;
             }
           );
           uploadedUrls.push(finalVideoUrl);
-          setVideoProcessStatus(
-            compressedResult.compressed
-              ? `✅ Đã giảm độ phân giải & tải video thành công (${formatFileSizeMB(
-                  compressedResult.originalSize
-                )} → ${formatFileSizeMB(compressedResult.finalSize)})`
-              : `✅ Đã tải video lên thành công (${formatFileSizeMB(compressedResult.finalSize)})`
-          );
+          if (serverCompInfo && (serverCompInfo as any).compressed) {
+            const sc = serverCompInfo as { originalSize: number; finalSize: number };
+            setVideoProcessStatus(
+              `✅ Đã tối ưu video chuẩn H.264 sắc nét (${formatFileSizeMB(
+                sc.originalSize
+              )} → ${formatFileSizeMB(sc.finalSize)})`
+            );
+          } else {
+            setVideoProcessStatus(
+              compressedResult.compressed
+                ? `✅ Đã giảm độ phân giải & tải video thành công (${formatFileSizeMB(
+                    compressedResult.originalSize
+                  )} → ${formatFileSizeMB(compressedResult.finalSize)})`
+                : `✅ Đã tải video lên thành công (${formatFileSizeMB(compressedResult.finalSize)})`
+            );
+          }
         } else {
           const { blob, dataUrl, orientation } = await compressImageToJpeg(file);
           if (!detectedOrientation) {

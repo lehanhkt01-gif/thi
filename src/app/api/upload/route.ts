@@ -1,10 +1,142 @@
-// src/app/api/upload/route.ts - API tiếp nhận và lưu trữ ảnh / PDF upload an toàn (hỗ trợ cả chunked upload vượt giới hạn Nginx 1MB)
+// src/app/api/upload/route.ts - API tiếp nhận và lưu trữ ảnh / PDF / Video upload an toàn (hỗ trợ chunked upload & nén video FFmpeg < 30MB)
 import { NextRequest, NextResponse } from "next/server";
-import { writeFile, appendFile, mkdir } from "fs/promises";
+import { writeFile, appendFile, mkdir, stat, unlink, copyFile, rename } from "fs/promises";
 import path from "path";
+import { execFile } from "child_process";
+import { promisify } from "util";
+
+const execFileAsync = promisify(execFile);
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
+
+const VIDEO_EXTS = new Set([".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv", ".ogv"]);
+const MAX_TARGET_VIDEO_BYTES = 30 * 1024 * 1024; // 30MB
+
+async function checkFfmpegInstalled(): Promise<boolean> {
+  try {
+    await execFileAsync("ffmpeg", ["-version"], { timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function probeVideoDuration(filePath: string): Promise<number> {
+  try {
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-show_entries",
+        "format=duration",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+        filePath,
+      ],
+      { timeout: 10000 }
+    );
+    const val = parseFloat((stdout || "").trim());
+    return isFinite(val) && val > 0 ? val : 60;
+  } catch {
+    return 60;
+  }
+}
+
+async function compressVideoWithFfmpeg(
+  publicFilePath: string,
+  storageFilePath: string
+): Promise<{ finalPublicPath: string; finalFileName: string; originalSize: number; finalSize: number }> {
+  const st = await stat(publicFilePath);
+  const originalSize = st.size;
+  const duration = await probeVideoDuration(publicFilePath);
+
+  // Mục tiêu ~26.5MB để chắc chắn dưới 30MB nhưng giữ chất lượng hình ảnh sắc nét nhất có thể
+  const targetBits = 26.5 * 1024 * 1024 * 8;
+  const totalBps = Math.floor(targetBits / Math.max(duration, 1));
+  const audioBps = 96000;
+  let videoMaxRate = Math.max(250000, Math.min(2400000, totalBps - audioBps));
+
+  // Chọn độ phân giải tối ưu theo bitrate để hình ảnh sắc nét, không bị vỡ hạt
+  let maxDim = 1280; // 720p
+  if (videoMaxRate < 420000) maxDim = 854; // 480p
+  else if (videoMaxRate < 750000) maxDim = 960; // 540p
+
+  const dir = path.dirname(publicFilePath);
+  const baseNoExt = path.basename(publicFilePath, path.extname(publicFilePath));
+  const compressedFileName = `${baseNoExt}-opt.mp4`;
+  const tempOutputPath = path.join(dir, compressedFileName);
+
+  const runPass = async (crf: number, maxRate: number, dim: number) => {
+    const vf = `scale='min(${dim},iw)':'min(${dim},ih)':force_original_aspect_ratio=decrease,scale=trunc(iw/2)*2:trunc(ih/2)*2`;
+    await execFileAsync(
+      "ffmpeg",
+      [
+        "-y",
+        "-i",
+        publicFilePath,
+        "-vf",
+        vf,
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        String(crf),
+        "-maxrate",
+        String(maxRate),
+        "-bufsize",
+        String(maxRate * 2),
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "96k",
+        "-movflags",
+        "+faststart",
+        tempOutputPath,
+      ],
+      { timeout: 180000 }
+    );
+  };
+
+  await runPass(23, videoMaxRate, maxDim);
+  let outStat = await stat(tempOutputPath);
+
+  // Nếu lần 1 vẫn > 30MB, nén thêm 1 lượt nhẹ ở bitrate thấp hơn
+  if (outStat.size > MAX_TARGET_VIDEO_BYTES) {
+    const nextDim = maxDim > 854 ? 854 : 640;
+    const nextRate = Math.max(180000, Math.floor(videoMaxRate * 0.7));
+    await runPass(27, nextRate, nextDim);
+    outStat = await stat(tempOutputPath);
+  }
+
+  const finalMp4Name = `${baseNoExt}.mp4`;
+  const finalPublicPath = path.join(dir, finalMp4Name);
+  const finalStoragePath = path.join(path.dirname(storageFilePath), finalMp4Name);
+
+  // Xóa file gốc nặng > 30MB và thay bằng bản MP4 chuẩn đã tối ưu
+  if (publicFilePath !== finalPublicPath) {
+    await unlink(publicFilePath).catch(() => {});
+    await unlink(storageFilePath).catch(() => {});
+  }
+  await rename(tempOutputPath, finalPublicPath);
+  await copyFile(finalPublicPath, finalStoragePath).catch(() => {});
+
+  return {
+    finalPublicPath,
+    finalFileName: finalMp4Name,
+    originalSize,
+    finalSize: outStat.size,
+  };
+}
+
+export async function GET() {
+  const ffmpegAvailable = await checkFfmpegInstalled();
+  return NextResponse.json({ success: true, ffmpegAvailable });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -132,6 +264,49 @@ export async function POST(req: NextRequest) {
         await appendFile(storageFilePath, fileBuffer).catch(() => {});
       }
       const isComplete = chunkIndex >= totalChunks - 1;
+
+      if (isComplete && VIDEO_EXTS.has(fileExt)) {
+        try {
+          const st = await stat(publicFilePath);
+          if (st.size > MAX_TARGET_VIDEO_BYTES) {
+            const hasFfmpeg = await checkFfmpegInstalled();
+            if (hasFfmpeg) {
+              const comp = await compressVideoWithFfmpeg(publicFilePath, storageFilePath);
+              return NextResponse.json({
+                success: true,
+                complete: true,
+                chunkIndex,
+                totalChunks,
+                url: `/uploads/${comp.finalFileName}`,
+                fileName: comp.finalFileName,
+                compressed: true,
+                originalSize: comp.originalSize,
+                finalSize: comp.finalSize,
+              });
+            } else {
+              await unlink(publicFilePath).catch(() => {});
+              await unlink(storageFilePath).catch(() => {});
+              return NextResponse.json(
+                {
+                  success: false,
+                  error: "Video vượt quá 30MB và máy chủ chưa cài đặt FFmpeg để nén.",
+                },
+                { status: 400 }
+              );
+            }
+          }
+        } catch (compErr: any) {
+          console.error("[API Upload] Lỗi nén video FFmpeg:", compErr);
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Không thể nén video xuống dưới 30MB: " + (compErr?.message || "Lỗi FFmpeg"),
+            },
+            { status: 500 }
+          );
+        }
+      }
+
       return NextResponse.json({
         success: true,
         complete: isComplete,
