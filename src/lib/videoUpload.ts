@@ -385,18 +385,35 @@ export function extractVideoThumbnail(file: File, seekSeconds = 5): Promise<Blob
       resolve(result);
     };
 
-    const timer = setTimeout(() => cleanup(null), 6000);
+    const timer = setTimeout(() => cleanup(null), 10000);
+    let candidateTimes: number[] = [];
+    let candIdx = 0;
 
     video.onloadedmetadata = () => {
       const duration = video.duration;
-      const targetTime =
-        duration && isFinite(duration) && duration > 0
-          ? duration >= seekSeconds + 0.5
-            ? seekSeconds
-            : Math.max(0.2, Number((duration * 0.4).toFixed(2)))
-          : 0;
+      if (duration && isFinite(duration) && duration > 0) {
+        const maxT = Math.max(0.2, duration - 0.3);
+        const raw = [
+          seekSeconds,
+          10,
+          Number((duration * 0.25).toFixed(2)),
+          Number((duration * 0.5).toFixed(2)),
+          2,
+        ];
+        const seen = new Set<number>();
+        for (const t of raw) {
+          const c = Math.min(maxT, Math.max(0.2, t));
+          const k = Math.round(c * 10);
+          if (!seen.has(k)) {
+            seen.add(k);
+            candidateTimes.push(c);
+          }
+        }
+      } else {
+        candidateTimes = [0];
+      }
       try {
-        video.currentTime = targetTime;
+        video.currentTime = candidateTimes[0] ?? 0;
       } catch {
         clearTimeout(timer);
         cleanup(null);
@@ -421,6 +438,24 @@ export function extractVideoThumbnail(file: File, seekSeconds = 5): Promise<Blob
           return;
         }
         ctx.drawImage(video, 0, 0, cw, ch);
+
+        // Kiểm tra độ sáng trung bình để tránh chọn khung hình đen ở phần mở đầu
+        const imgData = ctx.getImageData(0, 0, cw, ch).data;
+        let sumLuma = 0;
+        let samples = 0;
+        const step = Math.max(4, Math.floor(imgData.length / 4000)) * 4;
+        for (let p = 0; p < imgData.length; p += step) {
+          sumLuma += (imgData[p] + imgData[p + 1] + imgData[p + 2]) / 3;
+          samples++;
+        }
+        const avgBrightness = samples > 0 ? sumLuma / samples : 255;
+
+        if (avgBrightness < 20 && candIdx + 1 < candidateTimes.length) {
+          candIdx++;
+          video.currentTime = candidateTimes[candIdx];
+          return;
+        }
+
         canvas.toBlob(
           (blob) => {
             clearTimeout(timer);

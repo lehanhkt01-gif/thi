@@ -41,8 +41,59 @@ async function probeDuration(filePath: string): Promise<number> {
   }
 }
 
+async function getImageLuma(imagePath: string): Promise<number> {
+  try {
+    const normalized = imagePath.replace(/\\/g, "/").replace(/:/g, "\\:");
+    const { stdout } = await execFileAsync(
+      "ffprobe",
+      [
+        "-v",
+        "error",
+        "-f",
+        "lavfi",
+        "-i",
+        `movie='${normalized}',signalstats`,
+        "-show_entries",
+        "frame_tags=lavfi.signalstats.YAVG",
+        "-of",
+        "default=noprint_wrappers=1:nokey=1",
+      ],
+      { timeout: 6000 }
+    );
+    const val = parseFloat((stdout || "").trim().split(/\s+/)[0] || "");
+    return isFinite(val) ? val : 255;
+  } catch {
+    return 255;
+  }
+}
+
+function buildSeekCandidates(duration: number): number[] {
+  const safeMax = Math.max(0.5, duration - 0.5);
+  const raw = [
+    5,
+    10,
+    15,
+    Number((duration * 0.25).toFixed(2)),
+    Number((duration * 0.5).toFixed(2)),
+    Number((duration * 0.15).toFixed(2)),
+    2,
+    0.5,
+  ];
+  const seen = new Set<number>();
+  const result: number[] = [];
+  for (const t of raw) {
+    const clamped = Math.min(safeMax, Math.max(0.2, Number(t.toFixed(2))));
+    const key = Math.round(clamped * 10);
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(clamped);
+    }
+  }
+  return result;
+}
+
 /**
- * Tạo ảnh thumbnail tại giây thứ 5 (hoặc khung hình rõ nét gần giây thứ 5) từ file video trên ổ đĩa.
+ * Tạo ảnh thumbnail tại giây thứ 5 (hoặc khung hình rõ nét, không bị đen gần giây thứ 5) từ file video trên ổ đĩa.
  * Trả về đường dẫn công khai `/uploads/<name>-thumb.jpg` hoặc `null` nếu không tạo được.
  */
 export async function generateVideoThumbnailFromFile(
@@ -54,61 +105,94 @@ export async function generateVideoThumbnailFromFile(
     const publicDir = path.dirname(videoPublicPath);
     const thumbPublicPath = path.join(publicDir, thumbFileName);
 
-    // Nếu ảnh thumbnail đã tồn tại thì dùng luôn
+    // Nếu ảnh thumbnail đã tồn tại và không bị đen thì dùng luôn
     try {
       const existing = await stat(thumbPublicPath);
       if (existing.isFile() && existing.size > 500) {
-        return `/uploads/${thumbFileName}`;
+        const existingLuma = await getImageLuma(thumbPublicPath);
+        if (existingLuma >= 24) {
+          return `/uploads/${thumbFileName}`;
+        }
       }
     } catch {}
 
     const duration = await probeDuration(videoPublicPath);
-    // Lấy khung hình tại giây thứ 5 (nếu video ngắn hơn 6s thì lấy ở ~40% thời lượng)
-    const seekSec = duration >= 6 ? 5 : Math.max(0.5, Number((duration * 0.4).toFixed(2)));
+    const candidates = buildSeekCandidates(duration);
 
     await mkdir(publicDir, { recursive: true }).catch(() => {});
 
-    // Sử dụng filter `thumbnail=12` bắt đầu từ giây thứ 5 để chọn khung hình rõ nét nhất, tránh khung hình đen/mờ
-    await execFileAsync(
-      "ffmpeg",
-      [
-        "-y",
-        "-ss",
-        String(seekSec),
-        "-i",
-        videoPublicPath,
-        "-vf",
-        "thumbnail=12,scale='min(1280,iw)':-2",
-        "-frames:v",
-        "1",
-        "-q:v",
-        "2",
-        thumbPublicPath,
-      ],
-      { timeout: 25000 }
-    );
+    let bestLuma = -1;
+    let bestTempPath: string | null = null;
 
-    const outStat = await stat(thumbPublicPath).catch(() => null);
-    if (!outStat || !outStat.isFile() || outStat.size < 200) {
-      // Fallback không dùng filter thumbnail nếu video quá ngắn
+    for (let idx = 0; idx < candidates.length; idx++) {
+      const seekSec = candidates[idx];
+      const tempPath = `${thumbPublicPath}.cand${idx}.jpg`;
+
       await execFileAsync(
         "ffmpeg",
         [
           "-y",
           "-ss",
-          String(Math.min(seekSec, 1)),
+          String(seekSec),
           "-i",
           videoPublicPath,
-          "-vframes",
+          "-vf",
+          "thumbnail=15,scale='min(1280,iw)':-2",
+          "-frames:v",
           "1",
           "-q:v",
           "2",
-          "-vf",
-          "scale='min(1280,iw)':-2",
-          thumbPublicPath,
+          tempPath,
         ],
-        { timeout: 15000 }
+        { timeout: 25000 }
       ).catch(() => {});
+
+      const outStat = await stat(tempPath).catch(() => null);
+      if (!outStat || !outStat.isFile() || outStat.size < 200) {
+        await execFileAsync(
+          "ffmpeg",
+          [
+            "-y",
+            "-ss",
+            String(Math.min(seekSec, 1)),
+            "-i",
+            videoPublicPath,
+            "-vframes",
+            "1",
+            "-q:v",
+            "2",
+            "-vf",
+            "scale='min(1280,iw)':-2",
+            tempPath,
+          ],
+          { timeout: 15000 }
+        ).catch(() => {});
+      }
+
+      const candStat = await stat(tempPath).catch(() => null);
+      if (!candStat || !candStat.isFile() || candStat.size < 200) continue;
+
+      const luma = await getImageLuma(tempPath);
+      if (luma > bestLuma) {
+        if (bestTempPath) {
+          await import("fs/promises").then((fs) => fs.unlink(bestTempPath!).catch(() => {}));
+        }
+        bestLuma = luma;
+        bestTempPath = tempPath;
+      } else {
+        await import("fs/promises").then((fs) => fs.unlink(tempPath).catch(() => {}));
+      }
+
+      // Đạt độ sáng rõ nét (>= 24) và dung lượng hợp lý -> chọn luôn không cần dò tiếp
+      if (luma >= 24 && candStat.size >= 3000) {
+        break;
+      }
+      // Thử tối đa 5 mốc thời gian để không làm chậm API
+      if (idx >= 4) break;
+    }
+
+    if (bestTempPath) {
+      await import("fs/promises").then((fs) => fs.rename(bestTempPath!, thumbPublicPath));
     }
 
     const finalStat = await stat(thumbPublicPath).catch(() => null);
@@ -151,7 +235,15 @@ export async function ensureVideoThumbnailForUrl(videoUrl?: string | null): Prom
     try {
       const st = await stat(tp);
       if (st.isFile() && st.size > 200) {
-        return `/uploads/${thumbFileName}`;
+        const luma = await getImageLuma(tp);
+        if (luma >= 24) {
+          const publicThumb = path.join(publicUploadDir, thumbFileName);
+          if (tp !== publicThumb) {
+            await mkdir(publicUploadDir, { recursive: true }).catch(() => {});
+            await copyFile(tp, publicThumb).catch(() => {});
+          }
+          return `/uploads/${thumbFileName}`;
+        }
       }
     } catch {}
   }
@@ -179,3 +271,4 @@ export async function ensureVideoThumbnailForUrl(videoUrl?: string | null): Prom
 
   return null;
 }
+

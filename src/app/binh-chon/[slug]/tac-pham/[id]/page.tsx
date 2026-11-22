@@ -853,6 +853,12 @@ export default function ArtworkDetailPage({
                               muted
                               playsInline
                               preload="metadata"
+                              onLoadedMetadata={(e) => {
+                                const vEl = e.currentTarget;
+                                if (vEl.duration && isFinite(vEl.duration) && vEl.currentTime < 0.5) {
+                                  vEl.currentTime = vEl.duration >= 6 ? 5 : Math.max(0.3, vEl.duration * 0.4);
+                                }
+                              }}
                               className="w-full h-full object-cover bg-slate-900"
                             />
                             <span className="absolute top-2 left-2 bg-black/75 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs">

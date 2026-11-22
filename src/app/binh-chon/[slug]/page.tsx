@@ -2375,6 +2375,9 @@ export default function MediaContestPublicPage({
                                 preload="metadata"
                                 onLoadedMetadata={(e) => {
                                   const vEl = e.currentTarget;
+                                  if (vEl.duration && isFinite(vEl.duration) && vEl.currentTime < 0.5) {
+                                    vEl.currentTime = vEl.duration >= 6 ? 5 : Math.max(0.3, vEl.duration * 0.4);
+                                  }
                                   if (vEl.videoWidth && vEl.videoHeight) {
                                     const naturalOrient: "vertical" | "horizontal" =
                                       vEl.videoWidth > vEl.videoHeight ? "horizontal" : "vertical";
