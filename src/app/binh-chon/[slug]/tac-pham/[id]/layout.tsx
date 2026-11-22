@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { store } from "@/lib/store";
+import { ensureVideoThumbnailForUrl, isServerVideoUrl } from "@/lib/videoThumbnailServer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -26,10 +27,14 @@ export async function generateMetadata({
     sub.description ||
     `Tác phẩm "${sub.title}" của tác giả ${sub.authorName} (${sub.unitName}) tham gia cuộc thi ${contest?.title || "ảnh đẹp trực tuyến Xã Ea Súp"}. Hãy bình chọn ngay!`;
 
-  // Ưu tiên hình ảnh của chính tác phẩm
+  // Ưu tiên hình ảnh của chính tác phẩm (với video, sử dụng ảnh trích xuất ở giây thứ 5)
   let imageUrl = sub.mediaUrl;
   if (Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0) {
     imageUrl = sub.mediaUrls[0];
+  }
+  if (sub.mediaType === "VIDEO" || isServerVideoUrl(imageUrl)) {
+    const thumb = sub.thumbnailUrl || (await ensureVideoThumbnailForUrl(imageUrl));
+    imageUrl = thumb || contest?.bannerUrl || "/images/contest_stage_banner.jpg";
   }
   if (!imageUrl.startsWith("http")) {
     imageUrl = `https://thi.easupso.com${imageUrl.startsWith("/") ? "" : "/"}${imageUrl}`;

@@ -17,6 +17,7 @@ import {
   Sparkles,
   Trash2,
   ZoomIn,
+  Video,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import LoginModal from "@/components/LoginModal";
@@ -54,6 +55,7 @@ interface MediaSubmission {
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
   mediaUrls?: string[];
+  thumbnailUrl?: string;
   orientation?: "vertical" | "horizontal";
   description: string;
   viewsCount?: number;
@@ -586,6 +588,7 @@ export default function ArtworkDetailPage({
                   <video
                     key={currentImageUrl}
                     src={currentImageUrl}
+                    poster={submission.thumbnailUrl || undefined}
                     controls
                     playsInline
                     preload="metadata"
@@ -819,15 +822,54 @@ export default function ArtworkDetailPage({
                   className="group bg-white rounded-2xl border border-slate-200/90 overflow-hidden shadow-2xs hover:shadow-md transition-all flex flex-col cursor-pointer"
                 >
                   <div className="relative aspect-[3/4] bg-slate-100 overflow-hidden">
-                    <img
-                      src={
+                    {(() => {
+                      const otherUrl =
                         Array.isArray(other.mediaUrls) && other.mediaUrls.length > 0
                           ? other.mediaUrls[0]
-                          : other.mediaUrl
+                          : other.mediaUrl;
+                      const isOtherVideo = other.mediaType === "VIDEO" || isVideoUrl(otherUrl);
+                      if (other.thumbnailUrl) {
+                        return (
+                          <>
+                            <img
+                              src={other.thumbnailUrl}
+                              alt={other.title}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            {isOtherVideo && (
+                              <span className="absolute top-2 left-2 bg-black/75 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                                <Video className="w-2.5 h-2.5 text-red-400" />
+                                <span>VIDEO</span>
+                              </span>
+                            )}
+                          </>
+                        );
                       }
-                      alt={other.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
+                      if (isOtherVideo) {
+                        return (
+                          <>
+                            <video
+                              src={otherUrl}
+                              muted
+                              playsInline
+                              preload="metadata"
+                              className="w-full h-full object-cover bg-slate-900"
+                            />
+                            <span className="absolute top-2 left-2 bg-black/75 text-white text-[9px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs">
+                              <Video className="w-2.5 h-2.5 text-red-400" />
+                              <span>VIDEO</span>
+                            </span>
+                          </>
+                        );
+                      }
+                      return (
+                        <img
+                          src={otherUrl}
+                          alt={other.title}
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        />
+                      );
+                    })()}
                     <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1.5">
                       <span>👁️ {other.viewsCount || 0}</span>
                       <span>★ {other.votesCount || 0}</span>

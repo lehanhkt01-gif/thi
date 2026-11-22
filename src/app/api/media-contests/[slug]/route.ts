@@ -1,6 +1,7 @@
 // src/app/api/media-contests/[slug]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { store } from "@/lib/store";
+import { ensureVideoThumbnailForUrl, isServerVideoUrl } from "@/lib/videoThumbnailServer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -20,7 +21,16 @@ export async function GET(
       );
     }
 
-    const submissions = store.getMediaSubmissions(contest.id);
+    const rawSubmissions = store.getMediaSubmissions(contest.id);
+    const submissions = await Promise.all(
+      rawSubmissions.map(async (s) => {
+        if ((s.mediaType === "VIDEO" || isServerVideoUrl(s.mediaUrl)) && !s.thumbnailUrl) {
+          const thumb = await ensureVideoThumbnailForUrl(s.mediaUrl);
+          if (thumb) return { ...s, thumbnailUrl: thumb };
+        }
+        return s;
+      })
+    );
 
     return NextResponse.json({
       success: true,

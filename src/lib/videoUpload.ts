@@ -358,11 +358,100 @@ export async function compressVideoIfNeeded(
   };
 }
 
+/**
+ * Trích xuất 1 khung hình rõ nét từ video (mặc định tại giây thứ 5, hoặc 40% thời lượng nếu video ngắn)
+ */
+export function extractVideoThumbnail(file: File, seekSeconds = 5): Promise<Blob | null> {
+  return new Promise((resolve) => {
+    if (typeof window === "undefined") {
+      resolve(null);
+      return;
+    }
+
+    const url = URL.createObjectURL(file);
+    const video = document.createElement("video");
+    video.muted = true;
+    video.playsInline = true;
+    video.preload = "auto";
+    video.src = url;
+
+    let settled = false;
+    const cleanup = (result: Blob | null) => {
+      if (settled) return;
+      settled = true;
+      URL.revokeObjectURL(url);
+      video.removeAttribute("src");
+      video.load();
+      resolve(result);
+    };
+
+    const timer = setTimeout(() => cleanup(null), 6000);
+
+    video.onloadedmetadata = () => {
+      const duration = video.duration;
+      const targetTime =
+        duration && isFinite(duration) && duration > 0
+          ? duration >= seekSeconds + 0.5
+            ? seekSeconds
+            : Math.max(0.2, Number((duration * 0.4).toFixed(2)))
+          : 0;
+      try {
+        video.currentTime = targetTime;
+      } catch {
+        clearTimeout(timer);
+        cleanup(null);
+      }
+    };
+
+    video.onseeked = () => {
+      try {
+        const vw = video.videoWidth || 1280;
+        const vh = video.videoHeight || 720;
+        const maxDim = 1280;
+        const scale = Math.min(1, maxDim / Math.max(vw, vh));
+        const cw = Math.max(2, Math.round(vw * scale));
+        const ch = Math.max(2, Math.round(vh * scale));
+        const canvas = document.createElement("canvas");
+        canvas.width = cw;
+        canvas.height = ch;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          clearTimeout(timer);
+          cleanup(null);
+          return;
+        }
+        ctx.drawImage(video, 0, 0, cw, ch);
+        canvas.toBlob(
+          (blob) => {
+            clearTimeout(timer);
+            cleanup(blob);
+          },
+          "image/jpeg",
+          0.88
+        );
+      } catch {
+        clearTimeout(timer);
+        cleanup(null);
+      }
+    };
+
+    video.onerror = () => {
+      clearTimeout(timer);
+      cleanup(null);
+    };
+  });
+}
+
 export async function uploadFileChunked(
   blob: Blob,
   fileName: string,
   onProgress?: (pct: number) => void,
-  onServerResult?: (info: { compressed?: boolean; originalSize?: number; finalSize?: number }) => void
+  onServerResult?: (info: {
+    compressed?: boolean;
+    originalSize?: number;
+    finalSize?: number;
+    thumbnailUrl?: string;
+  }) => void
 ): Promise<string> {
   const CHUNK_SIZE = 512 * 1024; // 512KB mỗi phần (an toàn qua Nginx 1MB limit)
   const totalChunks = Math.max(1, Math.ceil(blob.size / CHUNK_SIZE));
@@ -406,6 +495,7 @@ export async function uploadFileChunked(
         compressed: data.compressed,
         originalSize: data.originalSize,
         finalSize: data.finalSize,
+        thumbnailUrl: data.thumbnailUrl,
       });
     }
 

@@ -199,6 +199,7 @@ export interface MediaSubmissionModel {
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
   mediaUrls?: string[];
+  thumbnailUrl?: string;
   orientation?: "vertical" | "horizontal";
   description: string;
   votesCount: number;

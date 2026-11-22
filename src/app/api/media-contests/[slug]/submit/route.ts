@@ -1,6 +1,7 @@
 // src/app/api/media-contests/[slug]/submit/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { store } from "@/lib/store";
+import { ensureVideoThumbnailForUrl, isServerVideoUrl } from "@/lib/videoThumbnailServer";
 
 export async function POST(
   req: NextRequest,
@@ -86,6 +87,11 @@ export async function POST(
       }
     }
 
+    const isVideoSubmission = contest.type === "VIDEO" || isServerVideoUrl(rawUrls[0]);
+    const resolvedThumbnailUrl =
+      body.thumbnailUrl ||
+      (isVideoSubmission ? (await ensureVideoThumbnailForUrl(rawUrls[0])) || undefined : undefined);
+
     const newSub = store.addMediaSubmission({
       contestId: contest.id,
       contestSlug: contest.slug,
@@ -99,6 +105,7 @@ export async function POST(
       mediaType: contest.type || "IMAGE",
       mediaUrl: rawUrls[0],
       mediaUrls: rawUrls,
+      thumbnailUrl: resolvedThumbnailUrl,
       orientation: body.orientation || undefined,
       description: body.description || "",
       status: contest.requireApproval ? "PENDING" : "APPROVED",

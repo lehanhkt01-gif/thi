@@ -1,6 +1,7 @@
 // src/app/api/media-contests/[slug]/tac-pham/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { store } from "@/lib/store";
+import { ensureVideoThumbnailForUrl, isServerVideoUrl } from "@/lib/videoThumbnailServer";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -43,11 +44,22 @@ export async function GET(
       .filter((s) => s.id !== id)
       .slice(0, 8);
 
+    const enrichThumb = async <T extends { mediaType?: string; mediaUrl: string; thumbnailUrl?: string }>(item: T): Promise<T> => {
+      if ((item.mediaType === "VIDEO" || isServerVideoUrl(item.mediaUrl)) && !item.thumbnailUrl) {
+        const thumb = await ensureVideoThumbnailForUrl(item.mediaUrl);
+        if (thumb) return { ...item, thumbnailUrl: thumb };
+      }
+      return item;
+    };
+
+    const enrichedSubmission = await enrichThumb(submission);
+    const enrichedOthers = await Promise.all(otherSubmissions.map(enrichThumb));
+
     return NextResponse.json({
       success: true,
       contest,
-      submission,
-      otherSubmissions,
+      submission: enrichedSubmission,
+      otherSubmissions: enrichedOthers,
     });
   } catch (error: any) {
     return NextResponse.json(

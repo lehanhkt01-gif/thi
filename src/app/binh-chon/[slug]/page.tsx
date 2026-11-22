@@ -53,6 +53,7 @@ import {
   isVideoFile,
   compressVideoIfNeeded,
   uploadFileChunked,
+  extractVideoThumbnail,
   formatFileSizeMB,
 } from "@/lib/videoUpload";
 
@@ -116,6 +117,7 @@ interface MediaSubmission {
   mediaType: "IMAGE" | "VIDEO";
   mediaUrl: string;
   mediaUrls?: string[];
+  thumbnailUrl?: string;
   orientation?: "vertical" | "horizontal";
   description: string;
   viewsCount?: number;
@@ -248,6 +250,7 @@ export default function MediaContestPublicPage({
     mediaType: "IMAGE" as "IMAGE" | "VIDEO",
     mediaUrl: "",
     mediaUrls: [] as string[],
+    thumbnailUrl: "",
     orientation: "vertical" as "vertical" | "horizontal",
     description: "",
   });
@@ -844,6 +847,7 @@ export default function MediaContestPublicPage({
       const uploadedUrls: string[] = [];
       let detectedOrientation: "vertical" | "horizontal" | null = null;
       let detectedMediaType: "IMAGE" | "VIDEO" | null = null;
+      let extractedThumbnailUrl: string | undefined = undefined;
 
       for (const file of filesToProcess) {
         const fileIsVideo = isVideoFile(file);
@@ -891,7 +895,12 @@ export default function MediaContestPublicPage({
                 : `Đang tải video (${formatFileSizeMB(compressedResult.finalSize)}) lên hệ thống...`
           );
 
-          let serverCompInfo: { compressed?: boolean; originalSize?: number; finalSize?: number } | null = null;
+          let serverCompInfo: {
+            compressed?: boolean;
+            originalSize?: number;
+            finalSize?: number;
+            thumbnailUrl?: string;
+          } | null = null;
           const finalVideoUrl = await uploadFileChunked(
             compressedResult.blob,
             compressedResult.fileName,
@@ -916,6 +925,24 @@ export default function MediaContestPublicPage({
             }
           );
           uploadedUrls.push(finalVideoUrl);
+          if (!extractedThumbnailUrl) {
+            if (serverCompInfo && (serverCompInfo as any).thumbnailUrl) {
+              extractedThumbnailUrl = (serverCompInfo as any).thumbnailUrl;
+            } else {
+              try {
+                const thumbBlob = await extractVideoThumbnail(file, 5);
+                if (thumbBlob) {
+                  const thumbForm = new FormData();
+                  thumbForm.append("file", thumbBlob, `${file.name.replace(/\.[^/.]+$/, "")}-thumb.jpg`);
+                  const thumbRes = await fetch("/api/upload", { method: "POST", body: thumbForm });
+                  const thumbData = await safeParseResponseJson(thumbRes);
+                  if (thumbRes.ok && thumbData.success && thumbData.url) {
+                    extractedThumbnailUrl = thumbData.url;
+                  }
+                }
+              } catch {}
+            }
+          }
           if (serverCompInfo && (serverCompInfo as any).compressed) {
             const sc = serverCompInfo as { originalSize: number; finalSize: number };
             setVideoProcessStatus(
@@ -956,6 +983,7 @@ export default function MediaContestPublicPage({
         ...prev,
         mediaUrls: nextUrls,
         mediaUrl: nextUrls[0] || "",
+        thumbnailUrl: extractedThumbnailUrl || prev.thumbnailUrl,
         mediaType: detectedMediaType || prev.mediaType,
         orientation:
           currentUrls.length === 0 && detectedOrientation
@@ -1555,6 +1583,7 @@ export default function MediaContestPublicPage({
             mediaType: contest?.type || "IMAGE",
             mediaUrl: "",
             mediaUrls: [],
+            thumbnailUrl: "",
             orientation: "vertical",
             description: "",
           });
@@ -2317,26 +2346,49 @@ export default function MediaContestPublicPage({
                       >
                         {isVideoUrl(subImages[0] || sub.mediaUrl) ? (
                           <>
-                            <video
-                              src={subImages[0] || sub.mediaUrl}
-                              muted
-                              playsInline
-                              preload="metadata"
-                              onLoadedMetadata={(e) => {
-                                const vEl = e.currentTarget;
-                                if (vEl.videoWidth && vEl.videoHeight) {
-                                  const naturalOrient: "vertical" | "horizontal" =
-                                    vEl.videoWidth > vEl.videoHeight ? "horizontal" : "vertical";
-                                  if (imageOrientations[sub.id] !== naturalOrient) {
-                                    setImageOrientations((prev) => ({
-                                      ...prev,
-                                      [sub.id]: naturalOrient,
-                                    }));
+                            {sub.thumbnailUrl ? (
+                              <img
+                                src={sub.thumbnailUrl}
+                                alt={sub.title}
+                                onLoad={(e) => {
+                                  const imgEl = e.currentTarget;
+                                  if (imgEl.naturalWidth && imgEl.naturalHeight) {
+                                    const naturalOrient: "vertical" | "horizontal" =
+                                      imgEl.naturalWidth > imgEl.naturalHeight
+                                        ? "horizontal"
+                                        : "vertical";
+                                    if (imageOrientations[sub.id] !== naturalOrient) {
+                                      setImageOrientations((prev) => ({
+                                        ...prev,
+                                        [sub.id]: naturalOrient,
+                                      }));
+                                    }
                                   }
-                                }
-                              }}
-                              className="w-full h-full object-cover bg-slate-900"
-                            />
+                                }}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            ) : (
+                              <video
+                                src={subImages[0] || sub.mediaUrl}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                onLoadedMetadata={(e) => {
+                                  const vEl = e.currentTarget;
+                                  if (vEl.videoWidth && vEl.videoHeight) {
+                                    const naturalOrient: "vertical" | "horizontal" =
+                                      vEl.videoWidth > vEl.videoHeight ? "horizontal" : "vertical";
+                                    if (imageOrientations[sub.id] !== naturalOrient) {
+                                      setImageOrientations((prev) => ({
+                                        ...prev,
+                                        [sub.id]: naturalOrient,
+                                      }));
+                                    }
+                                  }
+                                }}
+                                className="w-full h-full object-cover bg-slate-900"
+                              />
+                            )}
                             <span className="absolute top-2.5 left-2.5 bg-black/75 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 backdrop-blur-xs">
                               <Video className="w-3 h-3 text-red-400" />
                               <span>VIDEO</span>
@@ -3614,6 +3666,7 @@ export default function MediaContestPublicPage({
                         <video
                           key={currentMediaUrl}
                           src={currentMediaUrl}
+                          poster={selectedSubmission.thumbnailUrl || undefined}
                           controls
                           playsInline
                           preload="metadata"

@@ -4,6 +4,7 @@ import { writeFile, appendFile, mkdir, stat, unlink, copyFile, rename } from "fs
 import path from "path";
 import { execFile } from "child_process";
 import { promisify } from "util";
+import { generateVideoThumbnailFromFile } from "@/lib/videoThumbnailServer";
 
 const execFileAsync = promisify(execFile);
 
@@ -272,6 +273,9 @@ export async function POST(req: NextRequest) {
             const hasFfmpeg = await checkFfmpegInstalled();
             if (hasFfmpeg) {
               const comp = await compressVideoWithFfmpeg(publicFilePath, storageFilePath);
+              const compPublicPath = path.join(path.dirname(publicFilePath), comp.finalFileName);
+              const compStoragePath = path.join(path.dirname(storageFilePath), comp.finalFileName);
+              const thumbnailUrl = await generateVideoThumbnailFromFile(compPublicPath, compStoragePath).catch(() => null);
               return NextResponse.json({
                 success: true,
                 complete: true,
@@ -279,6 +283,7 @@ export async function POST(req: NextRequest) {
                 totalChunks,
                 url: `/uploads/${comp.finalFileName}`,
                 fileName: comp.finalFileName,
+                thumbnailUrl: thumbnailUrl || undefined,
                 compressed: true,
                 originalSize: comp.originalSize,
                 finalSize: comp.finalSize,
@@ -295,6 +300,17 @@ export async function POST(req: NextRequest) {
               );
             }
           }
+
+          const thumbnailUrl = await generateVideoThumbnailFromFile(publicFilePath, storageFilePath).catch(() => null);
+          return NextResponse.json({
+            success: true,
+            complete: true,
+            chunkIndex,
+            totalChunks,
+            url: `/uploads/${finalFileName}`,
+            fileName: finalFileName,
+            thumbnailUrl: thumbnailUrl || undefined,
+          });
         } catch (compErr: any) {
           console.error("[API Upload] Lỗi nén video FFmpeg:", compErr);
           return NextResponse.json(
