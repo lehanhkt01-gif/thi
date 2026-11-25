@@ -20,6 +20,7 @@ import {
   ExternalLink,
   Image as ImageIcon,
   Video,
+  FileText,
 } from "lucide-react";
 import * as XLSX from "xlsx";
 import ImageLightboxModal from "@/components/ImageLightboxModal";
@@ -216,26 +217,569 @@ export default function Top20Round2Page({
     } catch {}
   };
 
+  const getFullAssetUrl = (rawUrl?: string) => {
+    if (!rawUrl) return "";
+    if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("data:")) {
+      return rawUrl;
+    }
+    const origin =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : "https://thi.easupso.com";
+    return `${origin}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+  };
+
   const handleExportTop20Excel = () => {
-    const rows = top20Submissions.map((s, idx) => ({
-      "Hạng Vòng 2": idx + 1,
-      "Mã bài": s.id,
-      "Tên tác phẩm": s.title || "",
-      "Tác giả": s.authorName || "",
-      "Đơn vị / Thôn buôn": s.unitName || "",
-      "Bình chọn thực": computeRealVotesCount(s),
-      "Lượt bình chọn": s.votesCount || 0,
-      "Lượt xem": s.viewsCount || 0,
-      "Lượt chia sẻ": s.sharesCount || 0,
-      "Số lượng ảnh":
-        Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls.length : 1,
-      "Ngày nộp": s.createdAt ? new Date(s.createdAt).toLocaleString("vi-VN") : "",
-      "Mô tả tác phẩm": s.description || "",
-    }));
+    const origin =
+      typeof window !== "undefined" && window.location.origin
+        ? window.location.origin
+        : "https://thi.easupso.com";
+
+    const rows = top20Submissions.map((s, idx) => {
+      const mediaList =
+        Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls : [s.mediaUrl];
+      const fullImageUrls = mediaList.map((u) => getFullAssetUrl(u)).filter(Boolean);
+      const primaryImage = getFullAssetUrl(s.thumbnailUrl || mediaList[0] || s.mediaUrl);
+      const detailPageUrl = `${origin}/binh-chon/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(s.id)}`;
+
+      return {
+        "Hạng Vòng 2": idx + 1,
+        "Mã bài": s.id,
+        "Tên tác phẩm": s.title || "",
+        "Tác giả": s.authorName || "",
+        "Đơn vị / Thôn buôn": s.unitName || "",
+        "Hình ảnh": primaryImage,
+        "Tất cả link ảnh": fullImageUrls.join(" | "),
+        "Link xem tác phẩm": detailPageUrl,
+        "Bình chọn thực": computeRealVotesCount(s),
+        "Lượt bình chọn": s.votesCount || 0,
+        "Lượt xem": s.viewsCount || 0,
+        "Lượt chia sẻ": s.sharesCount || 0,
+        "Số lượng ảnh": mediaList.length,
+        "Ngày nộp": s.createdAt ? new Date(s.createdAt).toLocaleString("vi-VN") : "",
+        "Mô tả tác phẩm": s.description || "",
+      };
+    });
+
     const ws = XLSX.utils.json_to_sheet(rows);
+
+    // Gắn Hyperlink bấm mở trực tiếp hình ảnh và trang tác phẩm trong Excel
+    top20Submissions.forEach((s, idx) => {
+      const rowNum = idx + 2; // Hàng 1 là tiêu đề
+      const mediaList =
+        Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls : [s.mediaUrl];
+      const primaryImage = getFullAssetUrl(s.thumbnailUrl || mediaList[0] || s.mediaUrl);
+      const detailPageUrl = `${origin}/binh-chon/${encodeURIComponent(slug)}/tac-pham/${encodeURIComponent(s.id)}`;
+
+      const imgCellRef = `F${rowNum}`; // Cột F: Hình ảnh
+      if (ws[imgCellRef] && primaryImage.startsWith("http")) {
+        ws[imgCellRef].l = {
+          Target: primaryImage,
+          Tooltip: `Bấm để mở hình ảnh: ${s.title || s.id}`,
+        };
+      }
+
+      const pageCellRef = `H${rowNum}`; // Cột H: Link xem tác phẩm
+      if (ws[pageCellRef] && detailPageUrl.startsWith("http")) {
+        ws[pageCellRef].l = {
+          Target: detailPageUrl,
+          Tooltip: `Bấm để mở trang tác phẩm: ${s.title || s.id}`,
+        };
+      }
+    });
+
+    ws["!cols"] = [
+      { wch: 12 }, // Hạng Vòng 2
+      { wch: 18 }, // Mã bài
+      { wch: 28 }, // Tên tác phẩm
+      { wch: 22 }, // Tác giả
+      { wch: 22 }, // Đơn vị
+      { wch: 45 }, // Hình ảnh
+      { wch: 45 }, // Tất cả link ảnh
+      { wch: 45 }, // Link xem tác phẩm
+      { wch: 15 }, // Bình chọn thực
+      { wch: 15 }, // Lượt bình chọn
+      { wch: 12 }, // Lượt xem
+      { wch: 12 }, // Lượt chia sẻ
+      { wch: 13 }, // Số lượng ảnh
+      { wch: 20 }, // Ngày nộp
+      { wch: 50 }, // Mô tả tác phẩm
+    ];
+
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Top20_XetVong2");
-    XLSX.writeFile(wb, `top_20_tac_pham_xet_vong_2_${slug}.xlsx`);
+    XLSX.writeFile(wb, `top_20_tac_pham_vao_vong_2_${slug}.xlsx`);
+  };
+
+  const handleExportTop20Pdf = () => {
+    const printWin = window.open("", "_blank");
+    if (!printWin) {
+      alert("Trình duyệt đang chặn cửa sổ bật lên (Pop-up). Vui lòng cho phép mở cửa sổ để xuất file PDF!");
+      return;
+    }
+
+    const esc = (str?: string | number) =>
+      String(str ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+
+    const nowStr = new Date().toLocaleString("vi-VN");
+    const contestTitle = contest?.title || "Cuộc thi bình chọn trực tuyến Xã Ea Súp";
+    const organizer = contest?.organizerName || "Ủy ban MTTQ Việt Nam & Đoàn Thanh niên xã Ea Súp";
+
+    const rowsHtml = top20Submissions
+      .map((s, idx) => {
+        const rank = idx + 1;
+        const realVotes = computeRealVotesCount(s);
+        const mediaList =
+          Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls : [s.mediaUrl];
+        const isVid = s.mediaType === "VIDEO" || isVideoUrl(mediaList[0] || s.mediaUrl);
+
+        const imagesHtml = isVid
+          ? s.thumbnailUrl
+            ? `<div class="img-box"><img src="${esc(getFullAssetUrl(s.thumbnailUrl))}" alt="${esc(s.title)}" /><span class="badge-vid">VIDEO</span></div>`
+            : `<div class="img-box"><a href="${esc(getFullAssetUrl(s.mediaUrl))}" target="_blank">Xem Video dự thi</a></div>`
+          : mediaList
+              .map(
+                (u, i) =>
+                  `<div class="img-box"><img src="${esc(getFullAssetUrl(u))}" alt="${esc(s.title)} - Ảnh ${i + 1}" />${
+                    mediaList.length > 1 ? `<span class="img-idx">Ảnh ${i + 1}/${mediaList.length}</span>` : ""
+                  }</div>`
+              )
+              .join("");
+
+        return `
+          <tr class="artwork-row">
+            <td class="col-rank">
+              <div class="rank-circle ${rank <= 3 ? "rank-top" : ""}">#${rank}</div>
+              <div class="sub-id">${esc(s.id)}</div>
+            </td>
+            <td class="col-images">
+              <div class="images-grid ${mediaList.length > 1 ? "multi" : "single"}">
+                ${imagesHtml}
+              </div>
+            </td>
+            <td class="col-info">
+              <div class="art-title">${esc(s.title)}</div>
+              <div class="art-meta"><strong>Tác giả:</strong> ${esc(s.authorName)}</div>
+              <div class="art-meta"><strong>Đơn vị:</strong> ${esc(s.unitName)}</div>
+              ${s.createdAt ? `<div class="art-meta"><strong>Ngày nộp:</strong> ${esc(new Date(s.createdAt).toLocaleString("vi-VN"))}</div>` : ""}
+              ${
+                s.description
+                  ? `<div class="art-desc"><strong>Thuyết minh:</strong> ${esc(s.description)}</div>`
+                  : ""
+              }
+            </td>
+            <td class="col-stats">
+              <div class="real-votes-box">
+                <div class="real-num">${realVotes.toLocaleString("vi-VN")}</div>
+                <div class="real-lbl">Bình chọn thực</div>
+              </div>
+              <div class="stat-line">Tổng bình chọn: <strong>${(s.votesCount || 0).toLocaleString("vi-VN")}</strong></div>
+              <div class="stat-line">Lượt xem: <strong>${(s.viewsCount || 0).toLocaleString("vi-VN")}</strong></div>
+              <div class="stat-line">Lượt chia sẻ: <strong>${(s.sharesCount || 0).toLocaleString("vi-VN")}</strong></div>
+            </td>
+            <td class="col-judge">
+              <div class="judge-box">
+                <div class="judge-line">Điểm BGK: ...............</div>
+                <div class="judge-note">Nhận xét:</div>
+              </div>
+            </td>
+          </tr>
+        `;
+      })
+      .join("");
+
+    const htmlContent = `<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <title>20 tác phẩm vào vòng 2 - ${esc(contestTitle)}</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Times New Roman", Times, serif;
+      color: #0f172a;
+      background: #f1f5f9;
+    }
+    .toolbar {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #0f172a;
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-family: system-ui, -apple-system, sans-serif;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    .toolbar-left {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .toolbar-left span {
+      color: #fbbf24;
+    }
+    .toolbar-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-print {
+      background: #dc2626;
+      color: #fff;
+      border: none;
+      padding: 8px 18px;
+      border-radius: 999px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-print:hover { background: #b91c1c; }
+    .btn-close {
+      background: #334155;
+      color: #fff;
+      border: none;
+      padding: 8px 14px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .page-container {
+      max-width: 1120px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 28px 32px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+    }
+    .gov-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 18px;
+      font-size: 13px;
+    }
+    .gov-left, .gov-right {
+      text-align: center;
+    }
+    .gov-org {
+      font-weight: 700;
+      text-transform: uppercase;
+    }
+    .gov-sub {
+      font-weight: 700;
+      margin-top: 2px;
+    }
+    .gov-line {
+      width: 120px;
+      height: 1px;
+      background: #0f172a;
+      margin: 4px auto 0;
+    }
+    .report-title {
+      text-align: center;
+      margin: 16px 0 20px;
+    }
+    .report-title h1 {
+      font-size: 20px;
+      font-weight: 700;
+      text-transform: uppercase;
+      margin: 0 0 6px;
+      color: #0f172a;
+    }
+    .report-title h2 {
+      font-size: 15px;
+      font-weight: 700;
+      margin: 0 0 6px;
+      color: #1b7f5c;
+    }
+    .report-title p {
+      font-size: 12.5px;
+      font-style: italic;
+      margin: 0;
+      color: #475569;
+    }
+    table.report-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12.5px;
+    }
+    table.report-table th, table.report-table td {
+      border: 1px solid #94a3b8;
+      padding: 10px;
+      vertical-align: top;
+    }
+    table.report-table th {
+      background: #f8fafc;
+      font-weight: 700;
+      text-transform: uppercase;
+      font-size: 11.5px;
+      text-align: center;
+      color: #0f172a;
+    }
+    tr.artwork-row {
+      page-break-inside: avoid;
+      break-inside: avoid;
+    }
+    .col-rank {
+      width: 68px;
+      text-align: center;
+    }
+    .rank-circle {
+      display: inline-flex;
+      width: 34px;
+      height: 34px;
+      border-radius: 999px;
+      background: #e2e8f0;
+      color: #0f172a;
+      font-weight: 700;
+      font-size: 14px;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+    .rank-top {
+      background: #1b7f5c;
+      color: #fff;
+    }
+    .sub-id {
+      font-size: 10px;
+      color: #64748b;
+      word-break: break-all;
+    }
+    .col-images {
+      width: 320px;
+    }
+    .images-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      justify-content: center;
+    }
+    .img-box {
+      position: relative;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #f8fafc;
+    }
+    .images-grid.single .img-box img {
+      max-width: 295px;
+      max-height: 240px;
+      width: auto;
+      height: auto;
+      display: block;
+      object-fit: contain;
+    }
+    .images-grid.multi .img-box img {
+      width: 142px;
+      height: 155px;
+      display: block;
+      object-fit: cover;
+    }
+    .img-idx {
+      position: absolute;
+      bottom: 4px;
+      right: 4px;
+      background: rgba(0,0,0,0.65);
+      color: #fff;
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      font-family: system-ui, sans-serif;
+    }
+    .col-info {
+      min-width: 240px;
+    }
+    .art-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+    .art-meta {
+      margin-bottom: 3px;
+      color: #1e293b;
+    }
+    .art-desc {
+      margin-top: 8px;
+      padding-top: 6px;
+      border-top: 1px dashed #cbd5e1;
+      color: #334155;
+      line-height: 1.45;
+      white-space: pre-line;
+    }
+    .col-stats {
+      width: 145px;
+      text-align: center;
+    }
+    .real-votes-box {
+      background: #ecfdf5;
+      border: 1px solid #6ee7b7;
+      border-radius: 8px;
+      padding: 6px;
+      margin-bottom: 8px;
+    }
+    .real-num {
+      font-size: 18px;
+      font-weight: 700;
+      color: #047857;
+    }
+    .real-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: #065f46;
+      text-transform: uppercase;
+    }
+    .stat-line {
+      font-size: 11.5px;
+      color: #475569;
+      margin-bottom: 3px;
+      text-align: left;
+    }
+    .col-judge {
+      width: 150px;
+    }
+    .judge-line {
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .judge-note {
+      color: #475569;
+      min-height: 75px;
+    }
+    .footer-sign {
+      margin-top: 28px;
+      display: flex;
+      justify-content: space-between;
+      text-align: center;
+      font-size: 13px;
+      page-break-inside: avoid;
+    }
+    .sign-col {
+      width: 45%;
+    }
+    .sign-title {
+      font-weight: 700;
+      text-transform: uppercase;
+      margin-bottom: 70px;
+    }
+    @media print {
+      body { background: #fff; }
+      .toolbar { display: none !important; }
+      .page-container {
+        margin: 0;
+        padding: 10px;
+        box-shadow: none;
+        max-width: 100%;
+      }
+      @page {
+        size: A4 landscape;
+        margin: 10mm;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <div class="toolbar-left">
+      📄 Bản xem trước Hồ sơ PDF: <span>20 tác phẩm vào vòng 2 (Có hình ảnh tương ứng)</span> — Trong hộp thoại In, chọn <span>"Save as PDF / Lưu dưới dạng PDF"</span>
+    </div>
+    <div class="toolbar-actions">
+      <button class="btn-print" onclick="window.print()">🖨️ Lưu file PDF / In ngay</button>
+      <button class="btn-close" onclick="window.close()">Đóng</button>
+    </div>
+  </div>
+
+  <div class="page-container">
+    <div class="gov-header">
+      <div class="gov-left">
+        <div class="gov-org">${esc(organizer)}</div>
+        <div class="gov-sub">BAN TỔ CHỨC CUỘC THI</div>
+        <div class="gov-line"></div>
+      </div>
+      <div class="gov-right">
+        <div class="gov-org">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+        <div class="gov-sub">Độc lập - Tự do - Hạnh phúc</div>
+        <div class="gov-line"></div>
+      </div>
+    </div>
+
+    <div class="report-title">
+      <h1>DANH SÁCH 20 TÁC PHẨM VÀO VÒNG 2 (KÈM HÌNH ẢNH ĐÁNH GIÁ)</h1>
+      <h2>${esc(contestTitle)}</h2>
+      <p>Xếp hạng từ cao xuống thấp theo số lượt Bình chọn thực tế (1 tài khoản đăng nhập / 1 lượt) • Trích xuất lúc: ${esc(nowStr)}</p>
+    </div>
+
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Hạng</th>
+          <th>Hình ảnh tác phẩm</th>
+          <th>Thông tin &amp; Thuyết minh tác phẩm</th>
+          <th>Số liệu bình chọn</th>
+          <th>Đánh giá BGK (Vòng 2)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${rowsHtml}
+      </tbody>
+    </table>
+
+    <div class="footer-sign">
+      <div class="sign-col">
+        <div class="sign-title">NGƯỜI LẬP BẢNG TỔNG HỢP</div>
+      </div>
+      <div class="sign-col">
+        <div class="sign-title">TM. BAN TỔ CHỨC / BAN GIÁM KHẢO</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.addEventListener("load", function() {
+      var imgs = Array.prototype.slice.call(document.images);
+      if (imgs.length === 0) {
+        setTimeout(function() { window.print(); }, 400);
+        return;
+      }
+      var loaded = 0;
+      var triggered = false;
+      function checkDone() {
+        loaded++;
+        if (!triggered && loaded >= imgs.length) {
+          triggered = true;
+          setTimeout(function() { window.print(); }, 500);
+        }
+      }
+      imgs.forEach(function(img) {
+        if (img.complete) {
+          checkDone();
+        } else {
+          img.addEventListener("load", checkDone);
+          img.addEventListener("error", checkDone);
+        }
+      });
+      setTimeout(function() {
+        if (!triggered) {
+          triggered = true;
+          window.print();
+        }
+      }, 4500);
+    });
+  </script>
+</body>
+</html>`;
+
+    printWin.document.open();
+    printWin.document.write(htmlContent);
+    printWin.document.close();
   };
 
   if (isLoading) {
@@ -292,10 +836,20 @@ export default function Top20Round2Page({
 
             <button
               type="button"
+              onClick={handleExportTop20Pdf}
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
+              title="Xuất file PDF 20 tác phẩm vòng 2 có kèm đầy đủ hình ảnh để Ban Giám Khảo đánh giá"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span>Xuất PDF (Có hình ảnh)</span>
+            </button>
+
+            <button
+              type="button"
               onClick={handleExportTop20Excel}
               style={{ backgroundColor: themeColor }}
               className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-white text-xs font-bold shadow-xs hover:opacity-95 transition-opacity cursor-pointer"
-              title="Tải file Excel danh sách 20 tác phẩm xét vòng 2"
+              title="Tải file Excel danh sách 20 tác phẩm xét vòng 2 (có cột link hình ảnh)"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Xuất Excel Vòng 2</span>

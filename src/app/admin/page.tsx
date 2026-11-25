@@ -1299,27 +1299,47 @@ export default function AdminDashboardPage() {
         return Math.min(Math.max(0, Number(s?.votesCount) || 0), uniqueAccounts.size);
       };
 
+      const origin =
+        typeof window !== "undefined" && window.location.origin
+          ? window.location.origin
+          : "https://thi.easupso.com";
+      const toFullUrl = (rawUrl?: string) => {
+        if (!rawUrl) return "";
+        if (rawUrl.startsWith("http://") || rawUrl.startsWith("https://") || rawUrl.startsWith("data:")) {
+          return rawUrl;
+        }
+        return `${origin}${rawUrl.startsWith("/") ? "" : "/"}${rawUrl}`;
+      };
+
       const rows =
         list.length > 0
-          ? list.map((s: any, idx: number) => ({
-              "Hạng": idx + 1,
-              "Mã bài": s.id,
-              "Tên tác phẩm": s.title || "",
-              "Tác giả": s.authorName || "",
-              "Đơn vị / Thôn buôn": s.unitName || "",
-              "Số điện thoại": s.authorPhone || "",
-              "CCCD": s.authorCccd || "",
-              "Số lượng ảnh": Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls.length : 1,
-              "Bố cục": s.orientation === "horizontal" ? "Bố cục ngang" : "Bố cục dọc",
-              "Lượt xem": s.viewsCount || 0,
-              "Lượt bình chọn": s.votesCount || 0,
-              "Bình chọn thực": computeRealVotes(s),
-              "Lượt chia sẻ": s.sharesCount || 0,
-              "Điểm BTC": s.score || 0,
-              "Trạng thái": s.status === "APPROVED" ? "Đã duyệt" : s.status === "PENDING" ? "Chờ duyệt" : "Từ chối",
-              "Ngày nộp": s.createdAt ? new Date(s.createdAt).toLocaleString("vi-VN") : "",
-              "Mô tả tác phẩm": s.description || "",
-            }))
+          ? list.map((s: any, idx: number) => {
+              const mediaList =
+                Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls : [s.mediaUrl];
+              const primaryImg = toFullUrl(s.thumbnailUrl || mediaList[0] || s.mediaUrl);
+              const allImgs = mediaList.map((u: string) => toFullUrl(u)).filter(Boolean).join(" | ");
+              return {
+                "Hạng": idx + 1,
+                "Mã bài": s.id,
+                "Tên tác phẩm": s.title || "",
+                "Tác giả": s.authorName || "",
+                "Đơn vị / Thôn buôn": s.unitName || "",
+                "Hình ảnh": primaryImg,
+                "Tất cả link ảnh": allImgs,
+                "Số điện thoại": s.authorPhone || "",
+                "CCCD": s.authorCccd || "",
+                "Số lượng ảnh": mediaList.length,
+                "Bố cục": s.orientation === "horizontal" ? "Bố cục ngang" : "Bố cục dọc",
+                "Lượt xem": s.viewsCount || 0,
+                "Lượt bình chọn": s.votesCount || 0,
+                "Bình chọn thực": computeRealVotes(s),
+                "Lượt chia sẻ": s.sharesCount || 0,
+                "Điểm BTC": s.score || 0,
+                "Trạng thái": s.status === "APPROVED" ? "Đã duyệt" : s.status === "PENDING" ? "Chờ duyệt" : "Từ chối",
+                "Ngày nộp": s.createdAt ? new Date(s.createdAt).toLocaleString("vi-VN") : "",
+                "Mô tả tác phẩm": s.description || "",
+              };
+            })
           : [
               {
                 "Hạng": "",
@@ -1327,6 +1347,8 @@ export default function AdminDashboardPage() {
                 "Tên tác phẩm": "Chưa có tác phẩm dự thi nào",
                 "Tác giả": "",
                 "Đơn vị / Thôn buôn": "",
+                "Hình ảnh": "",
+                "Tất cả link ảnh": "",
                 "Số điện thoại": "",
                 "CCCD": "",
                 "Số lượng ảnh": 0,
@@ -1343,6 +1365,19 @@ export default function AdminDashboardPage() {
             ];
 
       const ws = XLSX.utils.json_to_sheet(rows);
+      list.forEach((s: any, idx: number) => {
+        const rowNum = idx + 2;
+        const mediaList =
+          Array.isArray(s.mediaUrls) && s.mediaUrls.length > 0 ? s.mediaUrls : [s.mediaUrl];
+        const primaryImg = toFullUrl(s.thumbnailUrl || mediaList[0] || s.mediaUrl);
+        const cellRef = `F${rowNum}`;
+        if (ws[cellRef] && primaryImg.startsWith("http")) {
+          ws[cellRef].l = {
+            Target: primaryImg,
+            Tooltip: `Bấm để mở hình ảnh: ${s.title || s.id}`,
+          };
+        }
+      });
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, "KetQuaBinhChon");
       XLSX.writeFile(wb, `ket_qua_binh_chon_${c.slug || "cuoc_thi_anh"}.xlsx`);
