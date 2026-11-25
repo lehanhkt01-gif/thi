@@ -237,6 +237,7 @@ export default function MediaContestPublicPage({
     minutes: "19",
     seconds: "38",
   });
+  const [isContestEnded, setIsContestEnded] = useState(false);
 
   // Modal State for Submitting artwork
   const [showSubmitModal, setShowSubmitModal] = useState(false);
@@ -513,6 +514,12 @@ export default function MediaContestPublicPage({
 
   // Bắt buộc đăng nhập tài khoản trước khi mở hộp thoại nộp tác phẩm dự thi (không giới hạn số tác phẩm)
   const handleOpenSubmitArtwork = () => {
+    if (isContestEnded) {
+      setSaveToast("Cuộc thi đã hết thời gian! Hệ thống đã đóng cổng nộp tác phẩm.");
+      setTimeout(() => setSaveToast(""), 3500);
+      return;
+    }
+
     if (!authUser) {
       setPendingSubmitAfterLogin(true);
       setShowLoginModal(true);
@@ -661,18 +668,27 @@ export default function MediaContestPublicPage({
   useEffect(() => {
     const calculateCountdown = () => {
       const targetDateStr = contest?.submitEndDate || contest?.voteEndDate || contest?.endDate;
-      if (!targetDateStr) return;
+      const isClosedStatus =
+        contest?.status === "CLOSED" || (contest?.status as string) === "ENDED";
+      if (!targetDateStr) {
+        setIsContestEnded(isClosedStatus);
+        return;
+      }
 
       const target = new Date(targetDateStr).getTime();
+      const voteEndStr = contest?.voteEndDate || contest?.endDate;
+      const voteEndTarget = voteEndStr ? new Date(voteEndStr).getTime() : NaN;
       const now = Date.now();
       const difference = target - now;
+      const voteEnded = !isNaN(voteEndTarget) && voteEndTarget <= now;
 
-      if (!isNaN(target) && difference > 0) {
+      if (!isClosedStatus && !voteEnded && !isNaN(target) && difference > 0) {
         const days = Math.floor(difference / (1000 * 60 * 60 * 24));
         const hours = Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
         const minutes = Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
+        setIsContestEnded(false);
         setTimeLeft({
           days: String(Math.min(days, 99)).padStart(2, "0"),
           hours: String(hours).padStart(2, "0"),
@@ -680,6 +696,7 @@ export default function MediaContestPublicPage({
           seconds: String(seconds).padStart(2, "0"),
         });
       } else {
+        setIsContestEnded(true);
         setTimeLeft({ days: "00", hours: "00", minutes: "00", seconds: "00" });
       }
     };
@@ -687,7 +704,7 @@ export default function MediaContestPublicPage({
     calculateCountdown();
     const interval = setInterval(calculateCountdown, 1000);
     return () => clearInterval(interval);
-  }, [contest?.submitEndDate, contest?.voteEndDate, contest?.endDate]);
+  }, [contest?.submitEndDate, contest?.voteEndDate, contest?.endDate, contest?.status]);
 
   const themeColor = contest?.themeColor || "#1B7F5C";
   const layoutModes: ("vertical" | "horizontal")[] =
@@ -1320,6 +1337,12 @@ export default function MediaContestPublicPage({
 
   // Handle Voting: BẮT BUỘC ĐĂNG NHẬP để khắc phục triệt để lách luật tăng bình chọn
   const handleVote = async (submissionId: string, userOverride?: any) => {
+    if (isContestEnded) {
+      setSaveToast("Cuộc thi đã hết thời gian! Hệ thống đã đóng cổng bình chọn.");
+      setTimeout(() => setSaveToast(""), 3500);
+      return;
+    }
+
     const activeUser = userOverride || authUser;
     if (!activeUser) {
       setPendingVoteSubmissionId(submissionId);
@@ -1461,6 +1484,11 @@ export default function MediaContestPublicPage({
   // Handle Artwork Submission
   const handleSubmitArtwork = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isContestEnded) {
+      alert("Cuộc thi đã hết thời gian! Hệ thống đã đóng cổng nộp tác phẩm dự thi.");
+      setShowSubmitModal(false);
+      return;
+    }
     if (!authUser) {
       setShowSubmitModal(false);
       setPendingSubmitAfterLogin(true);
@@ -2090,8 +2118,14 @@ export default function MediaContestPublicPage({
           </div>
 
           {/* Dòng chữ: THỜI GIAN NỘP BÀI KẾT THÚC SAU */}
-          <div className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-slate-700">
-            THỜI GIAN NỘP BÀI KẾT THÚC SAU
+          <div
+            className={`text-[11px] sm:text-xs font-bold uppercase tracking-wider ${
+              isContestEnded ? "text-red-600" : "text-slate-700"
+            }`}
+          >
+            {isContestEnded
+              ? "ĐÃ HẾT THỜI GIAN CUỘC THI - ĐÃ ĐÓNG CỔNG NỘP BÀI & BÌNH CHỌN"
+              : "THỜI GIAN NỘP BÀI KẾT THÚC SAU"}
           </div>
 
           {/* ĐỒNG HỒ ĐẾM NGƯỢC FLIP-CLOCK 8 LÁ SỐ TÁCH ĐÔI CHUẨN ẢNH 4 */}
@@ -2148,10 +2182,15 @@ export default function MediaContestPublicPage({
             <button
               type="button"
               onClick={handleOpenSubmitArtwork}
-              style={{ backgroundColor: themeColor }}
-              className="inline-flex items-center px-7 py-2.5 rounded-full text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md hover:opacity-95 transition-all transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+              disabled={isContestEnded}
+              style={{ backgroundColor: isContestEnded ? "#94A3B8" : themeColor }}
+              className={`inline-flex items-center px-7 py-2.5 rounded-full text-white font-bold text-xs sm:text-sm uppercase tracking-wider shadow-md transition-all ${
+                isContestEnded
+                  ? "cursor-not-allowed opacity-85"
+                  : "hover:opacity-95 transform hover:-translate-y-0.5 active:translate-y-0 cursor-pointer"
+              }`}
             >
-              NỘP TÁC PHẨM &gt;&gt;
+              {isContestEnded ? "ĐÃ HẾT HẠN NỘP TÁC PHẨM" : <>NỘP TÁC PHẨM &gt;&gt;</>}
             </button>
             {canManage && (
               <button
@@ -2294,10 +2333,16 @@ export default function MediaContestPublicPage({
                 <button
                   type="button"
                   onClick={handleOpenSubmitArtwork}
-                  style={{ color: themeColor, borderColor: themeColor }}
-                  className="px-4 py-1.5 rounded-full border text-xs font-bold hover:opacity-80 transition-opacity cursor-pointer"
+                  disabled={isContestEnded}
+                  style={{
+                    color: isContestEnded ? "#94A3B8" : themeColor,
+                    borderColor: isContestEnded ? "#CBD5E1" : themeColor,
+                  }}
+                  className={`px-4 py-1.5 rounded-full border text-xs font-bold transition-opacity ${
+                    isContestEnded ? "cursor-not-allowed opacity-75" : "hover:opacity-80 cursor-pointer"
+                  }`}
                 >
-                  + Gửi tác phẩm dự thi đầu tiên
+                  {isContestEnded ? "Đã hết thời gian nộp tác phẩm" : "+ Gửi tác phẩm dự thi đầu tiên"}
                 </button>
               </div>
             </div>
@@ -2470,14 +2515,22 @@ export default function MediaContestPublicPage({
                         <button
                           type="button"
                           onClick={() => handleVote(sub.id)}
-                          disabled={hasVoted}
+                          disabled={hasVoted || isContestEnded}
                           style={{
-                            backgroundColor: hasVoted ? "#E2E8F0" : themeColor,
-                            color: hasVoted ? "#334155" : "#FFFFFF",
+                            backgroundColor: hasVoted || isContestEnded ? "#E2E8F0" : themeColor,
+                            color: hasVoted || isContestEnded ? "#475569" : "#FFFFFF",
                           }}
-                          className="w-full max-w-[165px] mx-auto py-2 px-5 rounded-full text-xs font-bold whitespace-nowrap shadow-xs hover:opacity-95 transition-all cursor-pointer active:scale-95 flex items-center justify-center"
+                          className={`w-full max-w-[165px] mx-auto py-2 px-5 rounded-full text-xs font-bold whitespace-nowrap shadow-xs transition-all flex items-center justify-center ${
+                            hasVoted || isContestEnded
+                              ? "cursor-not-allowed opacity-90"
+                              : "hover:opacity-95 cursor-pointer active:scale-95"
+                          }`}
                         >
-                          {hasVoted ? "✓ Đã bình chọn" : "Bình chọn"}
+                          {hasVoted
+                            ? "✓ Đã bình chọn"
+                            : isContestEnded
+                              ? "Đã kết thúc bình chọn"
+                              : "Bình chọn"}
                         </button>
 
                         <div className="pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1 text-[11px] sm:text-xs text-slate-600 px-0.5">
@@ -2692,7 +2745,22 @@ export default function MediaContestPublicPage({
                       <input
                         type="datetime-local"
                         value={(contest.submitEndDate || "2026-11-18T07:00").slice(0, 16)}
-                        onChange={(e) => updateContestField("submitEndDate", e.target.value)}
+                        onChange={(e) => {
+                          const newSubmitEnd = e.target.value;
+                          setContest((prev) => {
+                            if (!prev) return prev;
+                            const nextVoteEnd =
+                              !prev.voteEndDate || new Date(prev.voteEndDate).getTime() < new Date(newSubmitEnd).getTime()
+                                ? newSubmitEnd
+                                : prev.voteEndDate;
+                            return {
+                              ...prev,
+                              submitEndDate: newSubmitEnd,
+                              voteEndDate: nextVoteEnd,
+                              endDate: nextVoteEnd,
+                            };
+                          });
+                        }}
                         className="w-full px-2 py-1.5 rounded-lg border border-slate-200 text-[11px] text-slate-700 focus:outline-none focus:border-red-500"
                       />
                     </div>
@@ -3805,18 +3873,24 @@ export default function MediaContestPublicPage({
                   <button
                     type="button"
                     onClick={() => handleVote(selectedSubmission.id)}
-                    disabled={votedMap[selectedSubmission.id]}
+                    disabled={votedMap[selectedSubmission.id] || isContestEnded}
                     style={{
-                      backgroundColor: votedMap[selectedSubmission.id] ? "#E2E8F0" : themeColor,
-                      color: votedMap[selectedSubmission.id] ? "#475569" : "#FFFFFF",
+                      backgroundColor:
+                        votedMap[selectedSubmission.id] || isContestEnded ? "#E2E8F0" : themeColor,
+                      color:
+                        votedMap[selectedSubmission.id] || isContestEnded ? "#475569" : "#FFFFFF",
                     }}
-                    className={`px-7 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all shadow-sm cursor-pointer ${
-                      votedMap[selectedSubmission.id]
+                    className={`px-7 py-2.5 rounded-full font-bold text-xs uppercase tracking-wider transition-all shadow-sm ${
+                      votedMap[selectedSubmission.id] || isContestEnded
                         ? "cursor-not-allowed opacity-90"
-                        : "hover:opacity-95 hover:shadow-md active:scale-95"
+                        : "hover:opacity-95 hover:shadow-md active:scale-95 cursor-pointer"
                     }`}
                   >
-                    {votedMap[selectedSubmission.id] ? "ĐÃ BÌNH CHỌN" : "BÌNH CHỌN"}
+                    {votedMap[selectedSubmission.id]
+                      ? "ĐÃ BÌNH CHỌN"
+                      : isContestEnded
+                        ? "ĐÃ KẾT THÚC BÌNH CHỌN"
+                        : "BÌNH CHỌN"}
                   </button>
 
                   <Link

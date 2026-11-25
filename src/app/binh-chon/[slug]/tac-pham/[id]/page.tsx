@@ -32,6 +32,10 @@ interface MediaContest {
   type: "IMAGE" | "VIDEO";
   startDate: string;
   endDate: string;
+  submitStartDate?: string;
+  submitEndDate?: string;
+  voteStartDate?: string;
+  voteEndDate?: string;
   status: string;
   themeColor?: string;
   organizerName: string;
@@ -269,8 +273,31 @@ export default function ArtworkDetailPage({
     };
   }, [slug, id]);
 
+  const isContestEnded = React.useMemo(() => {
+    if (!contest) return false;
+    if (contest.status === "CLOSED" || contest.status === "ENDED") return true;
+    const now = Date.now();
+    const targetStr = contest.submitEndDate || contest.voteEndDate || contest.endDate;
+    if (targetStr) {
+      const t = new Date(targetStr).getTime();
+      if (!isNaN(t) && now >= t) return true;
+    }
+    const voteEndStr = contest.voteEndDate || contest.endDate;
+    if (voteEndStr) {
+      const vt = new Date(voteEndStr).getTime();
+      if (!isNaN(vt) && now >= vt) return true;
+    }
+    return false;
+  }, [contest]);
+
   // Xử lý bình chọn: BẮT BUỘC ĐĂNG NHẬP để chống gian lận
   const handleVote = async (userOverride?: any) => {
+    if (isContestEnded) {
+      setShareSuccessToast("Cuộc thi đã hết thời gian! Hệ thống đã đóng cổng bình chọn.");
+      setTimeout(() => setShareSuccessToast(""), 3500);
+      return;
+    }
+
     const activeUser = userOverride || authUser;
     if (!activeUser) {
       setPendingVoteAfterLogin(true);
@@ -720,18 +747,22 @@ export default function ArtworkDetailPage({
                 <button
                   type="button"
                   onClick={handleVote}
-                  disabled={hasVoted}
+                  disabled={hasVoted || isContestEnded}
                   style={{
-                    backgroundColor: hasVoted ? "#E2E8F0" : themeColor,
-                    color: hasVoted ? "#475569" : "#FFFFFF",
+                    backgroundColor: hasVoted || isContestEnded ? "#E2E8F0" : themeColor,
+                    color: hasVoted || isContestEnded ? "#475569" : "#FFFFFF",
                   }}
-                  className={`px-8 py-2.5 rounded-full font-bold text-sm uppercase tracking-wider transition-all shadow-sm cursor-pointer ${
-                    hasVoted
+                  className={`px-8 py-2.5 rounded-full font-bold text-sm uppercase tracking-wider transition-all shadow-sm ${
+                    hasVoted || isContestEnded
                       ? "cursor-not-allowed opacity-90"
-                      : "hover:opacity-95 hover:shadow-md active:scale-95"
+                      : "hover:opacity-95 hover:shadow-md active:scale-95 cursor-pointer"
                   }`}
                 >
-                  {hasVoted ? "ĐÃ BÌNH CHỌN" : "BÌNH CHỌN"}
+                  {hasVoted
+                    ? "ĐÃ BÌNH CHỌN"
+                    : isContestEnded
+                      ? "ĐÃ KẾT THÚC BÌNH CHỌN"
+                      : "BÌNH CHỌN"}
                 </button>
 
                 <Link

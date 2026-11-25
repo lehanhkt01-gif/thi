@@ -10,6 +10,15 @@ export async function POST(
   { params }: { params: Promise<{ slug: string }> }
 ) {
   try {
+    const { slug } = await params;
+    const contest = store.getMediaContestBySlug(slug);
+    if (contest && store.isMediaContestEnded(contest)) {
+      return NextResponse.json(
+        { error: "Cuộc thi đã hết thời gian! Hệ thống đã đóng cổng bình chọn." },
+        { status: 400 }
+      );
+    }
+
     let body: any = {};
     try {
       body = await req.json();

@@ -2417,6 +2417,40 @@ class DataStore {
     return { success: true, sharesCount: sub.sharesCount };
   }
 
+  public parseContestDateMs(dateStr?: string): number {
+    if (!dateStr) return NaN;
+    const trimmed = String(dateStr).trim();
+    if (!trimmed) return NaN;
+    if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/.test(trimmed)) {
+      return new Date(`${trimmed}+07:00`).getTime();
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return new Date(`${trimmed}T23:59:59+07:00`).getTime();
+    }
+    return new Date(trimmed).getTime();
+  }
+
+  public isMediaContestEnded(contest?: MediaContestModel | null): boolean {
+    if (!contest) return false;
+    if (contest.status === "CLOSED" || (contest.status as string) === "ENDED") return true;
+    const nowMs = Date.now();
+    const targetDateStr = contest.submitEndDate || contest.voteEndDate || contest.endDate;
+    if (targetDateStr) {
+      const targetMs = this.parseContestDateMs(targetDateStr);
+      if (!isNaN(targetMs) && nowMs >= targetMs) {
+        return true;
+      }
+    }
+    const voteEndStr = contest.voteEndDate || contest.endDate;
+    if (voteEndStr) {
+      const voteEndMs = this.parseContestDateMs(voteEndStr);
+      if (!isNaN(voteEndMs) && nowMs >= voteEndMs) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   public voteMediaSubmission(
     submissionId: string,
     user?: { id?: string; email?: string; phone?: string; role?: string }
@@ -2431,6 +2465,17 @@ class DataStore {
     this.loadFromDisk(true);
     const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
     if (!sub) return { success: false, votesCount: 0, error: "Không tìm thấy tác phẩm này!" };
+
+    const contest = this.mediaContests.find(
+      (c) => c.id === sub.contestId || c.slug === sub.contestSlug
+    );
+    if (contest && this.isMediaContestEnded(contest)) {
+      return {
+        success: false,
+        votesCount: sub.votesCount || 0,
+        error: "Cuộc thi đã hết thời gian! Hệ thống đã đóng cổng bình chọn.",
+      };
+    }
 
     // 1. BẮT BUỘC ĐĂNG NHẬP để chống lách luật tăng bình chọn
     const userKey = (user?.id || user?.email || user?.phone || "").toLowerCase().trim();

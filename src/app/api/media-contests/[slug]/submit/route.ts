@@ -18,6 +18,13 @@ export async function POST(
       );
     }
 
+    if (store.isMediaContestEnded(contest)) {
+      return NextResponse.json(
+        { error: "Cuộc thi đã hết thời gian! Hệ thống đã đóng cổng nộp tác phẩm dự thi." },
+        { status: 400 }
+      );
+    }
+
     const body = await req.json();
 
     // Bắt buộc người dùng phải đăng nhập tài khoản mới được nộp tác phẩm dự thi
