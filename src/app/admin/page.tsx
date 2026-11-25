@@ -166,6 +166,9 @@ export default function AdminDashboardPage() {
   const [showSubmissionsModal, setShowSubmissionsModal] = useState(false);
   const [activeMediaContestForSubmissions, setActiveMediaContestForSubmissions] = useState<any>(null);
   const [currentMediaSubmissions, setCurrentMediaSubmissions] = useState<any[]>([]);
+  const [adminLeaderboardTab, setAdminLeaderboardTab] = useState<"total" | "real">("total");
+  const [previewAdminSubmission, setPreviewAdminSubmission] = useState<any>(null);
+  const [previewAdminImageIdx, setPreviewAdminImageIdx] = useState(0);
 
   // Form State for creating / editing Media Contest (MyAloha Photo Voting Settings - Ảnh 2 & Ảnh 3)
   const [editingMediaContestId, setEditingMediaContestId] = useState<string | null>(null);
@@ -5278,14 +5281,48 @@ export default function AdminDashboardPage() {
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-800 font-bold">
                     ⭐ Tổng bình chọn: {currentMediaSubmissions.reduce((a: number, s: any) => a + (s.votesCount || 0), 0).toLocaleString()}
                   </span>
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
+                    ✓ Bình chọn thực: {currentMediaSubmissions.reduce((a: number, s: any) => a + (typeof s.realVotesCount === "number" ? s.realVotesCount : 0), 0).toLocaleString()}
+                  </span>
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-200 text-blue-800 font-bold">
                     🔗 Tổng chia sẻ: {currentMediaSubmissions.reduce((a: number, s: any) => a + (s.sharesCount || 0), 0).toLocaleString()}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-sky-50 border border-sky-200 text-sky-800 font-bold">
                     👁️ Tổng view: {((activeMediaContestForSubmissions?.clickCount || 0) + currentMediaSubmissions.reduce((a: number, s: any) => a + (s.viewsCount || 0), 0)).toLocaleString()}
                   </span>
                 </div>
               </div>
+            </div>
+
+            {/* 2 Tab chuyển đổi: Tổng lượt bình chọn vs Bình chọn thực tế */}
+            <div className="mb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div className="inline-flex p-1 rounded-xl bg-slate-100 border border-slate-200">
+                <button
+                  type="button"
+                  onClick={() => setAdminLeaderboardTab("total")}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    adminLeaderboardTab === "total"
+                      ? "bg-emerald-700 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Lượt bình chọn
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAdminLeaderboardTab("real")}
+                  className={`px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    adminLeaderboardTab === "real"
+                      ? "bg-emerald-700 text-white shadow-xs"
+                      : "text-slate-600 hover:text-slate-900"
+                  }`}
+                >
+                  Bình chọn thực tế (1 tài khoản/1 lượt)
+                </button>
+              </div>
+              <span className="text-[11px] text-emerald-700 font-semibold">
+                💡 Nhấp vào tác phẩm để xem hình ảnh &amp; thông tin chi tiết
+              </span>
             </div>
 
             {currentMediaSubmissions.length === 0 ? (
@@ -5301,21 +5338,36 @@ export default function AdminDashboardPage() {
               </div>
             ) : (
               <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
-                {currentMediaSubmissions.map((sub, i) => (
+                {[...currentMediaSubmissions]
+                  .sort((a: any, b: any) => {
+                    if (adminLeaderboardTab === "real") {
+                      const diffReal = (b.realVotesCount ?? 0) - (a.realVotesCount ?? 0);
+                      if (diffReal !== 0) return diffReal;
+                    }
+                    return (b.votesCount || 0) - (a.votesCount || 0);
+                  })
+                  .map((sub, i) => (
                   <div
                     key={sub.id || i}
-                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs"
+                    onClick={() => {
+                      setPreviewAdminSubmission(sub);
+                      setPreviewAdminImageIdx(0);
+                    }}
+                    className="p-3.5 rounded-xl border border-slate-200 bg-slate-50 hover:border-emerald-400 hover:bg-emerald-50/30 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs cursor-pointer group"
                   >
                     <div className="flex items-center space-x-3">
+                      <span className="w-6 h-6 rounded-full bg-emerald-700 text-white font-bold flex items-center justify-center shrink-0 text-[11px]">
+                        {i + 1}
+                      </span>
                       <div className="w-16 h-12 rounded-lg overflow-hidden bg-slate-200 shrink-0 border border-slate-300">
                         <img
-                          src={sub.mediaUrl}
+                          src={sub.thumbnailUrl || (Array.isArray(sub.mediaUrls) && sub.mediaUrls[0]) || sub.mediaUrl}
                           alt={sub.title}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-cover group-hover:scale-105 transition-transform"
                         />
                       </div>
                       <div>
-                        <div className="font-bold text-slate-900 text-sm">
+                        <div className="font-bold text-slate-900 group-hover:text-emerald-800 text-sm">
                           {sub.title}
                         </div>
                         <div className="text-slate-500 text-[11px] mt-0.5">
@@ -5324,7 +5376,10 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
 
-                    <div className="flex items-center space-x-2 self-end sm:self-center flex-wrap gap-1">
+                    <div
+                      onClick={(e) => e.stopPropagation()}
+                      className="flex items-center space-x-2 self-end sm:self-center flex-wrap gap-1"
+                    >
                       <span className="px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold text-[11px] border border-blue-100">
                         👁️ {sub.viewsCount || 0} xem
                       </span>
@@ -5357,7 +5412,9 @@ export default function AdminDashboardPage() {
                         🔗 {sub.sharesCount || 0} chia sẻ ✏️
                       </button>
                       <span className="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[11px]">
-                        ❤️ {sub.votesCount} bình chọn
+                        {adminLeaderboardTab === "real"
+                          ? `✓ ${sub.realVotesCount ?? 0} bình chọn thực (Tổng: ${sub.votesCount || 0})`
+                          : `❤️ ${sub.votesCount || 0} bình chọn (Thực: ${sub.realVotesCount ?? 0})`}
                       </span>
 
                       <button
@@ -5383,6 +5440,173 @@ export default function AdminDashboardPage() {
               >
                 Mở trang bình chọn công khai <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
               </Link>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL XEM HÌNH ẢNH & THÔNG TIN CHI TIẾT TÁC PHẨM KHI NHẤP TỪ BẢNG XẾP HẠNG QUẢN TRỊ */}
+      {previewAdminSubmission && (
+        <div className="fixed inset-0 z-[60] bg-slate-900/65 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl relative border border-slate-200 my-auto">
+            <button
+              type="button"
+              onClick={() => setPreviewAdminSubmission(null)}
+              className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900 flex items-center justify-center transition-colors cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6 p-6 sm:p-8 items-start">
+              {(() => {
+                const imgs: string[] =
+                  Array.isArray(previewAdminSubmission.mediaUrls) &&
+                  previewAdminSubmission.mediaUrls.length > 0
+                    ? previewAdminSubmission.mediaUrls
+                    : [previewAdminSubmission.mediaUrl];
+                const safeIdx = Math.min(previewAdminImageIdx, imgs.length - 1);
+                const currentMediaUrl = imgs[safeIdx] || previewAdminSubmission.mediaUrl || "";
+                const isVid =
+                  previewAdminSubmission.mediaType === "VIDEO" ||
+                  /\.(mp4|webm|mov|m4v|avi|mkv|ogv)$/i.test(currentMediaUrl.split("?")[0]);
+
+                return (
+                  <div className="md:col-span-6 flex flex-col items-center">
+                    {isVid ? (
+                      <div className="w-full relative rounded-2xl overflow-hidden bg-slate-950 border border-slate-200/90 shadow-2xs flex items-center justify-center">
+                        <video
+                          key={currentMediaUrl}
+                          src={currentMediaUrl}
+                          poster={previewAdminSubmission.thumbnailUrl || undefined}
+                          controls
+                          playsInline
+                          preload="metadata"
+                          className="w-full max-h-[480px] rounded-2xl"
+                        />
+                      </div>
+                    ) : (
+                      <a
+                        href={currentMediaUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="w-full relative rounded-2xl overflow-hidden bg-slate-100 border border-slate-200/90 shadow-2xs flex items-center justify-center group"
+                        title="Bấm để mở hình ảnh kích thước gốc"
+                      >
+                        <img
+                          src={currentMediaUrl}
+                          alt={previewAdminSubmission.title}
+                          className="w-full h-auto max-h-[480px] object-contain rounded-2xl"
+                        />
+                      </a>
+                    )}
+                    {imgs.length > 1 && (
+                      <div className="w-full flex items-center justify-center space-x-2 pt-3 overflow-x-auto">
+                        {imgs.map((u, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            onClick={() => setPreviewAdminImageIdx(i)}
+                            className={`w-12 h-12 rounded-xl overflow-hidden border-2 shrink-0 transition-all cursor-pointer ${
+                              i === safeIdx
+                                ? "border-emerald-600 scale-105 shadow-2xs"
+                                : "border-slate-200 opacity-60 hover:opacity-100"
+                            }`}
+                          >
+                            <img src={u} alt="" className="w-full h-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              <div className="md:col-span-6 flex flex-col space-y-4">
+                <div className="space-y-1">
+                  <h3 className="text-xl font-extrabold text-slate-900 leading-snug">
+                    {previewAdminSubmission.title}
+                  </h3>
+                  {previewAdminSubmission.createdAt && (
+                    <div className="text-xs text-slate-400 font-medium">
+                      Ngày nộp: {new Date(previewAdminSubmission.createdAt).toLocaleString("vi-VN")}
+                    </div>
+                  )}
+                </div>
+
+                <div className="bg-white border border-slate-200/90 rounded-2xl py-3 px-3 shadow-2xs grid grid-cols-3 text-center divide-x divide-slate-100">
+                  <div className="px-1">
+                    <div className="text-xl font-extrabold text-blue-600">
+                      {previewAdminSubmission.viewsCount || 0}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium mt-0.5">Lượt xem</div>
+                  </div>
+                  <div className="px-1">
+                    <div className="text-xl font-extrabold text-emerald-700">
+                      {previewAdminSubmission.realVotesCount ?? 0}
+                    </div>
+                    <div className="text-[11px] text-emerald-700 font-bold mt-0.5">Bình chọn thực</div>
+                    <div className="text-[10px] text-slate-400">
+                      Tổng: {previewAdminSubmission.votesCount || 0}
+                    </div>
+                  </div>
+                  <div className="px-1">
+                    <div className="text-xl font-extrabold text-slate-800">
+                      {previewAdminSubmission.sharesCount || 0}
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium mt-0.5">Lượt chia sẻ</div>
+                  </div>
+                </div>
+
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-1 text-xs">
+                  <div>
+                    <span className="text-slate-500">Tác giả:</span>{" "}
+                    <strong className="text-slate-900">{previewAdminSubmission.authorName}</strong>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Đơn vị / Thôn buôn:</span>{" "}
+                    <strong className="text-slate-800">{previewAdminSubmission.unitName}</strong>
+                  </div>
+                  {previewAdminSubmission.authorPhone && (
+                    <div>
+                      <span className="text-slate-500">Số điện thoại:</span>{" "}
+                      <strong className="text-slate-800">{previewAdminSubmission.authorPhone}</strong>
+                    </div>
+                  )}
+                  {previewAdminSubmission.authorCccd && (
+                    <div>
+                      <span className="text-slate-500">CCCD:</span>{" "}
+                      <strong className="text-slate-800">{previewAdminSubmission.authorCccd}</strong>
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="text-xs font-bold text-slate-800 uppercase tracking-wider">
+                    Mô tả / Thuyết minh tác phẩm
+                  </div>
+                  <div className="border-b border-slate-200/80" />
+                  <div className="text-xs sm:text-sm text-slate-600 leading-relaxed whitespace-pre-line max-h-40 overflow-y-auto pr-1">
+                    {previewAdminSubmission.description || "Không có mô tả"}
+                  </div>
+                </div>
+
+                <div className="pt-2 flex items-center justify-between gap-3">
+                  <Link
+                    href={`/binh-chon/${activeMediaContestForSubmissions?.slug}/tac-pham/${previewAdminSubmission.id}`}
+                    target="_blank"
+                    className="px-5 py-2 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs inline-flex items-center shadow-xs"
+                  >
+                    Xem trang riêng tác phẩm <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setPreviewAdminSubmission(null)}
+                    className="px-4 py-2 rounded-full border border-slate-200 text-slate-600 hover:bg-slate-100 text-xs font-bold cursor-pointer"
+                  >
+                    Đóng
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

@@ -122,6 +122,7 @@ interface MediaSubmission {
   description: string;
   viewsCount?: number;
   votesCount: number;
+  realVotesCount?: number;
   voters?: string[];
   sharesCount?: number;
   score?: number;
@@ -229,6 +230,39 @@ export default function MediaContestPublicPage({
   const [viewOrientation, setViewOrientation] = useState<"vertical" | "horizontal">("vertical");
   // Rules / Announcement Modal
   const [infoModalTab, setInfoModalTab] = useState<"rules" | "announcement" | "leaderboard" | null>(null);
+  const [leaderboardTab, setLeaderboardTab] = useState<"total" | "real">("total");
+
+  const getSubmissionRealVotes = (s?: MediaSubmission | null): number => {
+    if (!s) return 0;
+    if (typeof s.realVotesCount === "number") return s.realVotesCount;
+    if (!Array.isArray(s.voters) || s.voters.length === 0) return 0;
+    const uniqueSet = new Set<string>();
+    for (const raw of s.voters) {
+      const cleaned = String(raw || "").trim().toLowerCase();
+      if (
+        !cleaned ||
+        cleaned === "anonymous" ||
+        cleaned === "guest" ||
+        cleaned === "undefined" ||
+        cleaned === "null"
+      ) {
+        continue;
+      }
+      if (cleaned.includes("@")) {
+        const [localPart, domainPart] = cleaned.split("@");
+        if (!localPart || !domainPart) continue;
+        const baseLocal = localPart.split("+")[0] || localPart;
+        if (domainPart === "gmail.com" || domainPart === "googlemail.com") {
+          uniqueSet.add(`${baseLocal.replace(/\./g, "") || baseLocal}@gmail.com`);
+        } else {
+          uniqueSet.add(`${baseLocal}@${domainPart}`);
+        }
+      } else {
+        uniqueSet.add(cleaned);
+      }
+    }
+    return Math.min(Math.max(0, Number(s.votesCount) || 0), uniqueSet.size);
+  };
 
   // Countdown timer state (Ảnh 4: 07 : 20 : 19 : 38)
   const [timeLeft, setTimeLeft] = useState({
@@ -3709,7 +3743,7 @@ export default function MediaContestPublicPage({
       {/* MODAL XEM CHI TIẾT TÁC PHẨM & BÌNH CHỌN (MÔ PHỎNG CHUẨN ẢNH 2) */}
       {/* ========================================================================= */}
       {selectedSubmission && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+        <div className="fixed inset-0 z-[60] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl relative border border-slate-200 animate-in fade-in zoom-in-95 duration-200 my-auto">
             <button
               type="button"
@@ -3817,6 +3851,9 @@ export default function MediaContestPublicPage({
                     </div>
                     <div className="text-xs text-slate-500 font-medium mt-0.5">
                       lượt bình chọn
+                    </div>
+                    <div className="text-[10px] font-bold text-emerald-700 mt-0.5">
+                      ({getSubmissionRealVotes(selectedSubmission)} thực tế)
                     </div>
                   </div>
                   <button
@@ -4002,41 +4039,138 @@ export default function MediaContestPublicPage({
                   <Trophy className="w-5 h-5 text-amber-500" />
                   <span>Bảng xếp hạng Tác phẩm dẫn đầu</span>
                 </h3>
-                <div className="space-y-2 max-h-80 overflow-y-auto">
+
+                {/* 2 TAB CHUYỂN ĐỔI: TỔNG LƯỢT BÌNH CHỌN vs BÌNH CHỌN THỰC TẾ */}
+                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-slate-100 border border-slate-200/80">
+                  <button
+                    type="button"
+                    onClick={() => setLeaderboardTab("total")}
+                    style={
+                      leaderboardTab === "total"
+                        ? { backgroundColor: themeColor, color: "#FFFFFF" }
+                        : {}
+                    }
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      leaderboardTab === "total"
+                        ? "shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                    }`}
+                  >
+                    <span>Lượt bình chọn</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLeaderboardTab("real")}
+                    style={
+                      leaderboardTab === "real"
+                        ? { backgroundColor: themeColor, color: "#FFFFFF" }
+                        : {}
+                    }
+                    className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                      leaderboardTab === "real"
+                        ? "shadow-xs"
+                        : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                    }`}
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 shrink-0" />
+                    <span>Bình chọn thực tế</span>
+                  </button>
+                </div>
+
+                <div className="text-[11px] text-slate-500 flex items-center justify-between px-1">
+                  <span>
+                    {leaderboardTab === "real"
+                      ? "Đã lọc tài khoản đăng nhập (1 tài khoản / 1 lượt)"
+                      : "Xếp hạng theo tổng số lượt bình chọn hiển thị"}
+                  </span>
+                  <span className="text-emerald-700 font-semibold">
+                    Nhấp vào tác phẩm để xem chi tiết
+                  </span>
+                </div>
+
+                <div className="space-y-2 max-h-80 overflow-y-auto pr-0.5">
                   {[...submissions]
-                    .sort((a, b) => (b.votesCount || 0) - (a.votesCount || 0))
-                    .map((sub, idx) => (
-                      <div
-                        key={sub.id}
-                        className="p-2.5 rounded-xl border border-slate-200 flex items-center justify-between gap-3 text-xs"
-                      >
-                        <div className="flex items-center space-x-2.5 min-w-0">
-                          <span
-                            style={idx < 3 ? { backgroundColor: themeColor, color: "#fff" } : {}}
-                            className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0"
-                          >
-                            {idx + 1}
-                          </span>
-                          <img
-                            src={sub.mediaUrl}
-                            alt={sub.title}
-                            className="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-200"
-                          />
-                          <div className="min-w-0">
-                            <div className="font-bold text-slate-900 truncate">{sub.title}</div>
-                            <div className="text-[11px] text-slate-500 truncate">
-                              {sub.authorName} • {sub.unitName}
+                    .sort((a, b) => {
+                      if (leaderboardTab === "real") {
+                        const diffReal = getSubmissionRealVotes(b) - getSubmissionRealVotes(a);
+                        if (diffReal !== 0) return diffReal;
+                      }
+                      return (b.votesCount || 0) - (a.votesCount || 0);
+                    })
+                    .map((sub, idx) => {
+                      const thumbSrc =
+                        sub.thumbnailUrl ||
+                        (Array.isArray(sub.mediaUrls) && sub.mediaUrls.length > 0
+                          ? sub.mediaUrls[0]
+                          : sub.mediaUrl);
+                      const isVid = sub.mediaType === "VIDEO" || isVideoUrl(sub.mediaUrl);
+                      const realVotes = getSubmissionRealVotes(sub);
+
+                      return (
+                        <div
+                          key={sub.id}
+                          onClick={() => {
+                            setSelectedSubmission(sub);
+                            setSelectedSubmissionImageIdx(0);
+                          }}
+                          title="Nhấp để xem hình ảnh và thông tin chi tiết tác phẩm"
+                          className="p-2.5 rounded-xl border border-slate-200 hover:border-emerald-500 hover:bg-emerald-50/40 transition-all flex items-center justify-between gap-3 text-xs cursor-pointer group"
+                        >
+                          <div className="flex items-center space-x-2.5 min-w-0">
+                            <span
+                              style={idx < 3 ? { backgroundColor: themeColor, color: "#fff" } : {}}
+                              className="w-6 h-6 rounded-full bg-slate-100 text-slate-700 font-bold flex items-center justify-center shrink-0"
+                            >
+                              {idx + 1}
+                            </span>
+                            {isVid && !sub.thumbnailUrl ? (
+                              <video
+                                src={sub.mediaUrl}
+                                muted
+                                playsInline
+                                preload="metadata"
+                                onLoadedMetadata={(e) => {
+                                  const vEl = e.currentTarget;
+                                  if (vEl.duration && isFinite(vEl.duration) && vEl.currentTime < 0.5) {
+                                    vEl.currentTime = vEl.duration >= 6 ? 5 : Math.max(0.3, vEl.duration * 0.4);
+                                  }
+                                }}
+                                className="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-200 bg-slate-900"
+                              />
+                            ) : (
+                              <img
+                                src={thumbSrc}
+                                alt={sub.title}
+                                className="w-10 h-10 rounded-lg object-cover shrink-0 border border-slate-200 group-hover:scale-105 transition-transform"
+                              />
+                            )}
+                            <div className="min-w-0">
+                              <div className="font-bold text-slate-900 group-hover:text-emerald-800 truncate">
+                                {sub.title}
+                              </div>
+                              <div className="text-[11px] text-slate-500 truncate">
+                                {sub.authorName} • {sub.unitName}
+                              </div>
                             </div>
                           </div>
+                          <div className="text-right shrink-0">
+                            <span
+                              style={{ color: themeColor }}
+                              className="font-extrabold whitespace-nowrap block"
+                            >
+                              {leaderboardTab === "real"
+                                ? `${realVotes} bình chọn thực`
+                                : `${sub.votesCount || 0} bình chọn`}
+                            </span>
+                            {leaderboardTab === "real" && (
+                              <span className="text-[10px] text-slate-400 block">
+                                Tổng: {sub.votesCount || 0}
+                              </span>
+                            )}
+                          </div>
                         </div>
-                        <span
-                          style={{ color: themeColor }}
-                          className="font-extrabold whitespace-nowrap shrink-0"
-                        >
-                          {sub.votesCount || 0} bình chọn
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </div>
             )}
