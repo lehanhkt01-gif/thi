@@ -1261,6 +1261,41 @@ export default function AdminDashboardPage() {
       const list = Array.isArray(data.submissions) ? [...data.submissions] : [];
       list.sort((a: any, b: any) => (b.votesCount || 0) - (a.votesCount || 0));
 
+      const computeRealVotes = (s: any): number => {
+        if (typeof s?.realVotesCount === "number") {
+          return s.realVotesCount;
+        }
+        if (!Array.isArray(s?.voters) || s.voters.length === 0) {
+          return 0;
+        }
+        const uniqueAccounts = new Set<string>();
+        for (const raw of s.voters) {
+          const cleaned = String(raw || "").trim().toLowerCase();
+          if (
+            !cleaned ||
+            cleaned === "anonymous" ||
+            cleaned === "guest" ||
+            cleaned === "undefined" ||
+            cleaned === "null"
+          ) {
+            continue;
+          }
+          if (cleaned.includes("@")) {
+            const [localPart, domainPart] = cleaned.split("@");
+            if (!localPart || !domainPart) continue;
+            const baseLocal = localPart.split("+")[0] || localPart;
+            if (domainPart === "gmail.com" || domainPart === "googlemail.com") {
+              uniqueAccounts.add(`${baseLocal.replace(/\./g, "") || baseLocal}@gmail.com`);
+            } else {
+              uniqueAccounts.add(`${baseLocal}@${domainPart}`);
+            }
+          } else {
+            uniqueAccounts.add(cleaned);
+          }
+        }
+        return Math.min(Math.max(0, Number(s?.votesCount) || 0), uniqueAccounts.size);
+      };
+
       const rows =
         list.length > 0
           ? list.map((s: any, idx: number) => ({
@@ -1275,6 +1310,7 @@ export default function AdminDashboardPage() {
               "Bố cục": s.orientation === "horizontal" ? "Bố cục ngang" : "Bố cục dọc",
               "Lượt xem": s.viewsCount || 0,
               "Lượt bình chọn": s.votesCount || 0,
+              "Bình chọn thực": computeRealVotes(s),
               "Lượt chia sẻ": s.sharesCount || 0,
               "Điểm BTC": s.score || 0,
               "Trạng thái": s.status === "APPROVED" ? "Đã duyệt" : s.status === "PENDING" ? "Chờ duyệt" : "Từ chối",
@@ -1294,6 +1330,7 @@ export default function AdminDashboardPage() {
                 "Bố cục": "",
                 "Lượt xem": 0,
                 "Lượt bình chọn": 0,
+                "Bình chọn thực": 0,
                 "Lượt chia sẻ": 0,
                 "Điểm BTC": 0,
                 "Trạng thái": "",

@@ -203,6 +203,7 @@ export interface MediaSubmissionModel {
   orientation?: "vertical" | "horizontal";
   description: string;
   votesCount: number;
+  realVotesCount?: number;
   voters?: string[];
   viewsCount?: number;
   sharesCount?: number;
@@ -2308,11 +2309,101 @@ class DataStore {
     };
   }
 
+  public canonicalizeVoterAccount(rawKey?: string): string {
+    if (!rawKey) return "";
+    const cleaned = String(rawKey).trim().toLowerCase();
+    if (
+      !cleaned ||
+      cleaned === "anonymous" ||
+      cleaned === "guest" ||
+      cleaned === "undefined" ||
+      cleaned === "null" ||
+      cleaned === "nan" ||
+      cleaned === "none"
+    ) {
+      return "";
+    }
+    if (cleaned.includes("@")) {
+      const [localPart, domainPart] = cleaned.split("@");
+      if (!localPart || !domainPart) return "";
+      const baseLocal = localPart.split("+")[0] || localPart;
+      if (domainPart === "gmail.com" || domainPart === "googlemail.com") {
+        const dotless = baseLocal.replace(/\./g, "");
+        return `${dotless || baseLocal}@gmail.com`;
+      }
+      return `${baseLocal}@${domainPart}`;
+    }
+    return cleaned;
+  }
+
+  private buildUserCanonicalLookup(): Map<string, string> {
+    const lookup = new Map<string, string>();
+    for (const u of this.users) {
+      if (!u) continue;
+      const canonical =
+        this.canonicalizeVoterAccount(u.email) ||
+        this.canonicalizeVoterAccount(u.phone) ||
+        this.canonicalizeVoterAccount(u.id);
+      if (!canonical) continue;
+
+      if (u.id) {
+        lookup.set(String(u.id).trim().toLowerCase(), canonical);
+      }
+      if (u.email) {
+        const rawEmail = String(u.email).trim().toLowerCase();
+        lookup.set(rawEmail, canonical);
+        const canonEmail = this.canonicalizeVoterAccount(rawEmail);
+        if (canonEmail) lookup.set(canonEmail, canonical);
+      }
+      if (u.phone) {
+        const rawPhone = String(u.phone).trim().toLowerCase();
+        if (rawPhone && rawPhone !== "0888023023") {
+          lookup.set(rawPhone, canonical);
+        }
+      }
+    }
+    return lookup;
+  }
+
+  public getNormalizedUniqueVoters(
+    sub: MediaSubmissionModel,
+    lookup?: Map<string, string>
+  ): string[] {
+    if (!sub || !Array.isArray(sub.voters) || sub.voters.length === 0) {
+      return [];
+    }
+    const userLookup = lookup || this.buildUserCanonicalLookup();
+    const uniqueSet = new Set<string>();
+    for (const rawVoter of sub.voters) {
+      const k = String(rawVoter || "").trim().toLowerCase();
+      if (!k) continue;
+      const canonical = userLookup.get(k) || this.canonicalizeVoterAccount(k);
+      if (canonical) {
+        uniqueSet.add(canonical);
+      }
+    }
+    return Array.from(uniqueSet);
+  }
+
+  public getRealVotesCount(
+    sub: MediaSubmissionModel,
+    lookup?: Map<string, string>
+  ): number {
+    if (!sub) return 0;
+    const uniqueVoters = this.getNormalizedUniqueVoters(sub, lookup);
+    const rawVotes = Math.max(0, Number(sub.votesCount) || 0);
+    return Math.min(rawVotes, uniqueVoters.length);
+  }
+
   public getMediaSubmissions(contestIdOrSlug: string): MediaSubmissionModel[] {
     this.loadFromDisk();
-    return this.mediaSubmissions.filter(
-      (s) => s.contestId === contestIdOrSlug || s.contestSlug === contestIdOrSlug
-    );
+    const lookup = this.buildUserCanonicalLookup();
+    return this.mediaSubmissions
+      .filter((s) => s.contestId === contestIdOrSlug || s.contestSlug === contestIdOrSlug)
+      .map((s) => ({
+        ...s,
+        realVotesCount: this.getRealVotesCount(s, lookup),
+      }));
   }
 
   // Lấy danh sách tác phẩm của 1 người dùng trong cuộc thi (phục vụ kiểm tra giới hạn 2 tác phẩm)
@@ -2334,7 +2425,12 @@ class DataStore {
 
   public getMediaSubmission(submissionId: string): MediaSubmissionModel | undefined {
     this.loadFromDisk();
-    return this.mediaSubmissions.find((s) => s.id === submissionId);
+    const found = this.mediaSubmissions.find((s) => s.id === submissionId);
+    if (!found) return undefined;
+    return {
+      ...found,
+      realVotesCount: this.getRealVotesCount(found),
+    };
   }
 
   public addMediaSubmission(data: Omit<MediaSubmissionModel, "id" | "createdAt" | "votesCount">): MediaSubmissionModel {
@@ -2477,8 +2573,10 @@ class DataStore {
       };
     }
 
-    // 1. BẮT BUỘC ĐĂNG NHẬP để chống lách luật tăng bình chọn
-    const userKey = (user?.id || user?.email || user?.phone || "").toLowerCase().trim();
+    // 1. BẮT BUỘC ĐĂNG NHẬP để chống lách luật tăng bình chọn (ưu tiên định danh theo email chuẩn hóa)
+    const lookup = this.buildUserCanonicalLookup();
+    const rawIdentifier = (user?.email || user?.id || user?.phone || "").toLowerCase().trim();
+    const userKey = lookup.get(rawIdentifier) || this.canonicalizeVoterAccount(rawIdentifier);
     if (!userKey) {
       return {
         success: false,
@@ -2490,8 +2588,18 @@ class DataStore {
 
     if (!sub.voters) sub.voters = [];
 
-    // 2. Chống lách luật: 1 tài khoản chỉ được bình chọn 01 lần duy nhất cho mỗi tác phẩm
-    if (sub.voters.includes(userKey)) {
+    // 2. Chống lách luật: 1 tài khoản chỉ được bình chọn 01 lần duy nhất cho mỗi tác phẩm (kiểm tra trên tập tài khoản đã chuẩn hóa)
+    const existingUniqueVoters = this.getNormalizedUniqueVoters(sub, lookup);
+    const candidateKeys = [
+      userKey,
+      user?.email ? this.canonicalizeVoterAccount(user.email) : "",
+      user?.id ? (lookup.get(user.id.toLowerCase().trim()) || user.id.toLowerCase().trim()) : "",
+    ].filter(Boolean);
+
+    if (
+      sub.voters.includes(userKey) ||
+      candidateKeys.some((ck) => existingUniqueVoters.includes(ck))
+    ) {
       return {
         success: false,
         alreadyVoted: true,
@@ -2515,8 +2623,13 @@ class DataStore {
     if (!userKey) return false;
     const sub = this.mediaSubmissions.find((s) => s.id === submissionId);
     if (!sub || !sub.voters) return false;
-    const key = userKey.toLowerCase().trim();
-    return sub.voters.includes(key);
+    const lookup = this.buildUserCanonicalLookup();
+    const raw = userKey.toLowerCase().trim();
+    const canonical = lookup.get(raw) || this.canonicalizeVoterAccount(raw);
+    if (!canonical) return false;
+    if (sub.voters.includes(raw) || sub.voters.includes(canonical)) return true;
+    const uniqueVoters = this.getNormalizedUniqueVoters(sub, lookup);
+    return uniqueVoters.includes(canonical);
   }
 
   public deleteMediaSubmission(
