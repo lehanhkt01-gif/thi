@@ -2331,6 +2331,17 @@ export default function MediaContestPublicPage({
                   <span>Tổng tác phẩm:</span>
                   <strong className="font-extrabold text-slate-800">{totalContestArtworks.toLocaleString()}</strong>
                 </div>
+
+                <Link
+                  href={`/binh-chon/${encodeURIComponent(slug)}/vong-2`}
+                  style={{ backgroundColor: themeColor }}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-white shadow-sm hover:opacity-95 transition-all font-bold cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
+                  title="Xem danh sách 20 tác phẩm có số lượt bình chọn thực tế cao nhất xét vòng 2"
+                >
+                  <Trophy className="w-3.5 h-3.5 text-amber-300 shrink-0" />
+                  <span>20 tác phẩm xét vòng 2</span>
+                  <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+                </Link>
               </div>
             </div>
 
