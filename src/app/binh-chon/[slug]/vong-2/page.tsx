@@ -37,6 +37,9 @@ interface MediaContest {
   status: string;
   themeColor?: string;
   organizerName: string;
+  creatorEmail?: string;
+  creatorId?: string;
+  sharedEmails?: string[];
   description?: string;
 }
 
@@ -122,6 +125,61 @@ export default function Top20Round2Page({
   const [viewMode, setViewMode] = useState<"grid" | "table">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [copiedLink, setCopiedLink] = useState(false);
+  const [authUser, setAuthUser] = useState<any>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const exportMenuRef = React.useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const syncAuth = () => {
+      try {
+        const saved = localStorage.getItem("cuocthi_admin_auth");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          setAuthUser(parsed && (parsed.email || parsed.id) ? parsed : null);
+        } else {
+          setAuthUser(null);
+        }
+      } catch {
+        setAuthUser(null);
+      }
+    };
+    syncAuth();
+    window.addEventListener("storage", syncAuth);
+    window.addEventListener("cuocthi_auth_change", syncAuth);
+    return () => {
+      window.removeEventListener("storage", syncAuth);
+      window.removeEventListener("cuocthi_auth_change", syncAuth);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!showExportMenu) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setShowExportMenu(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showExportMenu]);
+
+  // Chỉ Admin và Người tạo cuộc thi (hoặc được chia sẻ quyền quản trị) mới được phép thấy nút xuất dữ liệu
+  const canExport = React.useMemo(() => {
+    if (!authUser) return false;
+    if (authUser.role === "ADMIN") return true;
+    const uEmail = (authUser.email || "").toLowerCase().trim();
+    if (!uEmail && !authUser.id) return false;
+    const cEmail = (contest?.creatorEmail || "").toLowerCase().trim();
+    const isCreator = Boolean(
+      (cEmail && uEmail && uEmail === cEmail) ||
+        (contest?.creatorId && authUser.id && contest.creatorId === authUser.id)
+    );
+    if (isCreator) return true;
+    const sharedList = Array.isArray(contest?.sharedEmails) ? contest!.sharedEmails! : [];
+    return Boolean(
+      uEmail && sharedList.some((em) => String(em || "").toLowerCase().trim() === uEmail)
+    );
+  }, [authUser, contest]);
 
   // Modal xem chi tiết tác phẩm
   const [selectedSubmission, setSelectedSubmission] = useState<MediaSubmission | null>(null);
@@ -834,26 +892,64 @@ export default function Top20Round2Page({
               )}
             </button>
 
-            <button
-              type="button"
-              onClick={handleExportTop20Pdf}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-[#DC2626] hover:bg-[#B91C1C] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer"
-              title="Xuất file PDF 20 tác phẩm vòng 2 có kèm đầy đủ hình ảnh để Ban Giám Khảo đánh giá"
-            >
-              <FileText className="w-3.5 h-3.5" />
-              <span>Xuất PDF (Có hình ảnh)</span>
-            </button>
+            {canExport && (
+              <div ref={exportMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setShowExportMenu((prev) => !prev)}
+                  style={{ backgroundColor: themeColor }}
+                  className="w-8 h-8 rounded-full text-white flex items-center justify-center shadow-xs hover:opacity-95 transition-opacity cursor-pointer"
+                  title="Xuất dữ liệu Vòng 2 (PDF có hình ảnh / Excel)"
+                  aria-label="Xuất dữ liệu Vòng 2"
+                >
+                  <Download className="w-4 h-4" />
+                </button>
 
-            <button
-              type="button"
-              onClick={handleExportTop20Excel}
-              style={{ backgroundColor: themeColor }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-white text-xs font-bold shadow-xs hover:opacity-95 transition-opacity cursor-pointer"
-              title="Tải file Excel danh sách 20 tác phẩm xét vòng 2 (có cột link hình ảnh)"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Xuất Excel Vòng 2</span>
-            </button>
+                {showExportMenu && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-white border border-slate-200 shadow-xl py-1.5 z-50 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleExportTop20Pdf();
+                      }}
+                      className="w-full px-3.5 py-2.5 text-left hover:bg-red-50 flex items-center gap-2.5 font-bold text-slate-800 cursor-pointer transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-red-100 text-[#DC2626] flex items-center justify-center shrink-0">
+                        <FileText className="w-3.5 h-3.5" />
+                      </span>
+                      <div>
+                        <div className="text-slate-900">Xuất PDF (Có hình ảnh)</div>
+                        <div className="text-[10px] font-normal text-slate-500">
+                          Hồ sơ A4 kèm ảnh để đánh giá
+                        </div>
+                      </div>
+                    </button>
+
+                    <div className="my-1 border-t border-slate-100" />
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowExportMenu(false);
+                        handleExportTop20Excel();
+                      }}
+                      className="w-full px-3.5 py-2.5 text-left hover:bg-emerald-50 flex items-center gap-2.5 font-bold text-slate-800 cursor-pointer transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                        <Download className="w-3.5 h-3.5" />
+                      </span>
+                      <div>
+                        <div className="text-slate-900">Xuất Excel Vòng 2 (.xlsx)</div>
+                        <div className="text-[10px] font-normal text-slate-500">
+                          Bảng tổng hợp kèm link hình ảnh
+                        </div>
+                      </div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
