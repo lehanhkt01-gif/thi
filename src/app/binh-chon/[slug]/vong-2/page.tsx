@@ -316,7 +316,7 @@ export default function Top20Round2Page({
               style={{ color: themeColor }}
               className="text-xl sm:text-3xl font-extrabold uppercase tracking-tight leading-snug"
             >
-              20 TÁC PHẨM XÉT VÒNG 2
+              20 TÁC PHẨM VÀO VÒNG 2
             </h1>
             <p className="text-xs sm:text-sm font-bold text-slate-700">
               {contest?.title || "Cuộc thi bình chọn trực tuyến xã Ea Súp"}
